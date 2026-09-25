@@ -1,9 +1,15 @@
 const { prisma } = require('../config');
 
 class ProductRepository {
-  async findAll({ page = 1, limit = 10, categorySlug, brandSlug, gender, search }) {
+  async findAll({ page = 1, limit = 10, categorySlug, brandSlug, gender, search, includeInactive = false, isActive }) {
     const skip = (page - 1) * limit;
-    const where = { isActive: true };
+    const where = {};
+
+    if (!includeInactive) {
+      where.isActive = true;
+    } else if (typeof isActive === 'boolean') {
+      where.isActive = isActive;
+    }
 
     if (categorySlug) {
       where.category = { slug: categorySlug };
@@ -31,7 +37,7 @@ class ProductRepository {
           category: true,
           brand: true,
           variants: {
-            where: { isActive: true },
+            where: includeInactive ? {} : { isActive: true },
             orderBy: { size: 'asc' },
           },
           images: {
@@ -53,7 +59,6 @@ class ProductRepository {
         brand: true,
         supplier: true,
         variants: {
-          where: { isActive: true },
           orderBy: { size: 'asc' },
         },
         images: {
@@ -79,7 +84,79 @@ class ProductRepository {
     return prisma.product.findUnique({
       where: { id },
       include: {
+        category: true,
+        brand: true,
+        supplier: true,
+        variants: {
+          orderBy: { size: 'asc' },
+        },
+        images: {
+          orderBy: { sortOrder: 'asc' },
+        },
+      },
+    });
+  }
+
+  async create(data) {
+    const { variants, images, ...productData } = data;
+    const createPayload = { ...productData };
+
+    if (Array.isArray(variants) && variants.length > 0) {
+      createPayload.variants = {
+        create: variants.map((v) => ({
+          sku: v.sku,
+          size: String(v.size),
+          color: v.color || 'Mặc định',
+          price: v.price || productData.basePrice,
+          stockQuantity: parseInt(v.stockQuantity || '0', 10),
+          imageUrl: v.imageUrl || null,
+          isActive: v.isActive !== undefined ? v.isActive : true,
+        })),
+      };
+    }
+
+    if (Array.isArray(images) && images.length > 0) {
+      createPayload.images = {
+        create: images.map((img, index) => ({
+          imageUrl: typeof img === 'string' ? img : img.imageUrl,
+          isThumbnail: typeof img === 'object' && img.isThumbnail !== undefined ? img.isThumbnail : index === 0,
+          sortOrder: typeof img === 'object' && img.sortOrder !== undefined ? img.sortOrder : index,
+        })),
+      };
+    }
+
+    return prisma.product.create({
+      data: createPayload,
+      include: {
+        category: true,
+        brand: true,
         variants: true,
+        images: true,
+      },
+    });
+  }
+
+  async update(id, data) {
+    const { variants, images, ...updateData } = data;
+    return prisma.product.update({
+      where: { id },
+      data: updateData,
+      include: {
+        category: true,
+        brand: true,
+        variants: true,
+        images: true,
+      },
+    });
+  }
+
+  async updateStatus(id, isActive) {
+    return prisma.product.update({
+      where: { id },
+      data: { isActive },
+      include: {
+        category: true,
+        brand: true,
       },
     });
   }

@@ -89,17 +89,35 @@ Sau khi chạy seed, hệ thống đã có sẵn 3 tài khoản mặc định đ
 4. CÁC LỆNH THƯỜNG DÙNG TRONG THƯ MỤC BACKEND
 --------------------------------------------------------------------------------
 - npm run dev           : Khởi chạy Backend Server ở chế độ Live-reload.
+- npm run test:api      : [MỚI] Chạy script kiểm thử tự động toàn bộ 28 ca kiểm thử API.
 - npx prisma studio     : Mở trang Web quản lý dữ liệu Database trực quan.
 - npm run prisma:seed   : Nạp lại toàn bộ dữ liệu mẫu khởi tạo.
 - npx prisma db push    : Cập nhật schema.prisma mới lên cơ sở dữ liệu.
 
 --------------------------------------------------------------------------------
-5. CÁCH KIỂM THỬ API NHANH (KHÔNG CẦN CÀI POSTMAN)
+5. CÁCH KIỂM THỬ API HỆ THỐNG
 --------------------------------------------------------------------------------
-1. Cài Extension "REST Client" trên VS Code.
+CÁCH 1: CHẠY SCRIPT KIỂM THỬ TỰ ĐỘNG (KHUYÊN DÙNG)
+Chạy trực tiếp lệnh tại thư mục backend:
+  npm run test:api
+Script sẽ tự động khởi chạy máy chủ test, gửi request kiểm tra:
+  + Đăng nhập Admin, Khách hàng & chặn sai mật khẩu.
+  + RBAC: Danh sách vai trò & quyền hạn chi tiết.
+  + Sản phẩm: Lấy danh sách, chi tiết size 38-44, Thêm mới, Sửa (chuẩn hóa mô tả), Khóa & Mở khóa.
+  + Chặn khách hàng không có quyền tạo sản phẩm (HTTP 403).
+  + Nhà cung cấp: Thêm mới, Sửa, Ràng buộc chống trùng lặp Tên/Email/SĐT (HTTP 409),
+    Ràng buộc toàn vẹn chặn xóa NCC đang có sản phẩm liên kết (HTTP 400), Xóa thành công.
+  + Voucher: Thêm mới, Sửa, Khóa, Mở khóa & chặn áp dụng mã đã bị khóa (HTTP 400).
+  + Lịch sử đơn hàng của khách.
+Xuất bảng tổng kết 28/28 [PASS/FAIL] có màu sắc trực quan!
+
+CÁCH 2: KIỂM THỬ BẰNG REST CLIENT TRONG VS CODE
+1. Cài Extension "REST Client" (tác giả Huachao Mao) trên VS Code.
 2. Mở tập tin: backend/test/api_test.http
-3. Bấm chữ "Send Request" hiển thị ngay trên từng dòng endpoint (Login, Get Products...)
-   để xem kết quả trả về trực tiếp.
+3. Bấm chữ "Send Request" hiển thị ngay trên từng dòng endpoint (Login, CRUD Giày,
+   Khóa/Mở khóa sản phẩm, CRUD Nhà cung cấp, CRUD Voucher, Đơn hàng...) để xem kết quả.
+
+
 
 --------------------------------------------------------------------------------
 6. SAO LƯU VÀ PHỤC HỒI CƠ SỞ DỮ LIỆU (DÀNH CHO BÁO CÁO ĐỒ ÁN)

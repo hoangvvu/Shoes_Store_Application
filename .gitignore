@@ -100,3 +100,12 @@ desktop.ini
 .vscode/*
 !.vscode/extensions.json
 !.vscode/settings.json
+
+# ------------------------------------------------------------------------------
+# 9. TẬP TIN KIỂM THỬ API & SCRIPTS NỘI BỘ (API TEST FILES & SCRIPTS)
+# ------------------------------------------------------------------------------
+backend/test/
+*.http
+test_api.js
+test_api.log
+

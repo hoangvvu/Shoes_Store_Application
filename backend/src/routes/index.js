@@ -5,6 +5,8 @@ const authRoutes = require('./auth.routes');
 const rbacRoutes = require('./rbac.routes');
 const productRoutes = require('./product.routes');
 const orderRoutes = require('./order.routes');
+const voucherRoutes = require('./voucher.routes');
+const supplierRoutes = require('./supplier.routes');
 
 // Endpoint kiểm tra sức khỏe hệ thống
 router.get('/health', (req, res) => {
@@ -19,5 +21,7 @@ router.use('/auth', authRoutes);
 router.use('/rbac', rbacRoutes);
 router.use('/products', productRoutes);
 router.use('/orders', orderRoutes);
+router.use('/vouchers', voucherRoutes);
+router.use('/suppliers', supplierRoutes);
 
 module.exports = router;

@@ -11,7 +11,9 @@
     "prisma:deploy": "prisma migrate deploy",
     "prisma:seed": "node prisma/seeds/seed.js",
     "prisma:studio": "prisma studio",
-    "prisma:reset": "prisma migrate reset"
+    "prisma:reset": "prisma migrate reset",
+    "test": "node test/test_api.js",
+    "test:api": "node test/test_api.js"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
