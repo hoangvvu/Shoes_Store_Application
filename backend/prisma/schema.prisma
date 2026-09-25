@@ -1,0 +1,444 @@
+// ==============================================================================
+// PRISMA SCHEMA - SHOES STORE APP (25 BẢNG ERD)
+// HỖ TRỢ SERVERLESS POSTGRESQL (NEON / SUPABASE / VERCEL POSTGRES)
+// ==============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ------------------------------------------------------------------------------
+// NHÓM 1: PHÂN QUYỀN (RBAC) & NGƯỜI DÙNG
+// ------------------------------------------------------------------------------
+
+model Role {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String   @unique @db.VarChar(50) // SUPER_ADMIN, SALES_STAFF, WAREHOUSE_STAFF, CUSTOMER
+  description String?  @db.VarChar(255)
+  isSystem    Boolean  @default(false) @map("is_system") // Khóa xóa vai trò gốc
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  users           User[]
+  rolePermissions RolePermission[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          String  @id @default(uuid()) @db.Uuid
+  name        String  @db.VarChar(100) // Tên quyền hiển thị (Quản lý sản phẩm, Duyệt đơn...)
+  code        String  @unique @db.VarChar(50) // Mã code duy nhất: PRODUCT_MANAGE, ORDER_APPROVE...
+  module      String  @db.VarChar(50) // Nhóm module: PRODUCT, ORDER, INVENTORY, USER, REVIEW
+  description String? @db.VarChar(255)
+
+  rolePermissions RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  id           String @id @default(uuid()) @db.Uuid
+  roleId       String @map("role_id") @db.Uuid
+  permissionId String @map("permission_id") @db.Uuid
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  roleId       String   @map("role_id") @db.Uuid
+  fullName     String   @map("full_name") @db.VarChar(100)
+  email        String   @unique @db.VarChar(150)
+  passwordHash String   @map("password_hash") @db.VarChar(255)
+  phone        String?  @db.VarChar(20)
+  avatarUrl    String?  @map("avatar_url") @db.Text
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  role                  Role                    @relation(fields: [roleId], references: [id])
+  addresses             UserAddress[]
+  orders                Order[]
+  cartItems             CartItem[]
+  wishlists             Wishlist[]
+  reviews               Review[]
+  reviewReplies         ReviewReply[]           @relation("StaffReviewReplies")
+  helpfulVotes          ReviewHelpfulVote[]
+  comments              ProductComment[]
+  recommendations       UserRecommendation[]
+  notifications         Notification[]
+  inventoryTransactions InventoryTransaction[] @relation("StaffInventoryTransactions")
+
+  @@map("users")
+}
+
+model UserAddress {
+  id             String  @id @default(uuid()) @db.Uuid
+  userId         String  @map("user_id") @db.Uuid
+  recipientName  String  @map("recipient_name") @db.VarChar(100)
+  recipientPhone String  @map("recipient_phone") @db.VarChar(20)
+  streetAddress  String  @map("street_address") @db.VarChar(255)
+  ward           String? @db.VarChar(100)
+  district       String? @db.VarChar(100)
+  provinceCity   String  @map("province_city") @db.VarChar(100)
+  isDefault      Boolean @default(false) @map("is_default")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_addresses")
+}
+
+// ------------------------------------------------------------------------------
+// NHÓM 2: DANH MỤC & SẢN PHẨM GIÀY (CATALOG & PRODUCTS)
+// ------------------------------------------------------------------------------
+
+model Category {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String   @db.VarChar(100)
+  slug        String   @unique @db.VarChar(120)
+  description String?  @db.Text
+  imageUrl    String?  @map("image_url") @db.Text
+  isActive    Boolean  @default(true) @map("is_active")
+
+  products Product[]
+
+  @@map("categories")
+}
+
+model Brand {
+  id          String  @id @default(uuid()) @db.Uuid
+  name        String  @db.VarChar(100)
+  slug        String  @unique @db.VarChar(120)
+  logoUrl     String? @map("logo_url") @db.Text
+  description String? @db.Text
+
+  products Product[]
+
+  @@map("brands")
+}
+
+model Supplier {
+  id           String  @id @default(uuid()) @db.Uuid
+  name         String  @db.VarChar(150)
+  contactEmail String? @map("contact_email") @db.VarChar(150)
+  phone        String? @db.VarChar(20)
+  address      String? @db.VarChar(255)
+
+  products Product[]
+
+  @@map("suppliers")
+}
+
+model Product {
+  id           String   @id @default(uuid()) @db.Uuid
+  categoryId   String   @map("category_id") @db.Uuid
+  brandId      String   @map("brand_id") @db.Uuid
+  supplierId   String?  @map("supplier_id") @db.Uuid
+  name         String   @db.VarChar(200)
+  slug         String   @unique @db.VarChar(250)
+  description  String?  @db.Text
+  gender       String   @default("UNISEX") @db.VarChar(20) // MEN, WOMEN, UNISEX, KIDS
+  basePrice    Decimal  @map("base_price") @db.Decimal(12, 2)
+  sizeGuideUrl String?  @map("size_guide_url") @db.Text
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  category        Category             @relation(fields: [categoryId], references: [id])
+  brand           Brand                @relation(fields: [brandId], references: [id])
+  supplier        Supplier?            @relation(fields: [supplierId], references: [id])
+  variants        ProductVariant[]
+  images          ProductImage[]
+  wishlists       Wishlist[]
+  reviews         Review[]
+  comments        ProductComment[]
+  recommendations UserRecommendation[]
+
+  @@map("products")
+}
+
+model ProductVariant {
+  id            String  @id @default(uuid()) @db.Uuid
+  productId     String  @map("product_id") @db.Uuid
+  sku           String  @unique @db.VarChar(50)
+  size          String  @db.VarChar(10) // 38, 39, 40, 41, 42, 43, 44...
+  color         String  @db.VarChar(50) // Đen, Trắng, Đỏ, Xanh Navy...
+  price         Decimal @db.Decimal(12, 2)
+  stockQuantity Int     @default(0) @map("stock_quantity")
+  imageUrl      String? @map("image_url") @db.Text
+  isActive      Boolean @default(true) @map("is_active")
+
+  product               Product                @relation(fields: [productId], references: [id], onDelete: Cascade)
+  cartItems             CartItem[]
+  orderItems            OrderItem[]
+  inventoryTransactions InventoryTransaction[]
+
+  @@map("product_variants")
+}
+
+model ProductImage {
+  id          String  @id @default(uuid()) @db.Uuid
+  productId   String  @map("product_id") @db.Uuid
+  imageUrl    String  @map("image_url") @db.Text
+  isThumbnail Boolean @default(false) @map("is_thumbnail")
+  sortOrder   Int     @default(0) @map("sort_order")
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("product_images")
+}
+
+// ------------------------------------------------------------------------------
+// NHÓM 3: KHUYẾN MÃI, ĐƠN HÀNG & THANH TOÁN
+// ------------------------------------------------------------------------------
+
+model Voucher {
+  id                String   @id @default(uuid()) @db.Uuid
+  code              String   @unique @db.VarChar(50)
+  title             String   @db.VarChar(150)
+  discountType      String   @map("discount_type") @db.VarChar(20) // PERCENT, FIXED_AMOUNT
+  discountValue     Decimal  @map("discount_value") @db.Decimal(12, 2)
+  minOrderValue     Decimal  @default(0) @map("min_order_value") @db.Decimal(12, 2)
+  maxDiscountAmount Decimal? @map("max_discount_amount") @db.Decimal(12, 2)
+  usageLimit        Int      @default(100) @map("usage_limit")
+  usedCount         Int      @default(0) @map("used_count")
+  startDate         DateTime @map("start_date")
+  endDate           DateTime @map("end_date")
+  isActive          Boolean  @default(true) @map("is_active")
+
+  orders Order[]
+
+  @@map("vouchers")
+}
+
+model Order {
+  id              String   @id @default(uuid()) @db.Uuid
+  orderCode       String   @unique @map("order_code") @db.VarChar(50)
+  userId          String   @map("user_id") @db.Uuid
+  voucherId       String?  @map("voucher_id") @db.Uuid
+  recipientName   String   @map("recipient_name") @db.VarChar(100)
+  recipientPhone  String   @map("recipient_phone") @db.VarChar(20)
+  shippingAddress String   @map("shipping_address") @db.VarChar(255)
+  paymentMethod   String   @default("COD") @map("payment_method") @db.VarChar(20) // COD, MOMO, VIETQR
+  paymentStatus   String   @default("UNPAID") @map("payment_status") @db.VarChar(20) // UNPAID, PAID, REFUNDED
+  orderStatus     String   @default("PENDING") @map("order_status") @db.VarChar(20) // PENDING, PROCESSING, SHIPPING, DELIVERED, CANCELLED
+  subtotalAmount  Decimal  @map("subtotal_amount") @db.Decimal(12, 2)
+  discountAmount  Decimal  @default(0) @map("discount_amount") @db.Decimal(12, 2)
+  shippingFee     Decimal  @default(0) @map("shipping_fee") @db.Decimal(12, 2)
+  totalAmount     Decimal  @map("total_amount") @db.Decimal(12, 2)
+  notes           String?  @db.Text
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  user       User        @relation(fields: [userId], references: [id])
+  voucher    Voucher?    @relation(fields: [voucherId], references: [id])
+  orderItems OrderItem[]
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id          String  @id @default(uuid()) @db.Uuid
+  orderId     String  @map("order_id") @db.Uuid
+  variantId   String  @map("variant_id") @db.Uuid
+  productName String  @map("product_name") @db.VarChar(200)
+  size        String  @db.VarChar(10)
+  color       String  @db.VarChar(50)
+  unitPrice   Decimal @map("unit_price") @db.Decimal(12, 2)
+  quantity    Int     @default(1)
+  totalPrice  Decimal @map("total_price") @db.Decimal(12, 2)
+
+  order   Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  variant ProductVariant @relation(fields: [variantId], references: [id])
+  review  Review?
+
+  @@map("order_items")
+}
+
+model InventoryTransaction {
+  id        String   @id @default(uuid()) @db.Uuid
+  variantId String   @map("variant_id") @db.Uuid
+  staffId   String   @map("staff_id") @db.Uuid
+  type      String   @db.VarChar(20) // IMPORT, EXPORT_ORDER, ADJUSTMENT
+  quantity  Int
+  notes     String?  @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+
+  variant ProductVariant @relation(fields: [variantId], references: [id])
+  staff   User           @relation("StaffInventoryTransactions", fields: [staffId], references: [id])
+
+  @@map("inventory_transactions")
+}
+
+// ------------------------------------------------------------------------------
+// NHÓM 4: GIỎ HÀNG & DANH SÁCH YÊU THÍCH
+// ------------------------------------------------------------------------------
+
+model CartItem {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  variantId String   @map("variant_id") @db.Uuid
+  quantity  Int      @default(1)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user    User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  variant ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, variantId])
+  @@map("cart_items")
+}
+
+model Wishlist {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  productId String   @map("product_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@map("wishlists")
+}
+
+// ------------------------------------------------------------------------------
+// NHÓM 5: ĐÁNH GIÁ SẢN PHẨM & PHÂN TÍCH CẢM XÚC AI
+// ------------------------------------------------------------------------------
+
+model Review {
+  id             String   @id @default(uuid()) @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  productId      String   @map("product_id") @db.Uuid
+  orderItemId    String?  @unique @map("order_item_id") @db.Uuid
+  rating         Int      // 1 - 5 sao
+  comment        String?  @db.Text
+  fitFeedback    String?  @map("fit_feedback") @db.VarChar(30) // RUNS_SMALL, TRUE_TO_SIZE, RUNS_LARGE
+  sentimentLabel String?  @map("sentiment_label") @db.VarChar(20) // POSITIVE, NEGATIVE, NEUTRAL
+  sentimentScore Float?   @map("sentiment_score")
+  helpfulCount   Int      @default(0) @map("helpful_count")
+  isPinned       Boolean  @default(false) @map("is_pinned")
+  isVisible      Boolean  @default(true) @map("is_visible")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  user         User                @relation(fields: [userId], references: [id])
+  product      Product             @relation(fields: [productId], references: [id])
+  orderItem    OrderItem?          @relation(fields: [orderItemId], references: [id])
+  images       ReviewImage[]
+  replies      ReviewReply[]
+  helpfulVotes ReviewHelpfulVote[]
+
+  @@map("reviews")
+}
+
+model ReviewImage {
+  id       String @id @default(uuid()) @db.Uuid
+  reviewId String @map("review_id") @db.Uuid
+  imageUrl String @map("image_url") @db.Text
+
+  review Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  @@map("review_images")
+}
+
+model ReviewReply {
+  id        String   @id @default(uuid()) @db.Uuid
+  reviewId  String   @map("review_id") @db.Uuid
+  staffId   String   @map("staff_id") @db.Uuid
+  replyText String   @map("reply_text") @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+
+  review Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  staff  User   @relation("StaffReviewReplies", fields: [staffId], references: [id])
+
+  @@map("review_replies")
+}
+
+model ReviewHelpfulVote {
+  id        String   @id @default(uuid()) @db.Uuid
+  reviewId  String   @map("review_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+
+  review Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([reviewId, userId])
+  @@map("review_helpful_votes")
+}
+
+// ------------------------------------------------------------------------------
+// NHÓM 6: BÌNH LUẬN & HỎI ĐÁP CỘNG ĐỒNG (Q&A)
+// ------------------------------------------------------------------------------
+
+model ProductComment {
+  id           String   @id @default(uuid()) @db.Uuid
+  productId    String   @map("product_id") @db.Uuid
+  userId       String   @map("user_id") @db.Uuid
+  parentId     String?  @map("parent_id") @db.Uuid // Hỗ trợ thảo luận đa cấp theo luồng
+  content      String   @db.Text
+  isStaffReply Boolean  @default(false) @map("is_staff_reply")
+  isPinned     Boolean  @default(false) @map("is_pinned")
+  isVisible    Boolean  @default(true) @map("is_visible")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  product Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user    User             @relation(fields: [userId], references: [id])
+  parent  ProductComment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies ProductComment[] @relation("CommentReplies")
+
+  @@map("product_comments")
+}
+
+// ------------------------------------------------------------------------------
+// NHÓM 7: GỢI Ý THÔNG MINH AI, BANNER & THÔNG BÁO
+// ------------------------------------------------------------------------------
+
+model UserRecommendation {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  productId  String   @map("product_id") @db.Uuid
+  matchScore Float    @map("match_score") // Điểm tương đồng 0.0 - 1.0 từ AI
+  algorithm  String   @db.VarChar(30) // COLLABORATIVE, CONTENT_BASED, HYBRID
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at")
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@map("user_recommendations")
+}
+
+model Banner {
+  id        String   @id @default(uuid()) @db.Uuid
+  title     String   @db.VarChar(150)
+  imageUrl  String   @map("image_url") @db.Text
+  linkUrl   String?  @map("link_url") @db.Text
+  sortOrder Int      @default(0) @map("sort_order")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("banners")
+}
+
+model Notification {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  title       String   @db.VarChar(150)
+  body        String   @db.Text
+  type        String   @db.VarChar(30) // ORDER, REVIEW_REPLY, COMMENT_REPLY, PROMO, SYSTEM
+  referenceId String?  @map("reference_id") @db.VarChar(100)
+  isRead      Boolean  @default(false) @map("is_read")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}

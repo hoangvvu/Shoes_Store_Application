@@ -1,0 +1,43 @@
+### ==============================================================================
+### TẬP TIN KIỂM THỬ API TRỰC TIẾP (REST CLIENT TEST) - SHOES STORE APP
+### Cài đặt Extension "REST Client" trên VS Code để chạy trực tiếp từng request
+### ==============================================================================
+
+@baseUrl = http://localhost:5000/api
+@authToken = {{loginAdmin.response.body.data.token}}
+
+### 1. Health check
+GET {{baseUrl}}/health
+
+### 2. Đăng nhập Quản trị viên (Super Admin)
+# @name loginAdmin
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@shoesstore.com",
+  "password": "Admin@123456"
+}
+
+### 3. Đăng nhập Khách hàng
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "customer@gmail.com",
+  "password": "Customer@123456"
+}
+
+### 4. Lấy danh sách Vai trò & Quyền hạn (Cần Token Admin)
+GET {{baseUrl}}/rbac/roles
+Authorization: Bearer {{authToken}}
+
+### 5. Lấy danh sách sản phẩm giày
+GET {{baseUrl}}/products?page=1&limit=10&gender=UNISEX
+
+### 6. Lấy chi tiết sản phẩm kèm các biến thể Size/Màu
+GET {{baseUrl}}/products/nike-air-force-1-07-white
+
+### 7. Lấy danh sách mã giảm giá khả dụng
+GET {{baseUrl}}/vouchers/active
+Authorization: Bearer {{authToken}}
