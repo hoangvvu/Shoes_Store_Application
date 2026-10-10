@@ -571,6 +571,20 @@ CREATE INDEX idx_favorites_product  ON favorite_products(product_id);
 CREATE INDEX idx_promo_dates        ON promotions(start_date, end_date);
 GO
 
+IF OBJECT_ID(N'dbo.password_reset_tokens') IS NULL
+CREATE TABLE password_reset_tokens (
+    token_id   INT IDENTITY(1,1) PRIMARY KEY,
+    user_id    INT NOT NULL REFERENCES users(user_id),
+    token_hash VARCHAR(255) NOT NULL,                 -- bcrypt hash của OTP, không lưu OTP gốc
+    expires_at DATETIME2(3) NOT NULL,
+    used_at    DATETIME2(3) NULL,
+    created_at DATETIME2(3) NOT NULL DEFAULT SYSUTCDATETIME()
+);
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'idx_prt_user')
+CREATE INDEX idx_prt_user ON password_reset_tokens(user_id, used_at, expires_at);
+GO
+
 /* =====================================================================
    11. TRIGGER – TỒN KHO (nguồn duy nhất: inventory_transactions)
    ===================================================================== */
