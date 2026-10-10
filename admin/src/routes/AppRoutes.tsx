@@ -4,8 +4,12 @@ import { ROLE_HOME, isEmployeeRole } from '../config/roles';
 import AdminLayout from '../layouts/AdminLayout';
 import SalesLayout from '../layouts/SalesLayout';
 import WarehouseLayout from '../layouts/WarehouseLayout';
+import AdminCustomerDetailPage from '../pages/admin/AdminCustomerDetailPage';
+import AdminCustomersPage from '../pages/admin/AdminCustomersPage';
 import AdminHomePage from '../pages/admin/AdminHomePage';
 import LoginPage from '../pages/LoginPage';
+import SalesCustomerDetailPage from '../pages/sales/SalesCustomerDetailPage';
+import SalesCustomersPage from '../pages/sales/SalesCustomersPage';
 import SalesHomePage from '../pages/sales/SalesHomePage';
 import WarehouseHomePage from '../pages/warehouse/WarehouseHomePage';
 import { useAuthStore } from '../store/useAuthStore';
@@ -22,6 +26,8 @@ export function AppRoutes() {
       <Route element={<ProtectedRoute roles={['ADMIN']} />}>
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<AdminHomePage />} />
+          <Route path="customers" element={<AdminCustomersPage />} />
+          <Route path="customers/:id" element={<AdminCustomerDetailPage />} />
           <Route path="*" element={<PlaceholderPage role="ADMIN" />} />
         </Route>
       </Route>
@@ -29,6 +35,8 @@ export function AppRoutes() {
       <Route element={<ProtectedRoute roles={['SALES']} />}>
         <Route path="/sales" element={<SalesLayout />}>
           <Route index element={<SalesHomePage />} />
+          <Route path="customers" element={<SalesCustomersPage />} />
+          <Route path="customers/:id" element={<SalesCustomerDetailPage />} />
           <Route path="*" element={<PlaceholderPage role="SALES" />} />
         </Route>
       </Route>

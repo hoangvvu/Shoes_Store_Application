@@ -1,5 +1,7 @@
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppTextInput } from '@/components/AppTextInput';
 import { PrimaryButton } from '@/components/PrimaryButton';
@@ -11,6 +13,7 @@ import { validators as v } from '@/utils/validation';
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const { clear, setUserName } = useAuthStore.getState();
 
   const [fullName, setFullName] = useState('');
@@ -82,6 +85,12 @@ export default function ProfileScreen() {
       <AppTextInput icon="call-outline" placeholder="Số điện thoại" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
       <PrimaryButton title="Lưu hồ sơ" onPress={saveProfile} loading={savingProfile} />
 
+      <Pressable style={styles.linkRow} onPress={() => router.push('/addresses')}>
+        <Ionicons name="location-outline" size={22} color={colors.primary} />
+        <Text style={styles.linkText}>Địa chỉ giao hàng</Text>
+        <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+      </Pressable>
+
       <Text style={[styles.h2, { marginTop: 16 }]}>Đổi mật khẩu</Text>
       <AppTextInput icon="lock-closed-outline" placeholder="Mật khẩu cũ" value={oldPw} onChangeText={setOldPw} secure />
       <AppTextInput icon="lock-closed-outline" placeholder="Mật khẩu mới" value={newPw} onChangeText={setNewPw} secure />
@@ -99,5 +108,7 @@ const styles = StyleSheet.create({
   container: { paddingHorizontal: 24, paddingBottom: 40, gap: 12 },
   h1: { fontSize: 28, fontWeight: '800', color: colors.text },
   h2: { fontSize: 18, fontWeight: '700', color: colors.text },
+  linkRow: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, borderRadius: 14, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
+  linkText: { flex: 1, color: colors.text, fontWeight: '600', fontSize: 16 },
   logout: { color: colors.danger, fontWeight: '700', fontSize: 16, textAlign: 'center', padding: 12 },
 });

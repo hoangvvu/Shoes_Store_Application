@@ -1,5 +1,5 @@
 /**
- * database/seed.js – dữ liệu mẫu để TEST M1 (xác thực & tài khoản).
+ * database/seed.js – dữ liệu mẫu để TEST M1 (xác thực & tài khoản) và M2 (khách hàng & địa chỉ).
  *
  * Cách chạy:   cd database && npm i && npm run seed
  * Tùy chọn:    npm run seed -- --reset-passwords   (đặt lại mật khẩu các tài khoản mẫu)
@@ -109,6 +109,56 @@ async function seedAccount(pool, a) {
   }
 }
 
+/* ---------------- M2: khách tại quầy, khách để test phân trang, địa chỉ ---------------- */
+const WALK_IN = [
+  { fullName: 'Khách Tại Quầy', phone: '0900000005' }, // không có tài khoản -> badge "Tại quầy"
+  ...Array.from({ length: 12 }, (_, i) => ({
+    fullName: `Khách Mẫu ${String(i + 1).padStart(2, '0')}`,
+    phone: `09100000${String(i + 1).padStart(2, '0')}`, // đủ nhiều để test phân trang (size = 10) và tìm kiếm
+  })),
+];
+
+const ADDRESSES = {
+  khach01: [
+    { label: 'HOME', name: 'Khách Hàng Mẫu', phone: '0900000001', province: 'TP. Hồ Chí Minh', district: 'Quận 1', ward: 'Phường Bến Nghé', street: '12 Lê Lợi', isDefault: true },
+    { label: 'OFFICE', name: 'Khách Hàng Mẫu', phone: '0900000001', province: 'TP. Hồ Chí Minh', district: 'Quận 3', ward: 'Phường Võ Thị Sáu', street: '88 Nam Kỳ Khởi Nghĩa', isDefault: false },
+  ],
+  khach02: [
+    // để test IDOR: khach01 không được xem/sửa/xóa địa chỉ này
+    { label: 'HOME', name: 'Khách Hàng Thứ Hai', phone: '0900000002', province: 'Hà Nội', district: 'Quận Ba Đình', ward: 'Phường Điện Biên', street: '5 Hùng Vương', isDefault: true },
+  ],
+};
+
+async function seedWalkIn(pool, c) {
+  const exists = await pool.request().input('p', sql.VarChar(20), c.phone)
+    .query('SELECT 1 AS x FROM customers WHERE phone = @p AND is_deleted = 0');
+  if (exists.recordset.length) return false;
+  await pool.request().input('n', sql.NVarChar(100), c.fullName).input('p', sql.VarChar(20), c.phone)
+    .query('INSERT INTO customers (full_name, phone) VALUES (@n, @p)');
+  return true;
+}
+
+async function seedAddresses(pool, username, list) {
+  const u = await pool.request().input('u', sql.NVarChar(50), username)
+    .query('SELECT customer_id FROM users WHERE username = @u AND is_deleted = 0 AND customer_id IS NOT NULL');
+  if (!u.recordset.length) return 'bỏ qua (chưa có tài khoản)';
+  const customerId = u.recordset[0].customer_id;
+  const has = await pool.request().input('c', sql.Int, customerId)
+    .query('SELECT COUNT(*) AS n FROM customer_addresses WHERE customer_id = @c AND is_deleted = 0');
+  if (has.recordset[0].n > 0) return 'đã có';
+  for (const a of list) {
+    await pool.request()
+      .input('c', sql.Int, customerId).input('l', sql.VarChar(10), a.label)
+      .input('n', sql.NVarChar(100), a.name).input('p', sql.VarChar(20), a.phone)
+      .input('pr', sql.NVarChar(100), a.province).input('d', sql.NVarChar(100), a.district)
+      .input('w', sql.NVarChar(100), a.ward).input('s', sql.NVarChar(255), a.street)
+      .input('def', sql.Bit, a.isDefault ? 1 : 0)
+      .query(`INSERT INTO customer_addresses (customer_id, label, receiver_name, receiver_phone, province, district, ward, street_detail, is_default)
+              VALUES (@c, @l, @n, @p, @pr, @d, @w, @s, @def)`);
+  }
+  return `đã tạo ${list.length}`;
+}
+
 async function main() {
   if (!config.user || !config.password) {
     throw new Error('Thiếu DB_USER / DB_PASSWORD. Tạo backend/.env (hoặc database/.env) trước.');
@@ -119,7 +169,16 @@ async function main() {
     const status = await seedAccount(pool, a);
     console.log(`  [${status.padEnd(16)}] ${a.username.padEnd(13)} ${a.role.padEnd(10)} ${a.password.padEnd(13)} ${a.note}`);
   }
-  console.log('\nXong. Web admin: admin / sales01 / warehouse01 · Mobile: khach01.');
+
+  console.log('\nM2 – khách & địa chỉ:');
+  let created = 0;
+  for (const c of WALK_IN) if (await seedWalkIn(pool, c)) created++;
+  console.log(`  [khách tại quầy / phân trang] tạo mới ${created}/${WALK_IN.length}`);
+  for (const [username, list] of Object.entries(ADDRESSES)) {
+    console.log(`  [địa chỉ ${username.padEnd(8)}] ${await seedAddresses(pool, username, list)}`);
+  }
+
+  console.log('\nXong. Web: admin / sales01 / warehouse01 · Mobile: khach01.');
   await pool.close();
 }
 
