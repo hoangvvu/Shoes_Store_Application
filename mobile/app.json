@@ -1,29 +1,15 @@
 {
   "expo": {
-    "name": "Shoes Store",
-    "slug": "shoes-store-app",
+    "name": "OURAN",
+    "slug": "ouran-mobile",
     "version": "1.0.0",
+    "scheme": "ouran",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
-    "scheme": "shoesstore",
-    "userInterfaceStyle": "automatic",
-    "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
-    },
-    "ios": {
-      "supportsTablet": true
-    },
-    "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
-      },
-      "package": "com.shoesstore.app"
-    },
-    "plugins": [
-      "expo-router"
-    ]
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "ios": { "supportsTablet": false },
+    "android": { "softwareKeyboardLayoutMode": "resize" },
+    "plugins": ["expo-router", "expo-secure-store"],
+    "experiments": { "typedRoutes": false }
   }
 }
