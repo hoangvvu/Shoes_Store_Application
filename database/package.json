@@ -3,7 +3,9 @@
   "private": true,
   "version": "1.0.0",
   "scripts": {
-    "seed": "node seed.js"
+    "migrate": "node migrate.js",
+    "seed": "node seed.js",
+    "setup": "node migrate.js && node seed.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

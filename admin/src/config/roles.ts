@@ -17,3 +17,10 @@ export const ROLE_LABEL: Record<EmployeeRole, string> = {
   SALES: 'Nhân viên bán hàng',
   WAREHOUSE: 'Nhân viên kho',
 };
+
+/** Tên ngắn hiển thị ở sidebar / header. */
+export const ROLE_SHORT: Record<EmployeeRole, string> = {
+  ADMIN: 'Admin',
+  SALES: 'Bán hàng',
+  WAREHOUSE: 'Kho',
+};

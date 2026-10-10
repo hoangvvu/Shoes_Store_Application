@@ -1,9 +1,25 @@
 SET NOCOUNT ON;
 GO
-IF DB_ID(N'ShoeStore') IS NULL CREATE DATABASE ShoeStore COLLATE Vietnamese_CI_AS;
+
+-- 1. Nếu Database đã tồn tại, xóa để khởi tạo lại từ đầu
+USE MASTER;
 GO
+
+IF DB_ID(N'ShoeStore') IS NOT NULL
+BEGIN
+    -- Ngắt tất cả kết nối đang mở tới database để xóa không bị lỗi
+    ALTER DATABASE [ShoeStore] SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
+    DROP DATABASE [ShoeStore];
+END
+GO
+
+-- 2. Tạo mới lại Database
+CREATE DATABASE ShoeStore COLLATE Vietnamese_CI_AS;
+GO
+
 USE ShoeStore;
 GO
+
 SET ANSI_NULLS ON;
 SET QUOTED_IDENTIFIER ON;
 GO
