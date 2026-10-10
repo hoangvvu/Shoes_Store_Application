@@ -1,78 +1,71 @@
 # ==============================================================================
-# TẬP TIN LOẠI TRỪ GIT (GITIGNORE) - SHOES STORE APP
-# Bảo vệ thông tin mật, tránh commit token, mật khẩu, database và file rác
+# TẬP TIN LOẠI TRỪ GIT (GITIGNORE) - SHOES STORE APPLICATION
+# Dành cho dự án Monorepo: Backend + Admin (Vite) + Mobile (Expo)
 # ==============================================================================
 
 # ------------------------------------------------------------------------------
-# 1. BIẾN MÔI TRƯỜNG & CHUỖI KẾT NỐI BÍ MẬT (ENV & SECRETS)
-# ------------------------------------------------------------------------------
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-*.env
-*.env.*
-!.env.example
-!*.env.example
-
-# Thông tin ngữ cảnh kết nối Neon Cloud
-.neon
-.agents/
-skills-lock.json
-
-# ------------------------------------------------------------------------------
-# 2. THƯ MỤC CÀI ĐẶT THƯ VIỆN (DEPENDENCIES)
+# 1. THƯ MỤC CÀI ĐẶT THƯ VIỆN (DEPENDENCIES)
 # ------------------------------------------------------------------------------
 node_modules/
 */node_modules/
-package-lock.json
+admin/node_modules/
+backend/node_modules/
+mobile/node_modules/
+
+# Giữ lại lockfiles để đồng bộ phiên bản thư viện giữa các máy (KHÔNG ignore lockfile)
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
+
+# Log rác của các trình quản lý gói
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
 # ------------------------------------------------------------------------------
-# 3. DỮ LIỆU SAO LƯU DATABASE & DUMP FILES
+# 2. BIẾN MÔI TRƯỜNG & THÔNG TIN BẢO MẬT (ENV & SECRETS)
 # ------------------------------------------------------------------------------
-backend/backup/dumps/
-*.dump
-*.sql.gz
-*.sqlite
-*.sqlite3
-*.sqlite-journal
+.env
+.env.local
+.env.*.local
+*.env
+*.env.*
+
+# Loại trừ tất cả .env trừ các file ví dụ mẫu (.env.example)
+!.env.example
+!*.env.example
+!backend/.env.example
+
+# Thông tin Cloud & AI tools / Agents
+.neon
+.agents/
+skills-lock.json
 
 # ------------------------------------------------------------------------------
-# 4. TẬP TIN BIÊN DỊCH & BUILD OUTPUT (FRONTEND & BACKEND)
+# 3. BACKEND SPECIFIC (NODE.JS / EXPRESS)
+# ------------------------------------------------------------------------------
+backend/backup/
+backend/test/
+*.http
+test_api.js
+test_api.log
+
+# ------------------------------------------------------------------------------
+# 4. ADMIN APP SPECIFIC (REACT + VITE / WEB FRONTEND)
 # ------------------------------------------------------------------------------
 dist/
 build/
 out/
-.next/
 .cache/
 .turbo/
 *.tsbuildinfo
 
 # ------------------------------------------------------------------------------
-# 5. PYTHON AI MICROSERVICE (BACKEND-AI)
-# ------------------------------------------------------------------------------
-__pycache__/
-*/__pycache__/
-*.py[cod]
-*$py.class
-.venv/
-env/
-venv/
-ENV/
-*.pt
-*.onnx
-*.pkl
-*.h5
-
-# ------------------------------------------------------------------------------
-# 6. MOBILE APP (REACT NATIVE / EXPO)
+# 5. MOBILE APP SPECIFIC (EXPO / REACT NATIVE)
 # ------------------------------------------------------------------------------
 .expo/
+mobile/.expo/
 *.jks
 *.p8
 *.p12
@@ -83,7 +76,7 @@ android/.gradle/
 ios/Pods/
 
 # ------------------------------------------------------------------------------
-# 7. LOGS & FILE TẠM CỦA HỆ THỐNG
+# 6. LOGS & FILE TẠM CỦA HỆ THỐNG
 # ------------------------------------------------------------------------------
 logs/
 *.log
@@ -91,21 +84,15 @@ tmp/
 temp/
 
 # ------------------------------------------------------------------------------
-# 8. CẤU HÌNH IDE & HỆ ĐIỀU HÀNH (OS / EDITORS)
+# 7. CẤU HÌNH HỆ ĐIỀU HÀNH & EDITOR / IDE
 # ------------------------------------------------------------------------------
+# Hệ điều hành
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# IDE (VS Code & WebStorm)
 .idea/
 .vscode/*
 !.vscode/extensions.json
 !.vscode/settings.json
-
-# ------------------------------------------------------------------------------
-# 9. TẬP TIN KIỂM THỬ API & SCRIPTS NỘI BỘ (API TEST FILES & SCRIPTS)
-# ------------------------------------------------------------------------------
-backend/test/
-*.http
-test_api.js
-test_api.log
-
