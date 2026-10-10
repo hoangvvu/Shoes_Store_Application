@@ -1,0 +1,307 @@
+### ==============================================================================
+### TEST API HỆ THỐNG QUẢN LÝ BÁN GIÀY (SHOES STORE MANAGEMENT)
+### NHIỆM VỤ: M3, M4, M5, M6, M15 (Người thực hiện: Vũ Việt Hoàng)
+### ==============================================================================
+
+@baseUrl = http://localhost:5000/api/v1
+@adminToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjEsInJvbGUiOiJBRE1JTiIsInR5cGUiOiJFTVBMT1lFRSJ9.test
+
+### 0. KIỂM TRA TRẠNG THÁI SERVER (HEALTH CHECK)
+GET {{baseUrl}}/health HTTP/1.1
+
+
+### ==============================================================================
+### M3: QUẢN LÝ NHÂN VIÊN (EMPLOYEES)
+### ==============================================================================
+
+### 1.1 Lấy danh sách nhân viên (phân trang, tìm kiếm)
+GET {{baseUrl}}/employees?page=1&size=10&q=
+Authorization: Bearer {{adminToken}}
+
+### 1.2 Xem chi tiết nhân viên theo ID
+GET {{baseUrl}}/employees/1
+Authorization: Bearer {{adminToken}}
+
+### 1.3 Thêm mới nhân viên (kèm tài khoản đăng nhập STAFF/ADMIN)
+POST {{baseUrl}}/employees
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "fullName": "Trần Văn Bình",
+  "username": "tranbinh2026",
+  "password": "Password@123",
+  "roleName": "STAFF",
+  "baseSalary": 9500000,
+  "phone": "0912345678",
+  "address": "123 Lê Lợi, Quận 1, TP.HCM",
+  "dateOfBirth": "1998-05-15"
+}
+
+### 1.4 Cập nhật thông tin và lương nhân viên
+PUT {{baseUrl}}/employees/1
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "fullName": "Quản Trị Viên Trưởng",
+  "baseSalary": 18000000,
+  "phone": "0909888999"
+}
+
+### 1.5 Xóa mềm nhân viên (chặn nếu còn đơn đang xử lý)
+DELETE {{baseUrl}}/employees/2
+Authorization: Bearer {{adminToken}}
+
+### 1.6 Xem thống kê doanh số theo nhân viên
+GET {{baseUrl}}/employees/1/performance?from=2026-01-01&to=2026-12-31
+Authorization: Bearer {{adminToken}}
+
+
+### ==============================================================================
+### M4: QUẢN LÝ SẢN PHẨM, BIẾN THỂ VÀ DANH MỤC
+### ==============================================================================
+
+### 2.1 Quản lý Danh mục (Categories)
+GET {{baseUrl}}/categories
+
+### Tạo danh mục mới
+POST {{baseUrl}}/categories
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "categoryName": "Giày Chạy Bộ (Running)"
+}
+
+### 2.2 Quản lý Thương hiệu (Brands)
+GET {{baseUrl}}/brands
+
+### Tạo thương hiệu mới
+POST {{baseUrl}}/brands
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "brandName": "Nike"
+}
+
+### 2.3 Quản lý Cỡ giày (Sizes)
+GET {{baseUrl}}/sizes
+
+### 2.4 Quản lý Màu sắc (Colors)
+GET {{baseUrl}}/colors
+
+### 2.5 Lấy danh sách sản phẩm (Lọc, Tìm kiếm không dấu, Phân trang)
+GET {{baseUrl}}/products?q=Nike&page=1&size=10
+
+### 2.6 Xem chi tiết sản phẩm (kèm biến thể và giá khuyến mãi)
+GET {{baseUrl}}/products/1
+
+### 2.7 Thêm sản phẩm mới
+POST {{baseUrl}}/products
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "productName": "Nike Air Zoom Pegasus 40",
+  "categoryId": 1,
+  "brandId": 1,
+  "currentPrice": 3290000,
+  "unit": "Đôi",
+  "description": "Giày chạy bộ chuyên nghiệp đệm Zoom Air siêu êm ái.",
+  "imageUrl": "https://images.unsplash.com/photo-1542291026-7eec264c27ff"
+}
+
+### 2.8 Cập nhật sản phẩm (đổi giá tự động ghi audit PRODUCT_PRICE_CHANGE)
+PUT {{baseUrl}}/products/1
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "productName": "Nike Air Zoom Pegasus 40 (Phiên bản mới)",
+  "currentPrice": 3490000
+}
+
+### 2.9 Ẩn / Hiện (Ngừng kinh doanh) sản phẩm
+PATCH {{baseUrl}}/products/1/active
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "isActive": true
+}
+
+### 2.10 Sinh biến thể hàng loạt theo tích Descartes (Sizes x Colors)
+POST {{baseUrl}}/products/1/variants/bulk
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "sizeIds": [1, 2, 3, 4],
+  "colorIds": [1, 2]
+}
+
+### 2.11 Sửa SKU biến thể
+PUT {{baseUrl}}/variants/1
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "sku": "NK-PEG40-42-BLK"
+}
+
+### 2.12 Xóa mềm biến thể
+DELETE {{baseUrl}}/variants/1
+Authorization: Bearer {{adminToken}}
+
+### 2.13 Xóa mềm sản phẩm và toàn bộ biến thể của nó
+DELETE {{baseUrl}}/products/1
+Authorization: Bearer {{adminToken}}
+
+### 2.14 Tải ảnh sản phẩm (Upload base64)
+POST {{baseUrl}}/uploads
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "fileName": "nike_pegasus.jpg",
+  "imageBase64": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD..."
+}
+
+
+### ==============================================================================
+### M5: QUẢN LÝ NHÀ CUNG CẤP VÀ NHẬP KHO
+### ==============================================================================
+
+### 3.1 Danh sách nhà cung cấp
+GET {{baseUrl}}/suppliers?page=1&size=10
+Authorization: Bearer {{adminToken}}
+
+### 3.2 Thêm nhà cung cấp mới
+POST {{baseUrl}}/suppliers
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "supplierName": "Tổng Kho Giày Thể Thao Miền Nam",
+  "phone": "02838999888",
+  "email": "tongkho@sportshoes.vn",
+  "address": "456 Xa Lộ Hà Nội, TP. Thủ Đức, TP.HCM"
+}
+
+### 3.3 Cập nhật nhà cung cấp
+PUT {{baseUrl}}/suppliers/1
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "supplierName": "Tổng Kho Giày Thể Thao Việt Nam - Chi Nhánh 1",
+  "phone": "02839999999"
+}
+
+### 3.4 Lập phiếu nhập kho (Tồn kho tự động tăng qua trigger IMPORT)
+POST {{baseUrl}}/purchase-receipts
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "supplierId": 1,
+  "items": [
+    { "variantId": 1, "quantity": 50, "importPrice": 1800000 },
+    { "variantId": 2, "quantity": 30, "importPrice": 1800000 }
+  ]
+}
+
+### 3.5 Xem danh sách phiếu nhập kho
+GET {{baseUrl}}/purchase-receipts?page=1&size=10
+Authorization: Bearer {{adminToken}}
+
+### 3.6 Xem chi tiết phiếu nhập kho
+GET {{baseUrl}}/purchase-receipts/1
+Authorization: Bearer {{adminToken}}
+
+### 3.7 Xóa mềm phiếu nhập (Hoàn tác nhập kho bằng IMPORT_REVERSAL qua trigger)
+DELETE {{baseUrl}}/purchase-receipts/1
+Authorization: Bearer {{adminToken}}
+
+
+### ==============================================================================
+### M6: QUẢN LÝ TỒN KHO (INVENTORY)
+### ==============================================================================
+
+### 4.1 Xem danh sách tồn kho theo biến thể
+GET {{baseUrl}}/inventory?page=1&size=15
+Authorization: Bearer {{adminToken}}
+
+### 4.2 Cảnh báo hàng sắp hết (Tồn kho <= ngưỡng)
+GET {{baseUrl}}/inventory/low-stock?threshold=10
+Authorization: Bearer {{adminToken}}
+
+### 4.3 Xem thẻ kho (Lịch sử biến động của biến thể)
+GET {{baseUrl}}/inventory/1/ledger?page=1&size=20
+Authorization: Bearer {{adminToken}}
+
+### 4.4 Điều chỉnh tồn kho thủ công (gọi Stored Procedure sp_adjust_stock)
+POST {{baseUrl}}/inventory/adjust
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "variantId": 1,
+  "quantityChange": -2,
+  "reason": "Hàng mẫu bị lỗi đế khi kiểm kê kho định kỳ"
+}
+
+### 4.5 Báo cáo Nhập - Xuất - Tồn theo biến thể trong kỳ
+GET {{baseUrl}}/inventory/movement-report?from=2026-01-01&to=2026-12-31
+Authorization: Bearer {{adminToken}}
+
+
+### ==============================================================================
+### M15: BÁO CÁO VÀ BẢNG ĐIỀU KHIỂN (DASHBOARD)
+### ==============================================================================
+
+### 5.1 Báo cáo doanh thu theo ngày / tháng
+GET {{baseUrl}}/reports/revenue?from=2026-01-01&to=2026-12-31&groupBy=day
+Authorization: Bearer {{adminToken}}
+
+### Xuất Excel Báo cáo Doanh thu
+GET {{baseUrl}}/reports/revenue?from=2026-01-01&to=2026-12-31&groupBy=day&format=xlsx
+Authorization: Bearer {{adminToken}}
+
+### 5.2 Báo cáo Top sản phẩm bán chạy nhất
+GET {{baseUrl}}/reports/top-products?limit=10
+Authorization: Bearer {{adminToken}}
+
+### Xuất Excel Top Sản phẩm
+GET {{baseUrl}}/reports/top-products?limit=10&format=xlsx
+Authorization: Bearer {{adminToken}}
+
+### 5.3 Báo cáo tổng quan tình trạng đơn hàng
+GET {{baseUrl}}/reports/orders
+Authorization: Bearer {{adminToken}}
+
+### 5.4 Cảnh báo tồn kho và hàng tồn lâu không biến động
+GET {{baseUrl}}/reports/stock?threshold=10&staleDays=30
+Authorization: Bearer {{adminToken}}
+
+### 5.5 Báo cáo Nhập - Xuất - Tồn
+GET {{baseUrl}}/reports/inventory-movement?from=2026-01-01&to=2026-12-31
+Authorization: Bearer {{adminToken}}
+
+### Xuất Excel Nhập - Xuất - Tồn
+GET {{baseUrl}}/reports/inventory-movement?from=2026-01-01&to=2026-12-31&format=xlsx
+Authorization: Bearer {{adminToken}}
+
+### 5.6 Báo cáo Top khách hàng thân thiết
+GET {{baseUrl}}/reports/top-customers?limit=10
+Authorization: Bearer {{adminToken}}
+
+### 5.7 Báo cáo doanh số theo nhân viên
+GET {{baseUrl}}/reports/employees?from=2026-01-01&to=2026-12-31
+Authorization: Bearer {{adminToken}}
+
+### 5.8 Báo cáo tỷ lệ trả hàng theo sản phẩm
+GET {{baseUrl}}/reports/returns?from=2026-01-01&to=2026-12-31
+Authorization: Bearer {{adminToken}}
