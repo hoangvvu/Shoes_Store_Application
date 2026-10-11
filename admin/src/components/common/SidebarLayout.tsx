@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { MENUS } from '../../config/menus';
-import { ROLE_SHORT } from '../../config/roles';
 import { authService } from '../../services/auth.service';
 import { useAuthStore } from '../../store/useAuthStore';
 import type { EmployeeRole } from '../../types/auth';
 import { NavIcon } from './NavIcon';
+import { UserMenu } from './UserMenu';
 
 interface Props {
   role: EmployeeRole;
@@ -27,12 +27,10 @@ function readOpen(): boolean {
   }
 }
 
-const initials = (name: string) =>
-  name.trim().split(/\s+/).slice(-2).map((w) => w[0]?.toUpperCase() ?? '').join('') || '?';
-
 /** Khung dùng chung; AdminLayout / SalesLayout / WarehouseLayout khác nhau ở menu, tiêu đề và màu nhấn. */
 export function SidebarLayout({ role, title, accent }: Props) {
-  const { user, clear } = useAuthStore();
+  const user = useAuthStore((s) => s.user);
+  const clear = useAuthStore((s) => s.clear);
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const [open, setOpen] = useState(readOpen);
@@ -72,6 +70,7 @@ export function SidebarLayout({ role, title, accent }: Props) {
             </NavLink>
           ))}
         </nav>
+        <UserMenu role={role} profilePath={`${home}/profile`} onLogout={logout} />
       </aside>
       <div className="backdrop" onClick={toggle} />
 
@@ -81,24 +80,15 @@ export function SidebarLayout({ role, title, accent }: Props) {
             <button className="icon-btn" onClick={toggle} aria-label={open ? 'Ẩn thanh bên' : 'Hiện thanh bên'} aria-expanded={open}>
               <NavIcon name="menu" size={22} />
             </button>
-            <span className="topbar__brand">
-              <NavIcon name="dashboard" size={20} />
-              OURAN
+            <span className="topbar__greeting">
+              Xin chào, <strong>{user?.fullName}</strong>
             </span>
           </div>
           <div className="topbar__right">
-            <div className="userbox">
-              <span className="avatar">{initials(user?.fullName ?? '')}</span>
-              <span className="userbox__text">
-                <strong>{user?.username}</strong>
-                <small>{ROLE_SHORT[role]}</small>
-              </span>
-            </div>
-            <span className="topbar__divider" />
-            <button className="logout-btn" onClick={logout}>
-              <NavIcon name="logout" size={18} />
-              <span>Đăng xuất</span>
-            </button>
+            <span className="topbar__logo">
+              <span className="topbar__logo-mark"><NavIcon name="dashboard" size={22} /></span>
+              OURAN
+            </span>
           </div>
         </header>
         <main className="content">

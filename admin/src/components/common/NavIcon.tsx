@@ -1,6 +1,6 @@
 export type IconName =
   | 'dashboard' | 'users' | 'user' | 'box' | 'tag' | 'image' | 'bell' | 'chart' | 'history'
-  | 'cart' | 'card' | 'return' | 'store' | 'warehouse' | 'clipboard' | 'book' | 'logout' | 'menu';
+  | 'cart' | 'card' | 'return' | 'store' | 'warehouse' | 'clipboard' | 'book' | 'logout' | 'menu' | 'key' | 'edit';
 
 const PATHS: Record<IconName, JSX.Element> = {
   dashboard: (<><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></>),
@@ -21,6 +21,8 @@ const PATHS: Record<IconName, JSX.Element> = {
   book: (<><path d="M5 4h12a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2z" /><path d="M5 18a2 2 0 0 1 2-2h12" /></>),
   logout: (<><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><path d="M16 17l5-5-5-5M21 12H9" /></>),
   menu: (<path d="M4 6h16M4 12h16M4 18h16" />),
+  key: (<><circle cx="8" cy="15" r="4" /><path d="M10.8 12.2L20 3M16 7l3 3M14 9l2 2" /></>),
+  edit: (<><path d="M4 20h4L19 9a2.1 2.1 0 0 0-3-3L5 17v3z" /><path d="M14 7l3 3" /></>),
 };
 
 export function NavIcon({ name, size = 20 }: { name: IconName; size?: number }) {

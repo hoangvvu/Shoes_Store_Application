@@ -10,6 +10,17 @@ export interface EmployeeRow {
 }
 
 export const employeeRepository = {
+  /** SĐT không được trùng với nhân viên khác chưa xóa (CSDL không có unique index cho cột này). */
+  async phoneExists(phone: string, excludeEmployeeId: number | null, exec?: Executor): Promise<boolean> {
+    const r = await query(
+      `SELECT 1 AS x FROM employees
+       WHERE phone = @phone AND is_deleted = 0 AND (@exclude IS NULL OR employee_id <> @exclude)`,
+      { phone: [sql.VarChar(20), phone], exclude: [sql.Int, excludeEmployeeId] },
+      exec,
+    );
+    return r.recordset.length > 0;
+  },
+
   async insert(
     d: {
       fullName: string;

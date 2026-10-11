@@ -24,6 +24,9 @@ export const userService = {
         if (await userRepository.usernameExists(input.username, tx)) {
           throw AppError.conflict('Tên đăng nhập đã được sử dụng', 'USERNAME_TAKEN');
         }
+        if (input.phone && (await employeeRepository.phoneExists(normalizePhone(input.phone), null, tx))) {
+          throw AppError.conflict('Số điện thoại đã được nhân viên khác sử dụng', 'PHONE_TAKEN');
+        }
         const role = await userRepository.findRoleByName(input.role, tx);
         if (!role || role.userType !== USER_TYPES.EMPLOYEE) {
           throw AppError.badRequest('Vai trò không hợp lệ cho nhân viên', 'INVALID_ROLE');

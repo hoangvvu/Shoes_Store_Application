@@ -1,5 +1,5 @@
 /**
- * database/seed.js – dữ liệu mẫu để TEST M1 (xác thực & tài khoản) và M2 (khách hàng & địa chỉ).
+ * database/seed.js – dữ liệu mẫu để TEST M1 (xác thực & tài khoản), M2 (khách hàng & địa chỉ), M7 (giỏ hàng) và M8 (đặt hàng).
  *
  * Cách chạy:   cd database && npm i && npm run seed
  * Tùy chọn:    npm run seed -- --reset-passwords   (đặt lại mật khẩu các tài khoản mẫu)
@@ -159,6 +159,190 @@ async function seedAddresses(pool, username, list) {
   return `đã tạo ${list.length}`;
 }
 
+/* ---------------- M7: sản phẩm test (tạm, chờ M4) + giỏ hàng mẫu ---------------- */
+// Chỉ để thử giỏ hàng. Khi M4 có dữ liệu thật, bỏ các SKU bắt đầu bằng TEST- là được.
+const TEST_VARIANTS = [
+  { sku: 'TEST-OK-40',  product: 'Giày Test – Còn hàng',   price: 1250000, size: '40', color: 'Đen',   stock: 20, active: 1 },
+  { sku: 'TEST-OK-41',  product: 'Giày Test – Còn hàng',   price: 1250000, size: '41', color: 'Đen',   stock: 20, active: 1 },
+  { sku: 'TEST-LOW-39', product: 'Giày Test – Sắp hết',    price: 890000,  size: '39', color: 'Trắng', stock: 3,  active: 1 },
+  { sku: 'TEST-OUT-42', product: 'Giày Test – Hết hàng',   price: 990000,  size: '42', color: 'Xám',   stock: 0,  active: 1 },
+  { sku: 'TEST-OFF-40', product: 'Giày Test – Ngừng bán',  price: 750000,  size: '40', color: 'Đỏ',    stock: 5,  active: 0 },
+];
+
+// Giỏ của khach01: đủ 4 trạng thái để thấy cảnh báo trên màn hình giỏ
+const CART_KHACH01 = [
+  { sku: 'TEST-OK-40',  qty: 2 }, // OK
+  { sku: 'TEST-LOW-39', qty: 5 }, // INSUFFICIENT_STOCK (kho còn 3)
+  { sku: 'TEST-OUT-42', qty: 1 }, // OUT_OF_STOCK
+  { sku: 'TEST-OFF-40', qty: 1 }, // UNAVAILABLE (sản phẩm ngừng bán)
+];
+
+async function seedTestCatalog(pool) {
+  const admin = await pool.request().query(`SELECT user_id FROM users WHERE username = 'admin' AND is_deleted = 0`);
+  if (!admin.recordset.length) throw new Error('Cần tài khoản admin (seed ở phần M1) để ghi sổ kho.');
+  const adminId = admin.recordset[0].user_id;
+  const ids = {};
+  for (const v of TEST_VARIANTS) {
+    const ex = await pool.request().input('s', sql.VarChar(50), v.sku)
+      .query('SELECT variant_id FROM product_variants WHERE sku = @s AND is_deleted = 0');
+    if (ex.recordset.length) { ids[v.sku] = ex.recordset[0].variant_id; continue; }
+
+    const size = await pool.request().input('l', sql.VarChar(10), v.size).query('SELECT size_id FROM sizes WHERE size_label = @l AND is_deleted = 0');
+    const color = await pool.request().input('n', sql.NVarChar(30), v.color).query('SELECT color_id FROM colors WHERE color_name = @n AND is_deleted = 0');
+    if (!size.recordset.length || !color.recordset.length) throw new Error(`Thiếu size ${v.size} hoặc màu ${v.color} trong dữ liệu khởi tạo.`);
+
+    // dùng chung 1 product cho các biến thể cùng tên
+    let p = await pool.request().input('n', sql.NVarChar(200), v.product)
+      .query('SELECT product_id FROM products WHERE product_name = @n AND is_deleted = 0');
+    if (!p.recordset.length) {
+      p = await pool.request().input('n', sql.NVarChar(200), v.product).input('pr', sql.Decimal(18, 2), v.price).input('a', sql.Bit, v.active)
+        .query('INSERT INTO products (product_name, current_price, is_active) VALUES (@n, @pr, @a); SELECT SCOPE_IDENTITY() AS product_id;');
+    }
+    const vr = await pool.request().input('p', sql.Int, p.recordset[0].product_id).input('sz', sql.Int, size.recordset[0].size_id)
+      .input('c', sql.Int, color.recordset[0].color_id).input('s', sql.VarChar(50), v.sku)
+      .query('INSERT INTO product_variants (product_id, size_id, color_id, sku) VALUES (@p, @sz, @c, @s); SELECT SCOPE_IDENTITY() AS variant_id;');
+    const variantId = Number(vr.recordset[0].variant_id);
+    ids[v.sku] = variantId;
+
+    if (v.stock > 0) {
+      // tồn kho chỉ được đổi qua sổ kho (trigger chặn sửa stock_quantity trực tiếp)
+      await pool.request().input('v', sql.Int, variantId).input('q', sql.Int, v.stock).input('u', sql.Int, adminId)
+        .query(`INSERT INTO inventory_transactions (variant_id, transaction_type, quantity_change, reason, created_by)
+                VALUES (@v, 'ADJUST_IN', @q, N'Seed dữ liệu test giỏ hàng', @u)`);
+    }
+  }
+  return ids;
+}
+
+async function seedCart(pool, username, lines, ids) {
+  const u = await pool.request().input('u', sql.NVarChar(50), username)
+    .query('SELECT customer_id FROM users WHERE username = @u AND is_deleted = 0 AND customer_id IS NOT NULL');
+  if (!u.recordset.length) return 'bỏ qua (chưa có tài khoản)';
+  const customerId = u.recordset[0].customer_id;
+  const has = await pool.request().input('c', sql.Int, customerId)
+    .query(`SELECT 1 AS x FROM carts WHERE customer_id = @c AND status = 'ACTIVE' AND is_deleted = 0`);
+  if (has.recordset.length) return 'đã có giỏ';
+  const cart = await pool.request().input('c', sql.Int, customerId)
+    .query('INSERT INTO carts (customer_id) VALUES (@c); SELECT SCOPE_IDENTITY() AS id;');
+  for (const l of lines) {
+    await pool.request().input('cart', sql.Int, Number(cart.recordset[0].id)).input('v', sql.Int, ids[l.sku]).input('q', sql.Int, l.qty)
+      .query('INSERT INTO cart_items (cart_id, variant_id, quantity) VALUES (@cart, @v, @q)');
+  }
+  return `đã tạo giỏ ${lines.length} dòng`;
+}
+
+/* ---------------- M8: khuyến mãi / voucher test + đơn hàng mẫu ---------------- */
+// Tạm để thử tính giá khi đặt hàng. Quản lý khuyến mãi thật là phần M11; bỏ các dòng có tên bắt đầu "TEST M8".
+const TODAY_VN = `CAST(SYSDATETIMEOFFSET() AT TIME ZONE 'SE Asia Standard Time' AS DATE)`;
+
+async function ensurePromotion(pool, name, type) {
+  const ex = await pool.request().input('n', sql.NVarChar(150), name)
+    .query('SELECT promotion_id FROM promotions WHERE promotion_name = @n AND is_deleted = 0');
+  if (ex.recordset.length) return { id: ex.recordset[0].promotion_id, created: false };
+  const r = await pool.request().input('n', sql.NVarChar(150), name).input('t', sql.VarChar(10), type)
+    .query(`INSERT INTO promotions (promotion_name, promo_type, start_date, end_date)
+            VALUES (@n, @t, DATEADD(DAY, -1, ${TODAY_VN}), DATEADD(DAY, 365, ${TODAY_VN}));
+            SELECT SCOPE_IDENTITY() AS id;`);
+  return { id: Number(r.recordset[0].id), created: true };
+}
+
+async function seedPromotions(pool, ids) {
+  // 1) Giảm 10% sản phẩm "Giày Test – Còn hàng" (dòng hàng)
+  const p1 = await ensurePromotion(pool, 'TEST M8 – Giảm 10% giày test', 'PRODUCT');
+  if (p1.created) {
+    await pool.request().input('p', sql.Int, p1.id).input('v', sql.Int, ids['TEST-OK-40'])
+      .query(`INSERT INTO promotion_products (promotion_id, product_id, discount_percent)
+              SELECT @p, product_id, 10 FROM product_variants WHERE variant_id = @v`);
+  }
+  // 2) Hóa đơn từ 2.000.000đ giảm 5%
+  const p2 = await ensurePromotion(pool, 'TEST M8 – Hóa đơn từ 2 triệu giảm 5%', 'INVOICE');
+  if (p2.created) {
+    await pool.request().input('p', sql.Int, p2.id)
+      .query('INSERT INTO promotion_invoice_tiers (promotion_id, min_invoice_amount, discount_percent) VALUES (@p, 2000000, 5)');
+  }
+  // 3) Voucher: TEST10 (giảm 10%, tối đa 5 lượt) và TESTFULL (đã dùng hết lượt, để thử lỗi)
+  const p3 = await ensurePromotion(pool, 'TEST M8 – Voucher giảm 10%', 'VOUCHER');
+  if (p3.created) {
+    await pool.request().input('p', sql.Int, p3.id).query(`
+      INSERT INTO promotion_vouchers (promotion_id, voucher_code, discount_percent, usage_limit, used_count) VALUES
+        (@p, 'TEST10', 10, 5, 0),
+        (@p, 'TESTFULL', 10, 1, 1)`);
+  }
+  return [p1, p2, p3].filter((x) => x.created).length;
+}
+
+const SEED_ORDERS = [
+  { tag: 'SEED-M8-PENDING',   steps: [],                                     lines: [['TEST-OK-41', 1]] },
+  { tag: 'SEED-M8-CONFIRMED', steps: ['CONFIRMED'],                          lines: [['TEST-OK-40', 1]] },
+  { tag: 'SEED-M8-DELIVERED', steps: ['CONFIRMED', 'SHIPPING', 'DELIVERED'], lines: [['TEST-OK-41', 2]], paid: true },
+  { tag: 'SEED-M8-CANCELLED', steps: ['CANCELLED'],                          lines: [['TEST-LOW-39', 1]] },
+];
+
+async function seedOrders(pool, ids) {
+  const u = await pool.request().query(`SELECT u.user_id AS uid, u.customer_id AS cid FROM users u WHERE u.username = 'khach01' AND u.is_deleted = 0`);
+  const adm = await pool.request().query(`SELECT user_id FROM users WHERE username = 'admin' AND is_deleted = 0`);
+  if (!u.recordset.length || !adm.recordset.length) return 'bỏ qua (thiếu khach01/admin)';
+  const { uid, cid } = u.recordset[0];
+  const adminId = adm.recordset[0].user_id;
+  const addr = await pool.request().input('c', sql.Int, cid)
+    .query(`SELECT TOP 1 address_id, receiver_name, receiver_phone, street_detail, ward, district, province
+            FROM customer_addresses WHERE customer_id = @c AND is_deleted = 0 ORDER BY is_default DESC, address_id`);
+  if (!addr.recordset.length) return 'bỏ qua (khach01 chưa có địa chỉ)';
+  const a = addr.recordset[0];
+  const fullAddr = [a.street_detail, a.ward, a.district, a.province].join(', ');
+  const cash = await pool.request().query(`SELECT method_id FROM payment_methods WHERE method_code = 'CASH'`);
+  const methodId = cash.recordset[0].method_id;
+
+  let created = 0;
+  for (const o of SEED_ORDERS) {
+    const ex = await pool.request().input('n', sql.NVarChar(500), o.tag).query('SELECT 1 AS x FROM invoices WHERE note = @n AND is_deleted = 0');
+    if (ex.recordset.length) continue;
+
+    const tx = new sql.Transaction(pool);
+    await tx.begin();
+    try {
+      const run = () => new sql.Request(tx);
+      await run().input('u', sql.Int, uid).query(`EXEC sp_set_session_context @key = N'user_id', @value = @u`); // trigger ghi người tạo
+      const inv = await run().input('c', sql.Int, cid).input('a', sql.Int, a.address_id).input('rn', sql.NVarChar(100), a.receiver_name)
+        .input('rp', sql.VarChar(20), a.receiver_phone).input('sa', sql.NVarChar(500), fullAddr).input('n', sql.NVarChar(500), o.tag)
+        .query(`INSERT INTO invoices (channel, customer_id, shipping_address_id, receiver_name, receiver_phone, shipping_address, note)
+                VALUES ('ONLINE', @c, @a, @rn, @rp, @sa, @n); SELECT CAST(SCOPE_IDENTITY() AS INT) AS id;`);
+      const invoiceId = inv.recordset[0].id;
+      for (const [sku, qty] of o.lines) {
+        const price = await run().input('v', sql.Int, ids[sku]).query(
+          'SELECT p.current_price FROM product_variants v JOIN products p ON p.product_id = v.product_id WHERE v.variant_id = @v');
+        const unit = Number(price.recordset[0].current_price);
+        const disc = sku.startsWith('TEST-OK') ? Math.round(unit * qty * 0.1) : 0; // khớp khuyến mãi 10% ở trên
+        await run().input('i', sql.Int, invoiceId).input('v', sql.Int, ids[sku]).input('q', sql.Int, qty)
+          .input('p', sql.Decimal(18, 2), unit).input('d', sql.Decimal(18, 2), disc)
+          .query('INSERT INTO invoice_details (invoice_id, variant_id, quantity, sale_price, discount_amount) VALUES (@i, @v, @q, @p, @d)');
+      }
+      const tot = await run().input('i', sql.Int, invoiceId).query('SELECT total_amount FROM invoices WHERE invoice_id = @i');
+      const payable = Number(tot.recordset[0].total_amount);
+      await run().input('i', sql.Int, invoiceId).input('m', sql.Int, methodId).input('a', sql.Decimal(18, 2), payable)
+        .input('st', sql.VarChar(10), o.paid ? 'SUCCESS' : 'PENDING')
+        .query(`INSERT INTO payments (invoice_id, method_id, amount, status, paid_at)
+                VALUES (@i, @m, @a, @st, CASE WHEN @st = 'SUCCESS' THEN SYSUTCDATETIME() END)`);
+      for (const st of o.steps) {
+        const req = run();
+        req.input('invoice_id', sql.Int, invoiceId); req.input('new_status', sql.VarChar(10), st);
+        req.input('user_id', sql.Int, st === 'CANCELLED' ? uid : adminId); req.input('note', sql.NVarChar(500), st === 'CANCELLED' ? 'Khách tự hủy đơn (seed)' : 'Seed dữ liệu test');
+        await req.execute('dbo.sp_change_order_status');
+      }
+      if (o.steps.includes('DELIVERED')) {
+        await run().input('c', sql.Int, cid).input('a', sql.Decimal(18, 2), payable)
+          .query('UPDATE customers SET total_purchased = total_purchased + @a WHERE customer_id = @c'); // đúng quy tắc M8 khi giao xong
+      }
+      await tx.commit();
+      created++;
+    } catch (err) {
+      try { await tx.rollback(); } catch { /* đã rollback */ }
+      throw err;
+    }
+  }
+  return `tạo mới ${created}/${SEED_ORDERS.length} đơn (PENDING / CONFIRMED / DELIVERED / CANCELLED)`;
+}
+
 async function main() {
   if (!config.user || !config.password) {
     throw new Error('Thiếu DB_USER / DB_PASSWORD. Tạo backend/.env (hoặc database/.env) trước.');
@@ -177,6 +361,15 @@ async function main() {
   for (const [username, list] of Object.entries(ADDRESSES)) {
     console.log(`  [địa chỉ ${username.padEnd(8)}] ${await seedAddresses(pool, username, list)}`);
   }
+
+  console.log('\nM7 – giỏ hàng:');
+  const ids = await seedTestCatalog(pool);
+  for (const [sku, id] of Object.entries(ids)) console.log(`  [sản phẩm test] ${sku.padEnd(12)} → variantId ${id}`);
+  console.log(`  [giỏ khach01] ${await seedCart(pool, 'khach01', CART_KHACH01, ids)}   (khach02: giỏ trống để thử thêm mới)`);
+
+  console.log('\nM8 – khuyến mãi & đơn hàng:');
+  console.log(`  [khuyến mãi test] tạo mới ${await seedPromotions(pool, ids)}/3 (giảm 10% giày test · hóa đơn ≥ 2 triệu giảm 5% · voucher TEST10, TESTFULL hết lượt)`);
+  console.log(`  [đơn mẫu khach01] ${await seedOrders(pool, ids)}`);
 
   console.log('\nXong. Web: admin / sales01 / warehouse01 · Mobile: khach01.');
   await pool.close();
