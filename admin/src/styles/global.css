@@ -237,3 +237,25 @@ h3 { margin: 0 0 12px; font-size: 16px; }
 .rules li.ok { color: #168a4f; }
 .rules li.ok::before { content: '● '; }
 @media (max-width: 899px) { .profile { grid-template-columns: 1fr; } .profile__side { min-height: 0; } .info-grid { grid-template-columns: 1fr; } .profile__main { padding: 18px; min-height: 0; } }
+
+/* ---- Đánh giá sản phẩm (M14) ---- */
+.stars { letter-spacing: 2px; font-size: 16px; }
+.star { color: #d3d8e6; }
+.star--on { color: #f5a623; }
+.review-list { display: flex; flex-direction: column; gap: 14px; }
+.review-card { border: 1px solid #e3e8f2; border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 8px; }
+.review-card__head { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.review-card__badges { display: flex; gap: 6px; align-items: flex-start; }
+.review-card__comment { margin: 0; white-space: pre-wrap; word-break: break-word; }
+.review-card__actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+.review-status--pending { background: #fff4e0; color: #b26a00; }
+.review-status--approved { background: #e3f7ec; color: #168a4f; }
+.review-status--hidden { background: #eef1f7; color: #5b6479; }
+.reply-list { list-style: none; margin: 0 0 14px; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.reply-list li { padding: 10px 12px; background: #f6f8fc; border-radius: 10px; }
+.reply-list p { margin: 4px 0 0; white-space: pre-wrap; word-break: break-word; }
+.reply-list__head { display: flex; justify-content: space-between; gap: 10px; }
+.reply-list__actions { display: flex; gap: 8px; margin-top: 8px; }
+.reply-list--inline { margin: 0; }
+.review-quote { padding: 12px; border: 1px solid #e3e8f2; border-radius: 10px; margin-bottom: 14px; }
+.review-quote p { margin: 6px 0 0; white-space: pre-wrap; word-break: break-word; }

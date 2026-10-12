@@ -1,5 +1,5 @@
 /**
- * database/seed.js – dữ liệu mẫu để TEST M1 (xác thực & tài khoản), M2 (khách hàng & địa chỉ), M7 (giỏ hàng) và M8 (đặt hàng).
+ * database/seed.js – dữ liệu mẫu để TEST M1 (xác thực & tài khoản), M2 (khách hàng & địa chỉ), M7 (giỏ hàng), M8 (đặt hàng) và M14 (đánh giá, yêu thích).
  *
  * Cách chạy:   cd database && npm i && npm run seed
  * Tùy chọn:    npm run seed -- --reset-passwords   (đặt lại mật khẩu các tài khoản mẫu)
@@ -343,6 +343,68 @@ async function seedOrders(pool, ids) {
   return `tạo mới ${created}/${SEED_ORDERS.length} đơn (PENDING / CONFIRMED / DELIVERED / CANCELLED)`;
 }
 
+/* ---------------- M14: đánh giá, phản hồi, yêu thích mẫu ---------------- */
+// Dùng sản phẩm TEST-* ở M7. Khách mẫu không có tài khoản chỉ để tạo số liệu thống kê sao.
+async function customerIdBy(pool, { username, phone }) {
+  const r = username
+    ? await pool.request().input('u', sql.NVarChar(50), username).query('SELECT customer_id AS id FROM users WHERE username = @u AND is_deleted = 0 AND customer_id IS NOT NULL')
+    : await pool.request().input('p', sql.VarChar(20), phone).query('SELECT customer_id AS id FROM customers WHERE phone = @p AND is_deleted = 0');
+  return r.recordset[0]?.id ?? null;
+}
+
+async function seedReviewsAndFavorites(pool, ids) {
+  const productOf = async (sku) =>
+    (await pool.request().input('v', sql.Int, ids[sku]).query('SELECT product_id AS id FROM product_variants WHERE variant_id = @v')).recordset[0].id;
+  const okP = await productOf('TEST-OK-40');
+  const lowP = await productOf('TEST-LOW-39');
+  const offP = await productOf('TEST-OFF-40');
+
+  const inv = await pool.request().query(`SELECT invoice_id AS id FROM invoices WHERE note = 'SEED-M8-DELIVERED' AND is_deleted = 0`);
+  const deliveredInvoice = inv.recordset[0]?.id ?? null; // đơn đã giao có "Giày Test – Còn hàng" → nhãn "Đã mua hàng"
+  const emp = await pool.request().query(`SELECT employee_id AS id FROM users WHERE username = 'sales01' AND is_deleted = 0`);
+  const salesEmployeeId = emp.recordset[0]?.id ?? null;
+
+  const REVIEWS = [
+    { who: { username: 'khach01' },     product: okP,  rating: 5, status: 'APPROVED', invoice: deliveredInvoice, comment: 'Giày đi rất êm, đúng size, giao nhanh.' },
+    { who: { username: 'khach02' },     product: okP,  rating: 4, status: 'APPROVED', comment: 'Đẹp nhưng hơi chật, nên lấy lớn hơn 1 size.', reply: 'Cảm ơn bạn đã góp ý! Lần sau bạn có thể đổi size miễn phí trong 7 ngày nhé.' },
+    { who: { phone: '0910000001' },    product: okP,  rating: 5, status: 'APPROVED', comment: 'Đóng gói cẩn thận, chất liệu tốt.' },
+    { who: { phone: '0910000002' },    product: okP,  rating: 3, status: 'PENDING',  comment: 'Tạm ổn, đang chờ duyệt (để thử nút Duyệt).' },
+    { who: { phone: '0910000003' },    product: okP,  rating: 1, status: 'HIDDEN',   comment: 'Nội dung vi phạm (để thử ẩn / xóa, không tính vào điểm trung bình).' },
+    { who: { phone: '0910000004' },    product: lowP, rating: 4, status: 'APPROVED', comment: 'Mẫu này đẹp, tiếc là sắp hết hàng.' },
+  ];
+
+  let created = 0;
+  for (const r of REVIEWS) {
+    const cid = await customerIdBy(pool, r.who);
+    if (!cid) continue;
+    const has = await pool.request().input('c', sql.Int, cid).input('p', sql.Int, r.product)
+      .query('SELECT 1 AS x FROM product_reviews WHERE customer_id = @c AND product_id = @p AND is_deleted = 0');
+    if (has.recordset.length) continue;
+    const ins = await pool.request().input('c', sql.Int, cid).input('p', sql.Int, r.product).input('i', sql.Int, r.invoice ?? null)
+      .input('r', sql.TinyInt, r.rating).input('t', sql.NVarChar(sql.MAX), r.comment).input('s', sql.VarChar(10), r.status)
+      .query(`INSERT INTO product_reviews (customer_id, product_id, invoice_id, rating, comment, status)
+              VALUES (@c, @p, @i, @r, @t, @s); SELECT CAST(SCOPE_IDENTITY() AS INT) AS id;`);
+    created++;
+    if (r.reply && salesEmployeeId) {
+      await pool.request().input('rv', sql.Int, ins.recordset[0].id).input('e', sql.Int, salesEmployeeId).input('t', sql.NVarChar(sql.MAX), r.reply)
+        .query('INSERT INTO review_replies (review_id, employee_id, content) VALUES (@rv, @e, @t)');
+    }
+  }
+
+  // Yêu thích của khach01: 2 sản phẩm đang bán + 1 sản phẩm ngừng bán (phải bị ẩn khỏi danh sách)
+  const k1 = await customerIdBy(pool, { username: 'khach01' });
+  let favs = 0;
+  if (k1) {
+    for (const p of [okP, lowP, offP]) {
+      const r = await pool.request().input('c', sql.Int, k1).input('p', sql.Int, p)
+        .query(`IF NOT EXISTS (SELECT 1 FROM favorite_products WHERE customer_id = @c AND product_id = @p)
+                BEGIN INSERT INTO favorite_products (customer_id, product_id) VALUES (@c, @p); SELECT 1 AS added; END`);
+      if (r.recordset.length) favs++;
+    }
+  }
+  return `tạo mới ${created} đánh giá (APPROVED/PENDING/HIDDEN, có 1 phản hồi, 1 đã mua hàng) và ${favs} sản phẩm yêu thích cho khach01`;
+}
+
 async function main() {
   if (!config.user || !config.password) {
     throw new Error('Thiếu DB_USER / DB_PASSWORD. Tạo backend/.env (hoặc database/.env) trước.');
@@ -370,6 +432,9 @@ async function main() {
   console.log('\nM8 – khuyến mãi & đơn hàng:');
   console.log(`  [khuyến mãi test] tạo mới ${await seedPromotions(pool, ids)}/3 (giảm 10% giày test · hóa đơn ≥ 2 triệu giảm 5% · voucher TEST10, TESTFULL hết lượt)`);
   console.log(`  [đơn mẫu khach01] ${await seedOrders(pool, ids)}`);
+
+  console.log('\nM14 – đánh giá & yêu thích:');
+  console.log(`  [mẫu] ${await seedReviewsAndFavorites(pool, ids)}`);
 
   console.log('\nXong. Web: admin / sales01 / warehouse01 · Mobile: khach01.');
   await pool.close();

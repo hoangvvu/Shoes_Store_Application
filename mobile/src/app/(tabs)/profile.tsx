@@ -8,6 +8,7 @@ import { PrimaryButton } from '@/components/PrimaryButton';
 import { authService } from '@/services/auth.service';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useCartStore } from '@/store/useCartStore';
+import { useFavoriteStore } from '@/store/useFavoriteStore';
 import { colors } from '@/theme';
 import { getErrorMessage } from '@/utils/error';
 import { validators as v } from '@/utils/validation';
@@ -71,6 +72,7 @@ export default function ProfileScreen() {
   async function logout() {
     await authService.logout();
     useCartStore.getState().reset(); // không để giỏ của tài khoản này lọt sang tài khoản khác
+    useFavoriteStore.getState().reset(); // tương tự với danh sách yêu thích
     await clear(); // AuthGate đưa về màn hình chào
   }
 
@@ -86,6 +88,12 @@ export default function ProfileScreen() {
       <AppTextInput icon="person-circle-outline" placeholder="Họ và tên" value={fullName} onChangeText={setFullName} autoCapitalize="words" />
       <AppTextInput icon="call-outline" placeholder="Số điện thoại" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
       <PrimaryButton title="Lưu hồ sơ" onPress={saveProfile} loading={savingProfile} />
+
+      <Pressable style={styles.linkRow} onPress={() => router.push('/favorites')}>
+        <Ionicons name="heart-outline" size={22} color={colors.primary} />
+        <Text style={styles.linkText}>Sản phẩm yêu thích</Text>
+        <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+      </Pressable>
 
       <Pressable style={styles.linkRow} onPress={() => router.push('/orders')}>
         <Ionicons name="receipt-outline" size={22} color={colors.primary} />

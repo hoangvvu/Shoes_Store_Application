@@ -105,6 +105,14 @@ export default function OrderDetailScreen() {
               <Text style={styles.bold} numberOfLines={2}>{i.productName}</Text>
               <Text style={styles.muted}>Size {i.sizeLabel} · {i.colorName} · {i.quantity} × {formatVnd(i.salePrice)}</Text>
               {i.discountAmount > 0 && <Text style={styles.ok}>Giảm {formatVnd(i.discountAmount)}</Text>}
+              {order.orderStatus === 'DELIVERED' && (
+                <Text
+                  style={styles.reviewLink}
+                  onPress={() => router.push({ pathname: '/reviews/write', params: { productId: String(i.productId), name: i.productName, invoiceId: String(order.invoiceId) } })}
+                >
+                  Đánh giá sản phẩm
+                </Text>
+              )}
             </View>
             <Text style={styles.bold}>{formatVnd(i.lineTotal)}</Text>
           </View>
@@ -159,6 +167,7 @@ const styles = StyleSheet.create({
   bold: { color: colors.text, fontWeight: '700', fontSize: 15 },
   muted: { color: colors.textMuted, fontSize: 14 },
   ok: { color: '#168A4F', fontSize: 13, fontWeight: '600' },
+  reviewLink: { color: colors.primary, fontSize: 14, fontWeight: '700', marginTop: 2 },
   box: { padding: 12, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, gap: 8 },
   lineRow: { flexDirection: 'row', gap: 12, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: colors.border },
   total: { color: colors.primaryDark, fontSize: 18, fontWeight: '800' },
