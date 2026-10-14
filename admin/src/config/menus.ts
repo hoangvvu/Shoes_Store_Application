@@ -13,6 +13,7 @@ export const MENUS: Record<EmployeeRole, MenuItem[]> = {
     { label: 'Dashboard', path: '/admin', icon: 'dashboard' },
     { label: 'Nhân viên & tài khoản', path: '/admin/employees', icon: 'users' },
     { label: 'Khách hàng', path: '/admin/customers', icon: 'user' },
+    { label: 'Đơn hàng', path: '/admin/orders', icon: 'cart' },
     { label: 'Sản phẩm', path: '/admin/products', icon: 'box' },
     { label: 'Khuyến mãi & voucher', path: '/admin/promotions', icon: 'tag' },
     { label: 'Banner', path: '/admin/banners', icon: 'image' },

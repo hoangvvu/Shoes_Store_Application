@@ -55,10 +55,11 @@ export default function RegisterScreen() {
 
       <AppTextInput icon="person-circle-outline" placeholder="Họ và tên" value={f.fullName} onChangeText={set('fullName')} autoCapitalize="words" error={errors.fullName} />
       <AppTextInput icon="call-outline" placeholder="Số điện thoại" value={f.phone} onChangeText={set('phone')} keyboardType="phone-pad" error={errors.phone} />
-      <AppTextInput icon="person-outline" placeholder="Tên đăng nhập" value={f.username} onChangeText={set('username')} error={errors.username} />
-      <AppTextInput icon="lock-closed-outline" placeholder="Mật khẩu (tối thiểu 8 ký tự)" value={f.password} onChangeText={set('password')} secure error={errors.password} />
+      <AppTextInput icon="person-outline" placeholder="Tên đăng nhập (4–50 ký tự)" value={f.username} onChangeText={set('username')} error={errors.username} />
+      <AppTextInput icon="lock-closed-outline" placeholder="Mật khẩu (8+ ký tự, hoa-thường-số)" value={f.password} onChangeText={set('password')} secure error={errors.password} />
       <AppTextInput icon="lock-closed-outline" placeholder="Nhập lại mật khẩu" value={f.confirm} onChangeText={set('confirm')} secure error={errors.confirm} />
 
+      <Text style={styles.hint}>Tên đăng nhập: chữ cái, số, dấu _ hoặc -, không khoảng trắng. Mật khẩu: tối thiểu 8 ký tự gồm chữ hoa, chữ thường và số.</Text>
       {!!serverError && <Text style={styles.error}>{serverError}</Text>}
       <PrimaryButton title="Đăng ký" onPress={onSubmit} loading={loading} />
     </AuthLayout>
@@ -70,4 +71,5 @@ const styles = StyleSheet.create({
   muted: { color: colors.textMuted, fontSize: 14 },
   link: { color: colors.primary, fontWeight: '700', fontSize: 14 },
   error: { color: colors.danger, fontSize: 14, textAlign: 'center' },
+  hint: { color: colors.textMuted, fontSize: 12, lineHeight: 17 },
 });

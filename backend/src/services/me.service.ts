@@ -32,8 +32,7 @@ export const meService = {
         dateOfBirth: e.dateOfBirth,
         address: e.address,
         phone: e.phone,
-        // Lương cơ bản chỉ Admin được xem
-        ...(user.role === 'ADMIN' ? { baseSalary: e.baseSalary } : {}),
+        // Lương cơ bản không trả qua /me; Admin xem và sửa ở module Nhân viên (M3).
       },
     };
   },
@@ -61,6 +60,9 @@ export const meService = {
     } else if (auth.employeeId) {
       await withTransaction(async (tx) => {
         await setActor(tx, auth.userId);
+        if (phone && (await employeeRepository.phoneExists(phone, auth.employeeId!, tx))) {
+          throw AppError.conflict('Số điện thoại đã được nhân viên khác sử dụng', 'PHONE_TAKEN');
+        }
         await employeeRepository.update(
           auth.employeeId!,
           { fullName: input.fullName, dateOfBirth: input.dateOfBirth, address: input.address, phone },

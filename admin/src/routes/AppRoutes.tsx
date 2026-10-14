@@ -7,10 +7,15 @@ import WarehouseLayout from '../layouts/WarehouseLayout';
 import AdminCustomerDetailPage from '../pages/admin/AdminCustomerDetailPage';
 import AdminCustomersPage from '../pages/admin/AdminCustomersPage';
 import AdminHomePage from '../pages/admin/AdminHomePage';
+import AdminOrderDetailPage from '../pages/admin/AdminOrderDetailPage';
+import AdminOrdersPage from '../pages/admin/AdminOrdersPage';
 import LoginPage from '../pages/LoginPage';
+import ProfilePage from '../pages/ProfilePage';
 import SalesCustomerDetailPage from '../pages/sales/SalesCustomerDetailPage';
 import SalesCustomersPage from '../pages/sales/SalesCustomersPage';
 import SalesHomePage from '../pages/sales/SalesHomePage';
+import SalesOrderDetailPage from '../pages/sales/SalesOrderDetailPage';
+import SalesOrdersPage from '../pages/sales/SalesOrdersPage';
 import WarehouseHomePage from '../pages/warehouse/WarehouseHomePage';
 import { useAuthStore } from '../store/useAuthStore';
 import { ProtectedRoute } from './ProtectedRoute';
@@ -28,6 +33,9 @@ export function AppRoutes() {
           <Route index element={<AdminHomePage />} />
           <Route path="customers" element={<AdminCustomersPage />} />
           <Route path="customers/:id" element={<AdminCustomerDetailPage />} />
+          <Route path="orders" element={<AdminOrdersPage />} />
+          <Route path="orders/:id" element={<AdminOrderDetailPage />} />
+          <Route path="profile" element={<ProfilePage />} />
           <Route path="*" element={<PlaceholderPage role="ADMIN" />} />
         </Route>
       </Route>
@@ -37,6 +45,9 @@ export function AppRoutes() {
           <Route index element={<SalesHomePage />} />
           <Route path="customers" element={<SalesCustomersPage />} />
           <Route path="customers/:id" element={<SalesCustomerDetailPage />} />
+          <Route path="orders" element={<SalesOrdersPage />} />
+          <Route path="orders/:id" element={<SalesOrderDetailPage />} />
+          <Route path="profile" element={<ProfilePage />} />
           <Route path="*" element={<PlaceholderPage role="SALES" />} />
         </Route>
       </Route>
@@ -44,6 +55,7 @@ export function AppRoutes() {
       <Route element={<ProtectedRoute roles={['WAREHOUSE']} />}>
         <Route path="/warehouse" element={<WarehouseLayout />}>
           <Route index element={<WarehouseHomePage />} />
+          <Route path="profile" element={<ProfilePage />} />
           <Route path="*" element={<PlaceholderPage role="WAREHOUSE" />} />
         </Route>
       </Route>

@@ -9,6 +9,7 @@ interface AuthState {
   remember: boolean;
   setSession: (s: { accessToken: string; refreshToken: string; user: AuthUser }, remember: boolean) => void;
   setAccessToken: (token: string) => void;
+  setFullName: (fullName: string) => void;
   clear: () => void;
 }
 
@@ -29,6 +30,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const { user, refreshToken, remember } = get();
     if (user && refreshToken) saveSession({ accessToken, refreshToken, user }, remember);
     set({ accessToken });
+  },
+
+  setFullName: (fullName) => {
+    const { user, accessToken, refreshToken, remember } = get();
+    if (!user || !accessToken || !refreshToken) return;
+    const next = { ...user, fullName };
+    saveSession({ accessToken, refreshToken, user: next }, remember); // giữ phiên đã lưu đồng bộ
+    set({ user: next });
   },
 
   clear: () => {

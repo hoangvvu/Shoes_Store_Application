@@ -65,7 +65,7 @@ export default function ForgotPasswordScreen() {
         <>
           {!!info && <Text style={styles.muted}>{info}</Text>}
           <AppTextInput icon="keypad-outline" placeholder={`Mã OTP ${OTP_LENGTH} số`} value={otp} onChangeText={setOtp} keyboardType="number-pad" maxLength={OTP_LENGTH} />
-          <AppTextInput icon="lock-closed-outline" placeholder="Mật khẩu mới" value={password} onChangeText={setPassword} secure />
+          <AppTextInput icon="lock-closed-outline" placeholder="Mật khẩu mới (8+ ký tự, hoa-thường-số)" value={password} onChangeText={setPassword} secure />
           <AppTextInput icon="lock-closed-outline" placeholder="Nhập lại mật khẩu mới" value={confirm} onChangeText={setConfirm} secure />
         </>
       )}

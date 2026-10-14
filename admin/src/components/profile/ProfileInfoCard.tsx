@@ -1,0 +1,130 @@
+import { type FormEvent, useEffect, useState } from 'react';
+import { ROLE_LABEL } from '../../config/roles';
+import { profileService } from '../../services/profile.service';
+import { useAuthStore } from '../../store/useAuthStore';
+import type { EmployeeRole } from '../../types/auth';
+import type { EmployeeMe } from '../../types/profile';
+import { getErrorMessage } from '../../utils/error';
+import { formatYmdVn, latestBirthDate, validateBirthDate, validatePhone } from '../../utils/validators';
+import { NavIcon } from '../common/NavIcon';
+
+/** Tab "Thông tin tài khoản": xem dạng danh sách, bấm "Chỉnh sửa" để sửa tại chỗ. */
+export function ProfileInfoCard({ role }: { role: EmployeeRole }) {
+  const setFullName = useAuthStore((s) => s.setFullName);
+  const [me, setMe] = useState<EmployeeMe | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [fullName, setName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [dob, setDob] = useState('');
+  const [address, setAddress] = useState('');
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  function fill(m: EmployeeMe) {
+    setMe(m);
+    setName(m.profile.fullName);
+    setPhone(m.profile.phone ?? '');
+    setDob(m.profile.dateOfBirth ? m.profile.dateOfBirth.slice(0, 10) : ''); // input[type=date] cần YYYY-MM-DD
+    setAddress(m.profile.address ?? '');
+  }
+
+  useEffect(() => {
+    profileService.getMe().then(fill).catch((e) => setError(getErrorMessage(e)));
+  }, []);
+
+  function startEdit() {
+    setError('');
+    setSuccess('');
+    setEditing(true);
+  }
+
+  function cancelEdit() {
+    if (me) fill(me);
+    setError('');
+    setEditing(false);
+  }
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+    if (fullName.trim().length < 2) return setError('Họ tên tối thiểu 2 ký tự');
+    if (phone.trim()) {
+      const msg = validatePhone(phone);
+      if (msg) return setError(msg);
+    }
+    if (dob) {
+      const msg = validateBirthDate(dob);
+      if (msg) return setError(msg);
+    }
+    if (address.trim().length > 255) return setError('Địa chỉ tối đa 255 ký tự');
+
+    setSaving(true);
+    try {
+      // Chỉ gửi trường có giá trị (backend chưa hỗ trợ xóa trắng một trường)
+      const updated = await profileService.updateMe({
+        fullName: fullName.trim(),
+        ...(phone.trim() && { phone: phone.trim() }),
+        ...(dob && { dateOfBirth: dob }),
+        ...(address.trim() && { address: address.trim() }),
+      });
+      fill(updated);
+      setFullName(updated.profile.fullName); // lời chào ở header cập nhật ngay
+      setEditing(false);
+      setSuccess('Đã lưu thông tin cá nhân');
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const head = (
+    <header className="profile__head">
+      <div>
+        <h3>Thông tin tài khoản</h3>
+        <p className="muted">Thông tin cá nhân của bạn trong hệ thống.</p>
+      </div>
+      {me && !editing && (
+        <button className="btn btn--outline" onClick={startEdit}>
+          <NavIcon name="edit" size={16} />
+          Chỉnh sửa
+        </button>
+      )}
+    </header>
+  );
+
+  if (!me) return <>{head}{error ? <p className="form-error">{error}</p> : <p className="muted">Đang tải…</p>}</>;
+
+  const row = (label: string, view: string, input?: React.ReactNode) => (
+    <div className="info-row">
+      <dt>{label}</dt>
+      <dd>{editing && input ? input : view || '—'}</dd>
+    </div>
+  );
+
+  return (
+    <form onSubmit={submit} noValidate>
+      {head}
+      {success && <p className="form-success">{success}</p>}
+      <dl className="info-grid">
+        {row('Họ và tên', me.profile.fullName, <input value={fullName} onChange={(e) => setName(e.target.value)} maxLength={100} autoFocus />)}
+        {row('Ngày sinh', formatYmdVn(me.profile.dateOfBirth), <input type="date" value={dob} max={latestBirthDate()} min="1900-01-01" onChange={(e) => setDob(e.target.value)} />)}
+        {row('Số điện thoại', me.profile.phone ?? '', <input value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" maxLength={11} placeholder="0901234567" />)}
+        {row('Địa chỉ', me.profile.address ?? '', <input value={address} onChange={(e) => setAddress(e.target.value)} maxLength={255} />)}
+        {row('Tên đăng nhập', me.username)}
+        {row('Vai trò', ROLE_LABEL[role])}
+      </dl>
+      {editing && (
+        <>
+          {error && <p className="form-error" role="alert">{error}</p>}
+          <div className="form__actions">
+            <button type="button" className="btn btn--ghost" onClick={cancelEdit}>Hủy</button>
+            <button type="submit" className="btn btn--primary" disabled={saving}>{saving ? 'Đang lưu…' : 'Lưu thay đổi'}</button>
+          </div>
+        </>
+      )}
+    </form>
+  );
+}

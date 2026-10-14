@@ -10,6 +10,9 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// Các endpoint không cần token: không thử refresh (tránh lặp vô hạn). /auth/password cần token nên vẫn được refresh.
+const PUBLIC_AUTH_PATHS = ['/auth/login', '/auth/refresh', '/auth/register', '/auth/forgot', '/auth/reset', '/auth/logout'];
+
 let refreshing: Promise<string> | null = null;
 
 async function refreshAccessToken(): Promise<string> {
@@ -25,7 +28,7 @@ api.interceptors.response.use(
   (res) => res,
   async (error: AxiosError) => {
     const original = error.config as (InternalAxiosRequestConfig & { _retried?: boolean }) | undefined;
-    const isAuthCall = original?.url?.startsWith('/auth/');
+    const isAuthCall = PUBLIC_AUTH_PATHS.some((u) => original?.url?.startsWith(u));
     if (error.response?.status !== 401 || !original || original._retried || isAuthCall) {
       throw error;
     }

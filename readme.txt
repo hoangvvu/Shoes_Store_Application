@@ -43,7 +43,6 @@ Cách kiểm tra: Dùng điện thoại ngắt Wi-Fi nhà chuyển sang 4G/5G, m
 
 CÁCH TẢI VÀ CHẠY PROJECT
 
-Tải như cũ vẫn là npm install
 
 Ở cd database
 Chạy .sql dán kết nối theo chuẩn file. .env.example
@@ -51,7 +50,7 @@ npm run migrate
 npm run seed
 
 Ở cd backend
-Sau khi npm install -> npm start
+npm run build để ra 1 file biên dịch dist -> npm start
 mở 1 terminal khác cd backend luôn và chạy npm run ngrok
 
 Ở cd admin 
