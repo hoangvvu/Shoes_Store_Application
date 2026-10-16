@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { customerService } from '../../services/customer.service';
 import type { CustomerDetail } from '../../types/customer';
 import { getErrorMessage } from '../../utils/error';
+import { genderText } from '../../utils/person';
 import { ADDRESS_LABEL, ORDER_STATUS_LABEL, formatDateTime, formatVnd, joinAddress } from '../../utils/format';
 import { PageHeader } from '../common/PageHeader';
 import { CustomerFormModal } from './CustomerFormModal';
@@ -73,6 +74,9 @@ export function CustomerDetailView({ basePath, canDelete }: Props) {
           <dl className="kv">
             <dt>Họ tên</dt><dd>{data.fullName}</dd>
             <dt>Số điện thoại</dt><dd>{data.phone ?? '—'}</dd>
+            <dt>Email</dt><dd>{data.email ?? '—'}</dd>
+            <dt>Giới tính</dt><dd>{genderText(data.gender)}</dd>
+            <dt>Ngày sinh</dt><dd>{data.dateOfBirth ? data.dateOfBirth.slice(0, 10).split('-').reverse().join('/') : '—'}</dd>
             <dt>Tài khoản</dt><dd>{data.hasAccount ? 'Có tài khoản (app/web)' : 'Khách tại quầy, chưa có tài khoản'}</dd>
             <dt>Tổng tiền đã mua</dt><dd><strong>{formatVnd(data.totalPurchased)}</strong></dd>
           </dl>

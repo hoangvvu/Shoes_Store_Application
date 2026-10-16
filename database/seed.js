@@ -1,5 +1,5 @@
 /**
- * database/seed.js – dữ liệu mẫu để TEST M1 (xác thực & tài khoản), M2 (khách hàng & địa chỉ), M7 (giỏ hàng), M8 (đặt hàng) và M14 (đánh giá, yêu thích).
+ * database/seed.js – dữ liệu mẫu để TEST M1 (xác thực & tài khoản), M2 (khách hàng & địa chỉ), M7 (giỏ hàng), M8 (đặt hàng) và M14 (đánh giá, yêu thích), kèm thông tin cá nhân (giới tính, email, ngày sinh…) để thử tìm kiếm nâng cao.
  *
  * Cách chạy:   cd database && npm i && npm run seed
  * Tùy chọn:    npm run seed -- --reset-passwords   (đặt lại mật khẩu các tài khoản mẫu)
@@ -392,17 +392,108 @@ async function seedReviewsAndFavorites(pool, ids) {
   }
 
   // Yêu thích của khach01: 2 sản phẩm đang bán + 1 sản phẩm ngừng bán (phải bị ẩn khỏi danh sách)
+  
+  // Yêu thích của khach01: 2 sản phẩm đang bán + 1 sản phẩm ngừng bán
   const k1 = await customerIdBy(pool, { username: 'khach01' });
   let favs = 0;
+
   if (k1) {
     for (const p of [okP, lowP, offP]) {
-      const r = await pool.request().input('c', sql.Int, k1).input('p', sql.Int, p)
-        .query(`IF NOT EXISTS (SELECT 1 FROM favorite_products WHERE customer_id = @c AND product_id = @p)
-                BEGIN INSERT INTO favorite_products (customer_id, product_id) VALUES (@c, @p); SELECT 1 AS added; END`);
-      if (r.recordset.length) favs++;
+      const r = await pool.request()
+        .input('c', sql.Int, k1)
+        .input('p', sql.Int, p)
+        .query(`
+          IF NOT EXISTS (
+            SELECT 1
+            FROM favorite_products
+            WHERE customer_id = @c
+              AND product_id = @p
+          )
+          BEGIN
+            INSERT INTO favorite_products (customer_id, product_id)
+            VALUES (@c, @p);
+
+            SELECT 1 AS added;
+          END
+          ELSE
+          BEGIN
+            SELECT 0 AS added;
+          END
+        `);
+
+      if (r.recordset?.[0]?.added === 1) {
+        favs++;
+      }
     }
   }
   return `tạo mới ${created} đánh giá (APPROVED/PENDING/HIDDEN, có 1 phản hồi, 1 đã mua hàng) và ${favs} sản phẩm yêu thích cho khach01`;
+}
+
+/* ---------------- Thông tin cá nhân (migration 002): giới tính, email, ngày sinh, ngày vào làm ---------------- */
+// Điền vào các ô còn NULL (không ghi đè dữ liệu đã nhập). Có cả bản ghi để trống hoàn toàn để thử NULL / "Chưa cung cấp".
+const d = (ymd) => (ymd ? new Date(`${ymd}T00:00:00.000Z`) : null);
+
+const EMPLOYEE_PROFILE = {
+  admin:       { gender: 'MALE',   email: 'admin@ouran.vn',       dob: '1990-04-12', hire: '2022-01-10' },
+  sales01:     { gender: 'FEMALE', email: 'sales01@ouran.vn',     dob: '1996-08-21', hire: '2023-03-01' },
+  warehouse01: { gender: 'MALE',   email: 'kho01@ouran.vn',       dob: '1993-11-05', hire: '2023-06-15' },
+  // sales_locked: để trống toàn bộ
+};
+
+const CUSTOMER_PROFILE_BY_USERNAME = {
+  khach01: { gender: 'MALE',   email: 'khach01@example.com', dob: '2000-05-20' },
+  khach02: { gender: 'FEMALE', email: 'khach02@example.com', dob: '1997-02-14' },
+  // khach_locked: để trống toàn bộ
+};
+
+// Khách không có tài khoản (nhận diện bằng SĐT) – đa dạng giới tính / tuổi / mức mua để thử bộ lọc
+const CUSTOMER_PROFILE_BY_PHONE = {
+  '0910000001': { gender: 'FEMALE', dob: '2003-03-10', email: 'a01@example.com', spent: 3200000 },
+  '0910000002': { gender: 'MALE',   dob: '1998-07-01', email: null,              spent: 12500000 },
+  '0910000003': { gender: 'FEMALE', dob: '1985-09-30', email: 'a03@example.com', spent: 25000000 },
+  '0910000004': { gender: 'MALE',   dob: '1979-01-15', email: 'a04@example.com', spent: 800000 },
+  '0910000005': { gender: 'OTHER',  dob: '2008-12-25', email: null,              spent: 0 },
+  '0910000006': { gender: 'FEMALE', dob: '1992-06-18', email: 'a06@example.com', spent: 7400000 },
+  '0910000007': { gender: 'MALE',   dob: '1969-10-02', email: null,              spent: 1900000 },
+  '0910000008': { gender: 'FEMALE', dob: '2001-04-04', email: 'a08@example.com', spent: 5000000 },
+  '0910000009': { gender: 'MALE',   dob: '1995-11-11', email: 'a09@example.com', spent: 0 },
+  '0910000011': { gender: 'FEMALE', dob: '1988-02-29', email: 'a11@example.com', spent: 4300000 },
+  '0910000012': { gender: 'MALE',   dob: '2005-08-08', email: 'a12@example.com', spent: 21000000 },
+  // 0900000005, 0910000010: để trống toàn bộ ("Chưa cung cấp")
+};
+
+async function assertProfileColumns(pool) {
+  const r = await pool.request().query(`SELECT COL_LENGTH('customers', 'gender') AS c, COL_LENGTH('employees', 'hire_date') AS e`);
+  if (r.recordset[0].c === null || r.recordset[0].e === null) {
+    throw new Error('Thiếu cột gender/email/hire_date. Chạy "npm run migrate" (migrations/002_profile_fields.sql) trước khi seed.');
+  }
+}
+
+async function seedProfileFields(pool) {
+  let n = 0;
+  for (const [username, p] of Object.entries(EMPLOYEE_PROFILE)) {
+    const r = await pool.request().input('u', sql.NVarChar(50), username).input('g', sql.VarChar(10), p.gender).input('e', sql.VarChar(100), p.email)
+      .input('b', sql.Date, d(p.dob)).input('h', sql.Date, d(p.hire))
+      .query(`UPDATE e SET gender = COALESCE(e.gender, @g), email = COALESCE(e.email, @e),
+                           date_of_birth = COALESCE(e.date_of_birth, @b), hire_date = COALESCE(e.hire_date, @h)
+              FROM employees e JOIN users u ON u.employee_id = e.employee_id WHERE u.username = @u AND u.is_deleted = 0`);
+    n += r.rowsAffected[0] ?? 0;
+  }
+  for (const [username, p] of Object.entries(CUSTOMER_PROFILE_BY_USERNAME)) {
+    const r = await pool.request().input('u', sql.NVarChar(50), username).input('g', sql.VarChar(10), p.gender).input('e', sql.VarChar(100), p.email).input('b', sql.Date, d(p.dob))
+      .query(`UPDATE c SET gender = COALESCE(c.gender, @g), email = COALESCE(c.email, @e), date_of_birth = COALESCE(c.date_of_birth, @b)
+              FROM customers c JOIN users u ON u.customer_id = c.customer_id WHERE u.username = @u AND u.is_deleted = 0`);
+    n += r.rowsAffected[0] ?? 0;
+  }
+  for (const [phone, p] of Object.entries(CUSTOMER_PROFILE_BY_PHONE)) {
+    const r = await pool.request().input('ph', sql.VarChar(20), phone).input('g', sql.VarChar(10), p.gender).input('e', sql.VarChar(100), p.email)
+      .input('b', sql.Date, d(p.dob)).input('s', sql.Decimal(18, 2), p.spent)
+      .query(`UPDATE customers SET gender = COALESCE(gender, @g), email = COALESCE(email, @e), date_of_birth = COALESCE(date_of_birth, @b),
+                     total_purchased = CASE WHEN total_purchased = 0 THEN @s ELSE total_purchased END
+              WHERE phone = @ph AND is_deleted = 0`);
+    n += r.rowsAffected[0] ?? 0;
+  }
+  return n;
 }
 
 async function main() {
@@ -410,6 +501,7 @@ async function main() {
     throw new Error('Thiếu DB_USER / DB_PASSWORD. Tạo backend/.env (hoặc database/.env) trước.');
   }
   const pool = await new sql.ConnectionPool(config).connect();
+  await assertProfileColumns(pool);
   console.log(`Seed M1 → ${config.server}/${config.database}\n`);
   for (const a of ACCOUNTS) {
     const status = await seedAccount(pool, a);
@@ -423,6 +515,8 @@ async function main() {
   for (const [username, list] of Object.entries(ADDRESSES)) {
     console.log(`  [địa chỉ ${username.padEnd(8)}] ${await seedAddresses(pool, username, list)}`);
   }
+
+  console.log(`  [thông tin cá nhân] đã điền ${await seedProfileFields(pool)} bản ghi (giới tính, email, ngày sinh, ngày vào làm; một số để trống để thử NULL)`);
 
   console.log('\nM7 – giỏ hàng:');
   const ids = await seedTestCatalog(pool);

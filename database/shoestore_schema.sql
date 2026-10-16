@@ -1,25 +1,9 @@
 SET NOCOUNT ON;
 GO
-
--- 1. Nếu Database đã tồn tại, xóa để khởi tạo lại từ đầu
-USE MASTER;
+IF DB_ID(N'ShoeStore') IS NULL CREATE DATABASE ShoeStore COLLATE Vietnamese_CI_AS;
 GO
-
-IF DB_ID(N'ShoeStore') IS NOT NULL
-BEGIN
-    -- Ngắt tất cả kết nối đang mở tới database để xóa không bị lỗi
-    ALTER DATABASE [ShoeStore] SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
-    DROP DATABASE [ShoeStore];
-END
-GO
-
--- 2. Tạo mới lại Database
-CREATE DATABASE ShoeStore COLLATE Vietnamese_CI_AS;
-GO
-
 USE ShoeStore;
 GO
-
 SET ANSI_NULLS ON;
 SET QUOTED_IDENTIFIER ON;
 GO
@@ -44,6 +28,9 @@ CREATE TABLE employees (
     date_of_birth DATE NULL,                                -- NS
     address       NVARCHAR(255) NULL,                       -- ĐC
     phone         VARCHAR(20) NULL,
+    gender        VARCHAR(10) NULL CONSTRAINT ck_emp_gender CHECK (gender IN ('MALE','FEMALE','OTHER')),   -- GT (không bắt buộc)
+    email         VARCHAR(100) NULL CONSTRAINT ck_emp_email CHECK (email LIKE '%_@_%._%'),                  -- Email
+    hire_date     DATE NULL,                                -- Ngày vào làm
     base_salary   DECIMAL(18,2) NOT NULL DEFAULT 0 CONSTRAINT ck_emp_salary CHECK (base_salary >= 0), -- Lương CB
     is_deleted    BIT NOT NULL DEFAULT 0,
     deleted_at    DATETIME2(3) NULL
@@ -54,6 +41,9 @@ CREATE TABLE customers (
     customer_id     INT IDENTITY(1,1) PRIMARY KEY,          -- MaKH
     full_name       NVARCHAR(100) NOT NULL,                 -- Họ tên
     phone           VARCHAR(20) NULL,                       -- ĐT
+    gender          VARCHAR(10) NULL CONSTRAINT ck_cus_gender CHECK (gender IN ('MALE','FEMALE','OTHER')),  -- GT (khách không bắt buộc cung cấp)
+    date_of_birth   DATE NULL,                              -- Ngày sinh
+    email           VARCHAR(100) NULL CONSTRAINT ck_cus_email CHECK (email LIKE '%_@_%._%'),                -- Email
     total_purchased DECIMAL(18,2) NOT NULL DEFAULT 0 CONSTRAINT ck_cus_total CHECK (total_purchased >= 0), -- Tổng tiền hàng đã mua
     is_deleted      BIT NOT NULL DEFAULT 0,
     deleted_at      DATETIME2(3) NULL

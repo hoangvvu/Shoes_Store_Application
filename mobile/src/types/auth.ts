@@ -16,6 +16,10 @@ export interface CustomerProfile {
   customerId: number;
   fullName: string;
   phone: string | null;
+  gender: 'MALE' | 'FEMALE' | 'OTHER' | null;
+  /** YYYY-MM-DD (hoặc ISO) hoặc null nếu chưa cung cấp. */
+  dateOfBirth: string | null;
+  email: string | null;
   totalPurchased: number;
 }
 export interface MeResponse {

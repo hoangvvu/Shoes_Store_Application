@@ -19,7 +19,13 @@ export const meService = {
     if (user.userType === USER_TYPES.CUSTOMER && user.customerId) {
       const c = await customerRepository.findById(user.customerId);
       if (!c) throw AppError.notFound('Không tìm thấy hồ sơ khách hàng');
-      return { ...base, profile: { customerId: c.customerId, fullName: c.fullName, phone: c.phone, totalPurchased: c.totalPurchased } };
+      return {
+        ...base,
+        profile: {
+          customerId: c.customerId, fullName: c.fullName, phone: c.phone, gender: c.gender,
+          dateOfBirth: c.dateOfBirth, email: c.email, totalPurchased: c.totalPurchased,
+        },
+      };
     }
 
     const e = user.employeeId ? await employeeRepository.findById(user.employeeId) : null;
@@ -32,6 +38,9 @@ export const meService = {
         dateOfBirth: e.dateOfBirth,
         address: e.address,
         phone: e.phone,
+        gender: e.gender,
+        email: e.email,
+        hireDate: e.hireDate,
         // Lương cơ bản không trả qua /me; Admin xem và sửa ở module Nhân viên (M3).
       },
     };
@@ -42,8 +51,8 @@ export const meService = {
 
     // IDOR: luôn lấy customerId / employeeId từ token, không nhận từ body hay URL.
     if (auth.userType === USER_TYPES.CUSTOMER && auth.customerId) {
-      if (input.dateOfBirth !== undefined || input.address !== undefined) {
-        throw AppError.badRequest('Khách hàng chỉ được sửa họ tên và số điện thoại', 'FIELD_NOT_ALLOWED');
+      if (input.address !== undefined) {
+        throw AppError.badRequest('Địa chỉ giao hàng được quản lý ở mục Địa chỉ', 'FIELD_NOT_ALLOWED');
       }
       try {
         await withTransaction(async (tx) => {
@@ -51,7 +60,11 @@ export const meService = {
           if (phone && (await customerRepository.phoneExists(phone, auth.customerId!, tx))) {
             throw AppError.conflict('Số điện thoại đã được đăng ký', 'PHONE_TAKEN');
           }
-          await customerRepository.update(auth.customerId!, { fullName: input.fullName, phone }, tx);
+          await customerRepository.update(
+            auth.customerId!,
+            { fullName: input.fullName, phone, gender: input.gender, dateOfBirth: input.dateOfBirth, email: input.email },
+            tx,
+          );
         });
       } catch (err) {
         if (isDuplicateKey(err, 'uq_customers_phone')) throw AppError.conflict('Số điện thoại đã được đăng ký', 'PHONE_TAKEN');
@@ -65,7 +78,10 @@ export const meService = {
         }
         await employeeRepository.update(
           auth.employeeId!,
-          { fullName: input.fullName, dateOfBirth: input.dateOfBirth, address: input.address, phone },
+          {
+            fullName: input.fullName, dateOfBirth: input.dateOfBirth ?? undefined, address: input.address, phone,
+            gender: input.gender, email: input.email,
+          },
           tx,
         );
       });

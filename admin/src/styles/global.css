@@ -259,3 +259,14 @@ h3 { margin: 0 0 12px; font-size: 16px; }
 .reply-list--inline { margin: 0; }
 .review-quote { padding: 12px; border: 1px solid #e3e8f2; border-radius: 10px; margin-bottom: 14px; }
 .review-quote p { margin: 6px 0 0; white-space: pre-wrap; word-break: break-word; }
+
+/* ---- Tìm kiếm nâng cao khách hàng ---- */
+.adv-search { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
+.adv-search .search { margin-bottom: 0; max-width: none; }
+.adv-search__row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.adv-search__row .select { min-width: 150px; }
+.adv-search__btn { min-width: 110px; }
+.adv-search__hint { margin: 0; font-size: 13px; }
+.adv-search__empty { padding: 36px 0; }
+.form__row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.info-row select { width: 100%; max-width: 240px; padding: 8px 10px; border: 1px solid #d9deea; border-radius: 8px; font: inherit; background: #fff; }

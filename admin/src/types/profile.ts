@@ -11,6 +11,9 @@ export interface EmployeeMe {
     dateOfBirth: string | null;
     address: string | null;
     phone: string | null;
+    gender: 'MALE' | 'FEMALE' | 'OTHER' | null;
+    email: string | null;
+    hireDate: string | null;
   };
 }
 
@@ -19,4 +22,7 @@ export interface UpdateProfilePayload {
   phone?: string;
   dateOfBirth?: string;
   address?: string;
+  /** null = xóa (không bắt buộc). */
+  gender?: 'MALE' | 'FEMALE' | 'OTHER' | null;
+  email?: string | null;
 }

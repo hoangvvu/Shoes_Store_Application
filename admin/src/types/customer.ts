@@ -10,8 +10,23 @@ export interface CustomerListItem {
   customerId: number;
   fullName: string;
   phone: string | null;
+  gender: 'MALE' | 'FEMALE' | 'OTHER' | null;
+  dateOfBirth: string | null;
+  email: string | null;
   totalPurchased: number;
   hasAccount: boolean;
+}
+
+/** Bộ lọc tìm kiếm nâng cao (mọi trường đều không bắt buộc, kết hợp bằng AND). */
+export interface CustomerFilters {
+  q: string;
+  gender: '' | 'MALE' | 'FEMALE' | 'OTHER' | 'NONE';
+  hasAccount: '' | 'true' | 'false';
+  /** Nhóm tuổi: khóa trong AGE_GROUPS. */
+  ageGroup: string;
+  /** Mức mua: khóa trong SPEND_RANGES. */
+  spend: string;
+  sort: 'newest' | 'name' | 'spent';
 }
 
 export interface Address {
@@ -42,4 +57,8 @@ export interface CustomerDetail extends CustomerListItem {
 export interface CustomerFormValues {
   fullName: string;
   phone: string;
+  /** null = xóa giá trị (không bắt buộc); bỏ qua = giữ nguyên. */
+  gender?: 'MALE' | 'FEMALE' | 'OTHER' | null;
+  dateOfBirth?: string | null;
+  email?: string | null;
 }

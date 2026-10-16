@@ -29,4 +29,34 @@ export const validators = {
   confirm: (v: string, original: string) => (v === original ? '' : 'Mật khẩu nhập lại không khớp'),
 };
 
+/** Chuyển giữa YYYY-MM-DD (API) và dd/mm/yyyy (nhập trên điện thoại, không cần thêm thư viện chọn ngày). */
+export const ymdToDmy = (ymd: string | null): string => (ymd ? ymd.slice(0, 10).split('-').reverse().join('/') : '');
+export const dmyToYmd = (dmy: string): string | null => {
+  const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(dmy.trim());
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : null;
+};
+
+export const optionalValidators = {
+  /** Email không bắt buộc: rỗng là hợp lệ. */
+  email: (v: string) => {
+    const e = v.trim();
+    if (!e) return '';
+    if (e.length > 100) return 'Email tối đa 100 ký tự';
+    return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e) ? '' : 'Email không hợp lệ';
+  },
+  /** Ngày sinh không bắt buộc, nhập dd/mm/yyyy; không ở tương lai, không quá 120 tuổi. */
+  birthDate: (dmy: string) => {
+    if (!dmy.trim()) return '';
+    const ymd = dmyToYmd(dmy);
+    if (!ymd) return 'Ngày sinh nhập theo dạng dd/mm/yyyy';
+    const [y, m, d] = ymd.split('-').map(Number);
+    const dt = new Date(y, m - 1, d);
+    if (dt.getFullYear() !== y || dt.getMonth() !== m - 1 || dt.getDate() !== d) return 'Ngày sinh không hợp lệ';
+    const now = new Date();
+    if (dt > now) return 'Ngày sinh không được ở tương lai';
+    if (y < now.getFullYear() - 120) return 'Ngày sinh không hợp lệ';
+    return '';
+  },
+};
+
 export const firstError = (...errors: string[]) => errors.find(Boolean) ?? '';

@@ -6,6 +6,7 @@ import { customerRepository } from '../repositories/customer.repository';
 import { invoiceRepository } from '../repositories/invoice.repository';
 import { userRepository } from '../repositories/user.repository';
 import type { AuthUser } from '../types/express';
+import { yearsAgo } from '../utils/age';
 import { toPaged } from '../utils/pagination';
 import { normalizePhone } from '../utils/phone';
 import { setActor } from '../utils/session';
@@ -16,8 +17,20 @@ const PHONE_TAKEN = () => AppError.conflict('Số điện thoại đã được 
 const NOT_FOUND = () => AppError.notFound('Không tìm thấy khách hàng', 'CUSTOMER_NOT_FOUND');
 
 export const customerService = {
+  /** Tìm kiếm nâng cao: đổi tuổi → khoảng ngày sinh (khách chưa có ngày sinh bị loại khi lọc tuổi). */
   async list(q: CustomerListQuery) {
-    const { rows, total } = await customerRepository.list({ q: q.q || undefined, page: q.page, size: q.size });
+    const { rows, total } = await customerRepository.list({
+      q: q.q || undefined,
+      gender: q.gender,
+      hasAccount: q.hasAccount,
+      bornOnOrBefore: q.ageMin !== undefined ? yearsAgo(q.ageMin) : undefined,
+      bornAfter: q.ageMax !== undefined ? yearsAgo(q.ageMax + 1) : undefined,
+      minPurchased: q.minPurchased,
+      maxPurchased: q.maxPurchased,
+      sort: q.sort,
+      page: q.page,
+      size: q.size,
+    });
     return toPaged(rows, total, q.page, q.size);
   },
 
@@ -39,7 +52,10 @@ export const customerService = {
       const id = await withTransaction(async (tx) => {
         await setActor(tx, actor.userId);
         if (await customerRepository.phoneExists(phone, null, tx)) throw PHONE_TAKEN();
-        return customerRepository.insert({ fullName: input.fullName, phone }, tx);
+        return customerRepository.insert(
+          { fullName: input.fullName, phone, gender: input.gender, dateOfBirth: input.dateOfBirth, email: input.email },
+          tx,
+        );
       });
       return this.getDetail(id);
     } catch (err) {
@@ -57,7 +73,11 @@ export const customerService = {
         await setActor(tx, actor.userId);
         if (!(await customerRepository.findById(customerId, tx))) throw NOT_FOUND();
         if (phone && (await customerRepository.phoneExists(phone, customerId, tx))) throw PHONE_TAKEN();
-        await customerRepository.update(customerId, { fullName: input.fullName, phone }, tx);
+        await customerRepository.update(
+          customerId,
+          { fullName: input.fullName, phone, gender: input.gender, dateOfBirth: input.dateOfBirth, email: input.email },
+          tx,
+        );
       });
     } catch (err) {
       if (isDuplicateKey(err, 'uq_customers_phone')) throw PHONE_TAKEN();
