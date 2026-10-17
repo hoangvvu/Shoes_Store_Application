@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { paginationQuery } from '../utils/pagination';
-import { customerBirthDateField, emailField, fullNameField, genderField, phoneField } from './common';
+import { customerBirthDateField, emailField, firstNameField, genderField, lastNameField, phoneField } from './common';
 
 export const CUSTOMER_SORTS = ['newest', 'name', 'spent'] as const;
 
@@ -34,14 +34,16 @@ const optionalProfile = {
 };
 
 export const createCustomerSchema = z.object({
-  fullName: fullNameField,
+  lastName: lastNameField,
+  firstName: firstNameField,
   phone: phoneField,
   ...optionalProfile,
 });
 
 export const updateCustomerSchema = z
   .object({
-    fullName: fullNameField.optional(),
+    lastName: lastNameField.optional(),
+    firstName: firstNameField.optional(),
     phone: phoneField.optional(),
     ...optionalProfile,
   })

@@ -22,7 +22,7 @@ export const meService = {
       return {
         ...base,
         profile: {
-          customerId: c.customerId, fullName: c.fullName, phone: c.phone, gender: c.gender,
+          customerId: c.customerId, lastName: c.lastName, firstName: c.firstName, fullName: c.fullName, phone: c.phone, gender: c.gender,
           dateOfBirth: c.dateOfBirth, email: c.email, totalPurchased: c.totalPurchased,
         },
       };
@@ -34,6 +34,8 @@ export const meService = {
       ...base,
       profile: {
         employeeId: e.employeeId,
+        lastName: e.lastName,
+        firstName: e.firstName,
         fullName: e.fullName,
         dateOfBirth: e.dateOfBirth,
         address: e.address,
@@ -62,7 +64,10 @@ export const meService = {
           }
           await customerRepository.update(
             auth.customerId!,
-            { fullName: input.fullName, phone, gender: input.gender, dateOfBirth: input.dateOfBirth, email: input.email },
+            {
+              lastName: input.lastName, firstName: input.firstName, phone, gender: input.gender,
+              dateOfBirth: input.dateOfBirth, email: input.email,
+            },
             tx,
           );
         });
@@ -79,7 +84,7 @@ export const meService = {
         await employeeRepository.update(
           auth.employeeId!,
           {
-            fullName: input.fullName, dateOfBirth: input.dateOfBirth ?? undefined, address: input.address, phone,
+            lastName: input.lastName, firstName: input.firstName, dateOfBirth: input.dateOfBirth ?? undefined, address: input.address, phone,
             gender: input.gender, email: input.email,
           },
           tx,

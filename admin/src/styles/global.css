@@ -166,8 +166,6 @@ h3 { margin: 0 0 12px; font-size: 16px; }
 .form__actions { display: flex; justify-content: flex-end; gap: 10px; }
 
 /* ---- Đơn hàng (M8) ---- */
-.filters { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
-.filters .search { margin-bottom: 0; flex: 1 1 220px; }
 .select, .date-filter input, .textarea, .qty-input { padding: 9px 12px; border: 1px solid #d9deea; border-radius: 10px; font: inherit; background: #fff; }
 .date-filter { display: flex; align-items: center; gap: 6px; font-size: 14px; color: #6b7488; }
 .textarea { width: 100%; resize: vertical; font-weight: 400; }
@@ -260,13 +258,16 @@ h3 { margin: 0 0 12px; font-size: 16px; }
 .review-quote { padding: 12px; border: 1px solid #e3e8f2; border-radius: 10px; margin-bottom: 14px; }
 .review-quote p { margin: 6px 0 0; white-space: pre-wrap; word-break: break-word; }
 
-/* ---- Tìm kiếm nâng cao khách hàng ---- */
-.adv-search { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
-.adv-search .search { margin-bottom: 0; max-width: none; }
-.adv-search__row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
-.adv-search__row .select { min-width: 150px; }
-.adv-search__btn { min-width: 110px; }
-.adv-search__hint { margin: 0; font-size: 13px; }
-.adv-search__empty { padding: 36px 0; }
 .form__row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .info-row select { width: 100%; max-width: 240px; padding: 8px 10px; border: 1px solid #d9deea; border-radius: 8px; font: inherit; background: #fff; }
+
+/* ---- Thanh tìm kiếm dùng chung: mọi điều kiện + nút "Tìm kiếm" nằm trên MỘT dòng ---- */
+.search-bar-wrap { margin-bottom: 6px; }
+.search-bar { display: flex; flex-wrap: nowrap; align-items: center; gap: 10px; overflow-x: auto; padding-bottom: 2px; }
+.search-bar .search { flex: 1 1 200px; min-width: 150px; max-width: none; margin: 0; }
+.search-bar .select { flex: 0 1 auto; min-width: 0; max-width: 190px; padding: 9px 8px; font-size: 14px; }
+.search-bar .date-filter { flex: 0 0 auto; white-space: nowrap; }
+.search-bar .date-filter input { padding: 8px 8px; font-size: 14px; }
+.search-bar__btn { flex: 0 0 auto; min-width: 96px; white-space: nowrap; }
+.search-bar__hint { margin: 6px 0 0; font-size: 13px; line-height: 20px; min-height: 20px; } /* giữ chỗ cố định, tránh giật layout */
+.adv-search__empty { padding: 36px 0; }

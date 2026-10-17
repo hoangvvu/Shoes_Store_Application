@@ -2,7 +2,8 @@ import { PASSWORD_MIN_LENGTH } from '@/constants/app';
 
 // Phản chiếu quy tắc của backend (validators/common.ts). Backend vẫn là nơi kiểm tra cuối cùng.
 export const validators = {
-  fullName: (v: string) => (v.trim().length >= 2 ? '' : 'Họ tên tối thiểu 2 ký tự'),
+  lastName: (v: string) => (!v.trim() ? 'Vui lòng nhập họ' : v.trim().length > 50 ? 'Họ tối đa 50 ký tự' : ''),
+  firstName: (v: string) => (!v.trim() ? 'Vui lòng nhập tên' : v.trim().length > 50 ? 'Tên tối đa 50 ký tự' : ''),
   phone: (v: string) => (/^(0|\+84)\d{9}$/.test(v.trim()) ? '' : 'Số điện thoại không hợp lệ'),
   // M1 #12: 4–50 ký tự; chữ cái, số, "_" hoặc "-"; không khoảng trắng (không trim để bắt khoảng trắng đầu/cuối)
   username: (v: string) =>

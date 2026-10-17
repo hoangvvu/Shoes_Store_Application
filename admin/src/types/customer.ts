@@ -8,6 +8,11 @@ export interface Paged<T> {
 
 export interface CustomerListItem {
   customerId: number;
+  /** Họ (kèm tên đệm). */
+  lastName: string;
+  /** Tên. */
+  firstName: string;
+  /** Họ + Tên do backend ghép sẵn, chỉ để hiển thị. */
   fullName: string;
   phone: string | null;
   gender: 'MALE' | 'FEMALE' | 'OTHER' | null;
@@ -55,7 +60,8 @@ export interface CustomerDetail extends CustomerListItem {
 }
 
 export interface CustomerFormValues {
-  fullName: string;
+  lastName: string;
+  firstName: string;
   phone: string;
   /** null = xóa giá trị (không bắt buộc); bỏ qua = giữ nguyên. */
   gender?: 'MALE' | 'FEMALE' | 'OTHER' | null;

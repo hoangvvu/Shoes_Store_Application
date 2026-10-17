@@ -4,6 +4,7 @@ import { AppError } from '../errors/AppError';
 import { employeeRepository } from '../repositories/employee.repository';
 import { userRepository } from '../repositories/user.repository';
 import { hashPassword } from '../utils/password';
+import { fullNameOf } from '../utils/name';
 import { normalizePhone } from '../utils/phone';
 import { setActor } from '../utils/session';
 import { isDuplicateKey } from '../utils/sqlError';
@@ -33,7 +34,8 @@ export const userService = {
         }
         const employeeId = await employeeRepository.insert(
           {
-            fullName: input.fullName,
+            lastName: input.lastName,
+            firstName: input.firstName,
             dateOfBirth: input.dateOfBirth,
             address: input.address,
             phone: input.phone ? normalizePhone(input.phone) : undefined,
@@ -54,7 +56,15 @@ export const userService = {
           },
           tx,
         );
-        return { userId, employeeId, username: input.username, role: input.role, fullName: input.fullName };
+        return {
+          userId,
+          employeeId,
+          username: input.username,
+          role: input.role,
+          lastName: input.lastName,
+          firstName: input.firstName,
+          fullName: fullNameOf(input.lastName, input.firstName),
+        };
       });
     } catch (err) {
       if (isDuplicateKey(err, 'uq_users_username')) throw AppError.conflict('Tên đăng nhập đã được sử dụng', 'USERNAME_TAKEN');

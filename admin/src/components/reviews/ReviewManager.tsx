@@ -2,46 +2,44 @@ import { useCallback, useEffect, useState } from 'react';
 import { reviewService } from '../../services/review.service';
 import type { Paged } from '../../types/customer';
 import type { ModerationReview, ReviewStatus } from '../../types/review';
+import { useSearchFilters } from '../../hooks/useSearchFilters';
 import { getErrorMessage } from '../../utils/error';
 import { formatDateTime } from '../../utils/format';
 import { PageHeader } from '../common/PageHeader';
+import { SearchBar } from '../common/SearchBar';
 import { Pagination } from '../tables/Pagination';
 import { ReviewReplyModal } from './ReviewReplyModal';
 import { StarRating } from './StarRating';
 
 const SIZE = 8;
+
+interface Filters {
+  q: string;
+  status: string;
+  rating: string;
+}
+const EMPTY: Filters = { q: '', status: '', rating: '' };
 const STATUS_LABEL: Record<ReviewStatus, string> = { PENDING: 'Chờ duyệt', APPROVED: 'Đang hiển thị', HIDDEN: 'Đã ẩn' };
 
 /** Kiểm duyệt đánh giá + phản hồi; dùng chung cho Admin và Bán hàng (chỉ Admin được xóa). */
 export function ReviewManager({ canDelete }: { canDelete: boolean }) {
-  const [status, setStatus] = useState('');
-  const [rating, setRating] = useState('');
-  const [q, setQ] = useState('');
-  const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
+  // Bộ lọc chỉ có hiệu lực khi bấm "Tìm kiếm"; tất cả về mặc định thì tự về danh sách đầy đủ
+  const { draft, applied, page, setPage, set, apply, pending } = useSearchFilters<Filters>(EMPTY);
   const [data, setData] = useState<Paged<ModerationReview> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [replyId, setReplyId] = useState<number | null>(null);
 
-  useEffect(() => {
-    const t = setTimeout(() => {
-      setSearch(q.trim());
-      setPage(1);
-    }, 350);
-    return () => clearTimeout(t);
-  }, [q]);
-
   const load = useCallback(async () => {
     setError('');
     try {
-      setData(await reviewService.list({ status: (status || undefined) as ReviewStatus | undefined, rating: rating ? Number(rating) : undefined, q: search, page, size: SIZE }));
+      setData(await reviewService.list({ status: (applied.status || undefined) as ReviewStatus | undefined, rating: applied.rating ? Number(applied.rating) : undefined, q: applied.q.trim(), page, size: SIZE }));
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
-  }, [status, rating, search, page]);
+  }, [applied, page]);
 
   useEffect(() => {
     setLoading(true);
@@ -67,29 +65,29 @@ export function ReviewManager({ canDelete }: { canDelete: boolean }) {
     }
   }
 
-  const reset = (setter: (v: string) => void) => (e: { target: { value: string } }) => {
-    setter(e.target.value);
-    setPage(1);
-  };
+  const search = apply;
   const active = data?.items.find((r) => r.reviewId === replyId) ?? null;
 
   return (
     <>
       <PageHeader title="Đánh giá sản phẩm" subtitle="Duyệt, ẩn và phản hồi đánh giá của khách hàng. Đánh giá bị ẩn hoặc chờ duyệt không tính vào điểm trung bình." />
       <div className="card">
-        <div className="filters">
-          <input className="search" placeholder="Tìm theo bình luận, khách, sản phẩm…" value={q} onChange={(e) => setQ(e.target.value)} />
-          <select className="select" value={status} onChange={reset(setStatus)}>
+        <SearchBar
+          onSearch={search}
+          hint={pending ? 'Bạn đã đổi tiêu chí, bấm "Tìm kiếm" để cập nhật kết quả.' : undefined}
+        >
+          <input className="search" placeholder="Tìm theo bình luận, khách, sản phẩm…" value={draft.q} onChange={set('q')} />
+          <select className="select" value={draft.status} onChange={set('status')} aria-label="Trạng thái">
             <option value="">Tất cả trạng thái</option>
             <option value="PENDING">Chờ duyệt</option>
             <option value="APPROVED">Đang hiển thị</option>
             <option value="HIDDEN">Đã ẩn</option>
           </select>
-          <select className="select" value={rating} onChange={reset(setRating)}>
+          <select className="select" value={draft.rating} onChange={set('rating')} aria-label="Số sao">
             <option value="">Tất cả số sao</option>
             {[5, 4, 3, 2, 1].map((n) => <option key={n} value={n}>{n} sao</option>)}
           </select>
-        </div>
+        </SearchBar>
 
         {error && <p className="form-error">{error}</p>}
         {loading && <p className="muted center">Đang tải…</p>}

@@ -18,7 +18,8 @@ export default function ProfileScreen() {
   const router = useRouter();
   const { clear, setUserName } = useAuthStore.getState();
 
-  const [fullName, setFullName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [firstName, setFirstName] = useState('');
   const [phone, setPhone] = useState('');
   const [gender, setGender] = useState<'MALE' | 'FEMALE' | 'OTHER' | null>(null);
   const [dob, setDob] = useState('');
@@ -34,7 +35,8 @@ export default function ProfileScreen() {
     authService
       .getMe()
       .then((me) => {
-        setFullName(me.profile.fullName);
+        setLastName(me.profile.lastName);
+        setFirstName(me.profile.firstName);
         setPhone(me.profile.phone ?? '');
         setGender(me.profile.gender);
         setDob(ymdToDmy(me.profile.dateOfBirth));
@@ -44,13 +46,14 @@ export default function ProfileScreen() {
   }, []);
 
   async function saveProfile() {
-    const msg = v.fullName(fullName) || v.phone(phone) || optionalValidators.birthDate(dob) || optionalValidators.email(email);
+    const msg = v.lastName(lastName) || v.firstName(firstName) || v.phone(phone) || optionalValidators.birthDate(dob) || optionalValidators.email(email);
     if (msg) return Alert.alert('Chưa hợp lệ', msg);
     setSavingProfile(true);
     try {
       // Giới tính, ngày sinh, email không bắt buộc: để trống = xóa (null)
       const me = await authService.updateMe({
-        fullName: fullName.trim(),
+        lastName: lastName.trim(),
+        firstName: firstName.trim(),
         phone: phone.trim(),
         gender,
         dateOfBirth: dob.trim() ? dmyToYmd(dob) : null,
@@ -98,7 +101,8 @@ export default function ProfileScreen() {
       <Text style={styles.h1}>Tài khoản</Text>
 
       <Text style={styles.h2}>Hồ sơ</Text>
-      <AppTextInput icon="person-circle-outline" placeholder="Họ và tên" value={fullName} onChangeText={setFullName} autoCapitalize="words" />
+      <AppTextInput icon="person-circle-outline" placeholder="Họ và tên đệm" value={lastName} onChangeText={setLastName} autoCapitalize="words" />
+      <AppTextInput icon="person-circle-outline" placeholder="Tên" value={firstName} onChangeText={setFirstName} autoCapitalize="words" />
       <AppTextInput icon="call-outline" placeholder="Số điện thoại" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
       <AppTextInput icon="mail-outline" placeholder="Email (không bắt buộc)" value={email} onChangeText={setEmail} keyboardType="email-address" />
       <AppTextInput icon="calendar-outline" placeholder="Ngày sinh dd/mm/yyyy (không bắt buộc)" value={dob} onChangeText={setDob} keyboardType="numbers-and-punctuation" maxLength={10} />

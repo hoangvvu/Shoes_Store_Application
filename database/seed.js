@@ -21,14 +21,14 @@ const resetPasswords = process.argv.includes('--reset-passwords');
  * kind: 'EMPLOYEE' | 'CUSTOMER'
  */
 const ACCOUNTS = [
-  { username: 'admin',        password: 'Admin@12345',  role: 'ADMIN',     kind: 'EMPLOYEE', fullName: 'Quản Trị Viên',       phone: '0901000001', salary: 20000000, note: 'Đăng nhập web → layout Admin; thấy baseSalary trong GET /me' },
-  { username: 'sales01',      password: 'Sales@12345',  role: 'SALES',     kind: 'EMPLOYEE', fullName: 'Nhân Viên Bán Hàng',  phone: '0901000002', salary: 9000000,  note: 'Web → layout Bán hàng; KHÔNG thấy lương' },
-  { username: 'warehouse01',  password: 'Kho@12345',    role: 'WAREHOUSE', kind: 'EMPLOYEE', fullName: 'Nhân Viên Kho',       phone: '0901000003', salary: 9000000,  note: 'Web → layout Kho; KHÔNG thấy lương' },
-  { username: 'sales_locked', password: 'Sales@12345',  role: 'SALES',     kind: 'EMPLOYEE', fullName: 'NV Bị Khóa',          phone: '0901000004', salary: 0, locked: true, note: 'Đăng nhập phải báo "Sai tên đăng nhập hoặc mật khẩu" (tài khoản bị khóa)' },
-  { username: 'khach01',      password: 'Khach@12345',  role: 'CUSTOMER',  kind: 'CUSTOMER', fullName: 'Khách Hàng Mẫu',      phone: '0900000001', note: 'Đăng nhập mobile; thử đổi hồ sơ/mật khẩu' },
-  { username: 'khach02',      password: 'Khach@12345',  role: 'CUSTOMER',  kind: 'CUSTOMER', fullName: 'Khách Hàng Thứ Hai',  phone: '0900000002', note: 'Thử sửa SĐT thành 0900000001 → 409 PHONE_TAKEN' },
-  { username: 'khach_locked', password: 'Khach@12345',  role: 'CUSTOMER',  kind: 'CUSTOMER', fullName: 'Khách Bị Khóa',       phone: '0900000003', locked: true, note: 'Đăng nhập mobile phải bị từ chối (tài khoản khóa)' },
-  { username: 'khach_cu',     password: 'Khach@12345',  role: 'CUSTOMER',  kind: 'CUSTOMER', fullName: 'Khách Đã Xóa Mềm',    phone: '0900000004', deleted: true, note: 'Đã xóa mềm: không đăng nhập được; đăng ký lại username "khach_cu" + SĐT 0900000004 phải thành công' },
+  { username: 'admin',        password: 'Admin@12345',  role: 'ADMIN',     kind: 'EMPLOYEE', lastName: 'Quản Trị', firstName: 'Viên',       phone: '0901000001', salary: 20000000, note: 'Đăng nhập web → layout Admin; thấy baseSalary trong GET /me' },
+  { username: 'sales01',      password: 'Sales@12345',  role: 'SALES',     kind: 'EMPLOYEE', lastName: 'Nhân Viên', firstName: 'Bán Hàng',  phone: '0901000002', salary: 9000000,  note: 'Web → layout Bán hàng; KHÔNG thấy lương' },
+  { username: 'warehouse01',  password: 'Kho@12345',    role: 'WAREHOUSE', kind: 'EMPLOYEE', lastName: 'Nhân Viên', firstName: 'Kho',       phone: '0901000003', salary: 9000000,  note: 'Web → layout Kho; KHÔNG thấy lương' },
+  { username: 'sales_locked', password: 'Sales@12345',  role: 'SALES',     kind: 'EMPLOYEE', lastName: 'NV', firstName: 'Bị Khóa',          phone: '0901000004', salary: 0, locked: true, note: 'Đăng nhập phải báo "Sai tên đăng nhập hoặc mật khẩu" (tài khoản bị khóa)' },
+  { username: 'khach01',      password: 'Khach@12345',  role: 'CUSTOMER',  kind: 'CUSTOMER', lastName: 'Khách Hàng', firstName: 'Mẫu',      phone: '0900000001', note: 'Đăng nhập mobile; thử đổi hồ sơ/mật khẩu' },
+  { username: 'khach02',      password: 'Khach@12345',  role: 'CUSTOMER',  kind: 'CUSTOMER', lastName: 'Khách Hàng', firstName: 'Thứ Hai',  phone: '0900000002', note: 'Thử sửa SĐT thành 0900000001 → 409 PHONE_TAKEN' },
+  { username: 'khach_locked', password: 'Khach@12345',  role: 'CUSTOMER',  kind: 'CUSTOMER', lastName: 'Khách', firstName: 'Bị Khóa',       phone: '0900000003', locked: true, note: 'Đăng nhập mobile phải bị từ chối (tài khoản khóa)' },
+  { username: 'khach_cu',     password: 'Khach@12345',  role: 'CUSTOMER',  kind: 'CUSTOMER', lastName: 'Khách', firstName: 'Đã Xóa Mềm',    phone: '0900000004', deleted: true, note: 'Đã xóa mềm: không đăng nhập được; đăng ký lại username "khach_cu" + SĐT 0900000004 phải thành công' },
 ];
 
 const config = {
@@ -79,17 +79,19 @@ async function seedAccount(pool, a) {
 
     if (a.kind === 'EMPLOYEE') {
       const e = await new sql.Request(tx)
-        .input('n', sql.NVarChar(100), a.fullName).input('p', sql.VarChar(20), a.phone)
+        .input('ln', sql.NVarChar(50), a.lastName).input('fn', sql.NVarChar(50), a.firstName)
+        .input('p', sql.VarChar(20), a.phone)
         .input('s', sql.Decimal(18, 2), a.salary || 0)
-        .query(`INSERT INTO employees (full_name, phone, base_salary, is_deleted, deleted_at)
-                VALUES (@n, @p, @s, ${a.deleted ? 1 : 0}, ${a.deleted ? 'SYSUTCDATETIME()' : 'NULL'});
+        .query(`INSERT INTO employees (last_name, first_name, phone, base_salary, is_deleted, deleted_at)
+                VALUES (@ln, @fn, @p, @s, ${a.deleted ? 1 : 0}, ${a.deleted ? 'SYSUTCDATETIME()' : 'NULL'});
                 SELECT CAST(SCOPE_IDENTITY() AS INT) AS id;`);
       employeeId = e.recordset[0].id;
     } else {
       const c = await new sql.Request(tx)
-        .input('n', sql.NVarChar(100), a.fullName).input('p', sql.VarChar(20), a.phone)
-        .query(`INSERT INTO customers (full_name, phone, is_deleted, deleted_at)
-                VALUES (@n, @p, ${a.deleted ? 1 : 0}, ${a.deleted ? 'SYSUTCDATETIME()' : 'NULL'});
+        .input('ln', sql.NVarChar(50), a.lastName).input('fn', sql.NVarChar(50), a.firstName)
+        .input('p', sql.VarChar(20), a.phone)
+        .query(`INSERT INTO customers (last_name, first_name, phone, is_deleted, deleted_at)
+                VALUES (@ln, @fn, @p, ${a.deleted ? 1 : 0}, ${a.deleted ? 'SYSUTCDATETIME()' : 'NULL'});
                 SELECT CAST(SCOPE_IDENTITY() AS INT) AS id;`);
       customerId = c.recordset[0].id;
     }
@@ -111,9 +113,10 @@ async function seedAccount(pool, a) {
 
 /* ---------------- M2: khách tại quầy, khách để test phân trang, địa chỉ ---------------- */
 const WALK_IN = [
-  { fullName: 'Khách Tại Quầy', phone: '0900000005' }, // không có tài khoản -> badge "Tại quầy"
+  { lastName: 'Khách', firstName: 'Tại Quầy', phone: '0900000005' }, // không có tài khoản -> badge "Tại quầy"
   ...Array.from({ length: 12 }, (_, i) => ({
-    fullName: `Khách Mẫu ${String(i + 1).padStart(2, '0')}`,
+    lastName: 'Khách',
+    firstName: `Mẫu ${String(i + 1).padStart(2, '0')}`,
     phone: `09100000${String(i + 1).padStart(2, '0')}`, // đủ nhiều để test phân trang (size = 10) và tìm kiếm
   })),
 ];
@@ -133,8 +136,10 @@ async function seedWalkIn(pool, c) {
   const exists = await pool.request().input('p', sql.VarChar(20), c.phone)
     .query('SELECT 1 AS x FROM customers WHERE phone = @p AND is_deleted = 0');
   if (exists.recordset.length) return false;
-  await pool.request().input('n', sql.NVarChar(100), c.fullName).input('p', sql.VarChar(20), c.phone)
-    .query('INSERT INTO customers (full_name, phone) VALUES (@n, @p)');
+  await pool.request()
+    .input('ln', sql.NVarChar(50), c.lastName).input('fn', sql.NVarChar(50), c.firstName)
+    .input('p', sql.VarChar(20), c.phone)
+    .query('INSERT INTO customers (last_name, first_name, phone) VALUES (@ln, @fn, @p)');
   return true;
 }
 

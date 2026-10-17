@@ -1,3 +1,13 @@
+USE master;
+GO
+
+-- Chuyển database sang chế độ single_user và ngắt các kết nối đang hoạt động
+ALTER DATABASE ShoeStore SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
+GO
+
+-- Xóa database ShoeStore
+DROP DATABASE ShoeStore;
+GO
 SET NOCOUNT ON;
 GO
 IF DB_ID(N'ShoeStore') IS NULL CREATE DATABASE ShoeStore COLLATE Vietnamese_CI_AS;
@@ -24,7 +34,8 @@ CREATE TABLE roles (
 -- NV
 CREATE TABLE employees (
     employee_id   INT IDENTITY(1,1) PRIMARY KEY,            -- MaNV
-    full_name     NVARCHAR(100) NOT NULL,                   -- Họ tên
+    last_name     NVARCHAR(50) NOT NULL,                    -- Họ (kèm tên đệm)
+    first_name    NVARCHAR(50) NOT NULL,                    -- Tên
     date_of_birth DATE NULL,                                -- NS
     address       NVARCHAR(255) NULL,                       -- ĐC
     phone         VARCHAR(20) NULL,
@@ -39,7 +50,8 @@ CREATE TABLE employees (
 -- KH (địa chỉ giao hàng ở customer_addresses)
 CREATE TABLE customers (
     customer_id     INT IDENTITY(1,1) PRIMARY KEY,          -- MaKH
-    full_name       NVARCHAR(100) NOT NULL,                 -- Họ tên
+    last_name       NVARCHAR(50) NOT NULL,                  -- Họ (kèm tên đệm)
+    first_name      NVARCHAR(50) NOT NULL,                  -- Tên
     phone           VARCHAR(20) NULL,                       -- ĐT
     gender          VARCHAR(10) NULL CONSTRAINT ck_cus_gender CHECK (gender IN ('MALE','FEMALE','OTHER')),  -- GT (khách không bắt buộc cung cấp)
     date_of_birth   DATE NULL,                              -- Ngày sinh

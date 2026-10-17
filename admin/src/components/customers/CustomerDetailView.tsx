@@ -72,7 +72,8 @@ export function CustomerDetailView({ basePath, canDelete }: Props) {
         <section className="card">
           <h3>Thông tin</h3>
           <dl className="kv">
-            <dt>Họ tên</dt><dd>{data.fullName}</dd>
+            <dt>Họ</dt><dd>{data.lastName}</dd>
+            <dt>Tên</dt><dd>{data.firstName}</dd>
             <dt>Số điện thoại</dt><dd>{data.phone ?? '—'}</dd>
             <dt>Email</dt><dd>{data.email ?? '—'}</dd>
             <dt>Giới tính</dt><dd>{genderText(data.gender)}</dd>

@@ -1,14 +1,16 @@
-import { type KeyboardEvent, useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { customerService } from '../../services/customer.service';
 import type { CustomerFilters, CustomerListItem, Paged } from '../../types/customer';
 import {
-  ACCOUNT_FILTER_OPTIONS, AGE_GROUPS, EMPTY_FILTERS, GENDER_FILTER_OPTIONS, SORT_OPTIONS, SPEND_RANGES, hasActiveFilters,
+  ACCOUNT_FILTER_OPTIONS, AGE_GROUPS, EMPTY_FILTERS, GENDER_FILTER_OPTIONS, SORT_OPTIONS, SPEND_RANGES,
 } from '../../utils/customerSearch';
+import { useSearchFilters } from '../../hooks/useSearchFilters';
 import { getErrorMessage } from '../../utils/error';
 import { formatVnd } from '../../utils/format';
 import { genderText } from '../../utils/person';
 import { PageHeader } from '../common/PageHeader';
+import { SearchBar } from '../common/SearchBar';
 import { Pagination } from '../tables/Pagination';
 import { CustomerFormModal } from './CustomerFormModal';
 
@@ -28,10 +30,9 @@ interface Props {
 
 /** Dùng chung cho Admin và Bán hàng. Bộ lọc là "bản nháp" cho tới khi bấm nút Tìm kiếm. */
 export function CustomerManager({ basePath, canDelete }: Props) {
-  const [draft, setDraft] = useState<CustomerFilters>(EMPTY_FILTERS); // đang chọn trên giao diện
-  const [applied, setApplied] = useState<CustomerFilters>(EMPTY_FILTERS); // đã bấm Tìm kiếm
+  // draft = đang chọn trên giao diện; applied = đã bấm Tìm kiếm; tất cả về mặc định thì tự về danh sách đầy đủ
+  const { draft, applied, page, setPage, set, apply, pending } = useSearchFilters<CustomerFilters>(EMPTY_FILTERS);
   const [searched, setSearched] = useState(SHOW_RESULTS_ON_OPEN);
-  const [page, setPage] = useState(1);
   const [data, setData] = useState<Paged<CustomerListItem> | null>(null);
   const [loading, setLoading] = useState(SHOW_RESULTS_ON_OPEN);
   const [error, setError] = useState('');
@@ -54,25 +55,10 @@ export function CustomerManager({ basePath, canDelete }: Props) {
     void load();
   }, [load]);
 
-  const set = <K extends keyof CustomerFilters>(key: K) => (e: { target: { value: string } }) =>
-    setDraft((d) => ({ ...d, [key]: e.target.value as CustomerFilters[K] }));
-
   function search() {
-    setApplied(draft); // chỉ ở đây bộ lọc mới có hiệu lực
+    apply(); // chỉ ở đây bộ lọc mới có hiệu lực
     setSearched(true);
-    setPage(1);
   }
-
-  function reset() {
-    setDraft(EMPTY_FILTERS);
-    setApplied(EMPTY_FILTERS);
-    setSearched(SHOW_RESULTS_ON_OPEN);
-    setPage(1);
-    if (!SHOW_RESULTS_ON_OPEN) setData(null);
-  }
-
-  const onEnter = (e: KeyboardEvent) => e.key === 'Enter' && search();
-  const pending = JSON.stringify(draft) !== JSON.stringify(applied); // đã đổi bộ lọc nhưng chưa bấm Tìm kiếm
 
   async function remove(c: CustomerListItem) {
     if (!window.confirm(`Xóa mềm khách "${c.fullName}"? Tài khoản liên kết cũng sẽ bị xóa, lịch sử đơn được giữ nguyên.`)) return;
@@ -93,29 +79,27 @@ export function CustomerManager({ basePath, canDelete }: Props) {
       />
 
       <div className="card">
-        <div className="adv-search">
-          <input className="search adv-search__q" placeholder="Tên, số điện thoại hoặc email…" value={draft.q} onChange={set('q')} onKeyDown={onEnter} />
-          <div className="adv-search__row">
-            <select className="select" value={draft.gender} onChange={set('gender')} aria-label="Giới tính">
-              {GENDER_FILTER_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
-            <select className="select" value={draft.ageGroup} onChange={set('ageGroup')} aria-label="Độ tuổi">
-              {AGE_GROUPS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
-            <select className="select" value={draft.spend} onChange={set('spend')} aria-label="Mức mua hàng">
-              {SPEND_RANGES.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
-            <select className="select" value={draft.hasAccount} onChange={set('hasAccount')} aria-label="Tài khoản">
-              {ACCOUNT_FILTER_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
-            <select className="select" value={draft.sort} onChange={set('sort')} aria-label="Sắp xếp">
-              {SORT_OPTIONS.map((o) => <option key={o.value} value={o.value}>Sắp xếp: {o.label}</option>)}
-            </select>
-            <button className="btn btn--primary adv-search__btn" onClick={search}>Tìm kiếm</button>
-            {(hasActiveFilters(draft) || hasActiveFilters(applied)) && <button className="btn btn--ghost" onClick={reset}>Đặt lại</button>}
-          </div>
-          {pending && searched && <p className="muted adv-search__hint">Bạn đã đổi tiêu chí, bấm "Tìm kiếm" để cập nhật kết quả.</p>}
-        </div>
+        <SearchBar
+          onSearch={search}
+          hint={pending && searched ? 'Bạn đã đổi tiêu chí, bấm "Tìm kiếm" để cập nhật kết quả.' : undefined}
+        >
+          <input className="search" placeholder="Tên, SĐT hoặc email…" value={draft.q} onChange={set('q')} />
+          <select className="select" value={draft.gender} onChange={set('gender')} aria-label="Giới tính">
+            {GENDER_FILTER_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+          <select className="select" value={draft.ageGroup} onChange={set('ageGroup')} aria-label="Độ tuổi">
+            {AGE_GROUPS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+          <select className="select" value={draft.spend} onChange={set('spend')} aria-label="Mức mua hàng">
+            {SPEND_RANGES.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+          <select className="select" value={draft.hasAccount} onChange={set('hasAccount')} aria-label="Tài khoản">
+            {ACCOUNT_FILTER_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+          <select className="select" value={draft.sort} onChange={set('sort')} aria-label="Sắp xếp">
+            {SORT_OPTIONS.map((o) => <option key={o.value} value={o.value}>Sắp xếp: {o.label}</option>)}
+          </select>
+        </SearchBar>
 
         {error && <p className="form-error">{error}</p>}
         {!searched ? (

@@ -29,7 +29,8 @@ export const authService = {
   },
   /** Giới tính, ngày sinh, email không bắt buộc: gửi null để xóa giá trị. */
   async updateMe(p: {
-    fullName?: string;
+    lastName?: string;
+    firstName?: string;
     phone?: string;
     gender?: 'MALE' | 'FEMALE' | 'OTHER' | null;
     dateOfBirth?: string | null;

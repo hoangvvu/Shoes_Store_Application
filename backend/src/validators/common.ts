@@ -95,11 +95,19 @@ export const hireDateField = ymdDate.superRefine((d, ctx) => {
   else if (d.getUTCFullYear() < 1950) ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Ngày vào làm không hợp lệ' });
 });
 
-export const fullNameField = z
-  .string({ required_error: 'Vui lòng nhập họ tên' })
+/** Họ (kèm tên đệm), ví dụ "Nguyễn Văn". Cột NVARCHAR(50). */
+export const lastNameField = z
+  .string({ required_error: 'Vui lòng nhập họ' })
   .trim()
-  .min(2, 'Họ tên tối thiểu 2 ký tự')
-  .max(100, 'Họ tên tối đa 100 ký tự');
+  .min(1, 'Vui lòng nhập họ')
+  .max(50, 'Họ tối đa 50 ký tự');
+
+/** Tên, ví dụ "An". Cột NVARCHAR(50). */
+export const firstNameField = z
+  .string({ required_error: 'Vui lòng nhập tên' })
+  .trim()
+  .min(1, 'Vui lòng nhập tên')
+  .max(50, 'Tên tối đa 50 ký tự');
 
 export const idParam = z.object({
   id: z.coerce.number({ invalid_type_error: 'Mã không hợp lệ' }).int().positive('Mã không hợp lệ'),

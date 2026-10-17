@@ -1,9 +1,12 @@
 import { query, sql, type Executor, type Param } from '../config/database';
-import { likePattern } from '../utils/pagination';
+import { searchPattern, unaccent } from '../utils/search';
 import type { Gender } from '../validators/common';
 
 export interface CustomerRow {
   customerId: number;
+  lastName: string;
+  firstName: string;
+  /** Họ + Tên ghép sẵn bằng SQL, chỉ để hiển thị. */
   fullName: string;
   phone: string | null;
   gender: Gender | null;
@@ -31,13 +34,16 @@ export interface CustomerFilter {
   size: number;
 }
 
-const COLS = `c.customer_id AS customerId, c.full_name AS fullName, c.phone, c.gender,
+/** Họ tên đầy đủ (Họ + Tên) dùng để hiển thị và tìm kiếm. */
+const FULL_NAME = `LTRIM(RTRIM(CONCAT(c.last_name, N' ', c.first_name)))`;
+
+const COLS = `c.customer_id AS customerId, c.last_name AS lastName, c.first_name AS firstName, ${FULL_NAME} AS fullName, c.phone, c.gender,
   c.date_of_birth AS dateOfBirth, c.email, c.total_purchased AS totalPurchased`;
 
 // Thứ tự cố định (không nhận từ client) để tránh chèn SQL
 const ORDER: Record<CustomerFilter['sort'], string> = {
   newest: 'c.customer_id DESC',
-  name: 'c.full_name ASC, c.customer_id DESC',
+  name: 'c.first_name ASC, c.last_name ASC, c.customer_id DESC', // người Việt sắp theo Tên trước
   spent: 'c.total_purchased DESC, c.customer_id DESC',
 };
 
@@ -45,7 +51,7 @@ export const customerRepository = {
   /** Tìm kiếm nâng cao: các điều kiện kết hợp bằng AND; mặc định ẩn bản ghi đã xóa mềm. */
   async list(f: CustomerFilter, exec?: Executor): Promise<{ rows: CustomerListRow[]; total: number }> {
     const params: Record<string, Param> = {
-      pattern: [sql.NVarChar(210), f.q ? likePattern(f.q) : null],
+      pattern: [sql.NVarChar(210), f.q ? searchPattern(f.q) : null],
       gender: [sql.VarChar(10), f.gender && f.gender !== 'NONE' ? f.gender : null],
       noGender: [sql.Bit, f.gender === 'NONE'],
       hasAccount: [sql.Bit, f.hasAccount ?? null],
@@ -56,7 +62,7 @@ export const customerRepository = {
     };
     const accountExists = `EXISTS (SELECT 1 FROM users u WHERE u.customer_id = c.customer_id AND u.is_deleted = 0)`;
     const where = `c.is_deleted = 0
-      AND (@pattern IS NULL OR c.full_name LIKE @pattern ESCAPE '\\' OR c.phone LIKE @pattern ESCAPE '\\' OR c.email LIKE @pattern ESCAPE '\\')
+      AND (@pattern IS NULL OR ${unaccent(FULL_NAME)} LIKE @pattern ESCAPE '\\' OR ${unaccent('c.phone')} LIKE @pattern ESCAPE '\\' OR ${unaccent('c.email')} LIKE @pattern ESCAPE '\\')
       AND (@gender IS NULL OR c.gender = @gender)
       AND (@noGender = 0 OR c.gender IS NULL)
       AND (@hasAccount IS NULL OR (@hasAccount = 1 AND ${accountExists}) OR (@hasAccount = 0 AND NOT ${accountExists}))
@@ -91,14 +97,15 @@ export const customerRepository = {
   },
 
   async insert(
-    d: { fullName: string; phone: string; gender?: Gender | null; dateOfBirth?: Date | null; email?: string | null },
+    d: { lastName: string; firstName: string; phone: string; gender?: Gender | null; dateOfBirth?: Date | null; email?: string | null },
     exec?: Executor,
   ): Promise<number> {
     const r = await query<{ id: number }>(
-      `INSERT INTO customers (full_name, phone, gender, date_of_birth, email) VALUES (@fullName, @phone, @gender, @dob, @email);
+      `INSERT INTO customers (last_name, first_name, phone, gender, date_of_birth, email) VALUES (@lastName, @firstName, @phone, @gender, @dob, @email);
        SELECT CAST(SCOPE_IDENTITY() AS INT) AS id;`,
       {
-        fullName: [sql.NVarChar(100), d.fullName],
+        lastName: [sql.NVarChar(50), d.lastName],
+        firstName: [sql.NVarChar(50), d.firstName],
         phone: [sql.VarChar(20), d.phone],
         gender: [sql.VarChar(10), d.gender ?? null],
         dob: [sql.Date, d.dateOfBirth ?? null],
@@ -130,17 +137,18 @@ export const customerRepository = {
   },
 
   /**
-   * Cập nhật một phần. Họ tên/SĐT: bỏ qua = giữ nguyên. Giới tính/ngày sinh/email là thông tin không bắt buộc:
+   * Cập nhật một phần. Họ/Tên/SĐT: bỏ qua = giữ nguyên. Giới tính/ngày sinh/email là thông tin không bắt buộc:
    * `undefined` = giữ nguyên, `null` = xóa về NULL (cờ *Set phân biệt hai trường hợp).
    */
   async update(
     customerId: number,
-    d: { fullName?: string; phone?: string; gender?: Gender | null; dateOfBirth?: Date | null; email?: string | null },
+    d: { lastName?: string; firstName?: string; phone?: string; gender?: Gender | null; dateOfBirth?: Date | null; email?: string | null },
     exec?: Executor,
   ): Promise<void> {
     await query(
       `UPDATE customers SET
-         full_name = COALESCE(@fullName, full_name),
+         last_name = COALESCE(@lastName, last_name),
+         first_name = COALESCE(@firstName, first_name),
          phone = COALESCE(@phone, phone),
          gender = CASE WHEN @genderSet = 1 THEN @gender ELSE gender END,
          date_of_birth = CASE WHEN @dobSet = 1 THEN @dob ELSE date_of_birth END,
@@ -148,7 +156,8 @@ export const customerRepository = {
        WHERE customer_id = @id AND is_deleted = 0`,
       {
         id: [sql.Int, customerId],
-        fullName: [sql.NVarChar(100), d.fullName ?? null],
+        lastName: [sql.NVarChar(50), d.lastName ?? null],
+        firstName: [sql.NVarChar(50), d.firstName ?? null],
         phone: [sql.VarChar(20), d.phone ?? null],
         genderSet: [sql.Bit, d.gender !== undefined],
         gender: [sql.VarChar(10), d.gender ?? null],

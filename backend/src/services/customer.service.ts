@@ -53,7 +53,10 @@ export const customerService = {
         await setActor(tx, actor.userId);
         if (await customerRepository.phoneExists(phone, null, tx)) throw PHONE_TAKEN();
         return customerRepository.insert(
-          { fullName: input.fullName, phone, gender: input.gender, dateOfBirth: input.dateOfBirth, email: input.email },
+          {
+            lastName: input.lastName, firstName: input.firstName, phone, gender: input.gender,
+            dateOfBirth: input.dateOfBirth, email: input.email,
+          },
           tx,
         );
       });
@@ -75,7 +78,10 @@ export const customerService = {
         if (phone && (await customerRepository.phoneExists(phone, customerId, tx))) throw PHONE_TAKEN();
         await customerRepository.update(
           customerId,
-          { fullName: input.fullName, phone, gender: input.gender, dateOfBirth: input.dateOfBirth, email: input.email },
+          {
+            lastName: input.lastName, firstName: input.firstName, phone, gender: input.gender,
+            dateOfBirth: input.dateOfBirth, email: input.email,
+          },
           tx,
         );
       });

@@ -1,6 +1,6 @@
 import { query, sql, type Executor, type Param } from '../config/database';
 import type { ReviewStatus } from '../constants/review.constant';
-import { likePattern } from '../utils/pagination';
+import { searchPattern, unaccent } from '../utils/search';
 
 export interface ReviewRow {
   reviewId: number;
@@ -38,8 +38,12 @@ export interface RatingSummary {
   star5: number;
 }
 
+/** Họ tên khách / nhân viên (Họ + Tên) ghép từ hai cột last_name, first_name. */
+const CUSTOMER_NAME = `LTRIM(RTRIM(CONCAT(c.last_name, N' ', c.first_name)))`;
+const EMPLOYEE_NAME = `LTRIM(RTRIM(CONCAT(e.last_name, N' ', e.first_name)))`;
+
 const REVIEW_COLS = `
-  r.review_id AS reviewId, r.customer_id AS customerId, r.product_id AS productId, c.full_name AS customerName,
+  r.review_id AS reviewId, r.customer_id AS customerId, r.product_id AS productId, ${CUSTOMER_NAME} AS customerName,
   r.rating, r.comment, r.image_url AS imageUrl, r.invoice_id AS invoiceId,
   CAST(CASE WHEN r.invoice_id IS NULL THEN 0 ELSE 1 END AS BIT) AS verifiedPurchase,
   r.status, r.created_at AS createdAt, r.updated_at AS updatedAt`;
@@ -196,13 +200,13 @@ export const reviewRepository = {
       status: [sql.VarChar(10), f.status ?? null],
       rating: [sql.TinyInt, f.rating ?? null],
       productId: [sql.Int, f.productId ?? null],
-      pattern: [sql.NVarChar(210), f.q ? likePattern(f.q) : null],
+      pattern: [sql.NVarChar(210), f.q ? searchPattern(f.q) : null],
     };
     const where = `r.is_deleted = 0
       AND (@status IS NULL OR r.status = @status)
       AND (@rating IS NULL OR r.rating = @rating)
       AND (@productId IS NULL OR r.product_id = @productId)
-      AND (@pattern IS NULL OR r.comment LIKE @pattern ESCAPE '\\' OR c.full_name LIKE @pattern ESCAPE '\\' OR p.product_name LIKE @pattern ESCAPE '\\')`;
+      AND (@pattern IS NULL OR ${unaccent('r.comment')} LIKE @pattern ESCAPE '\\' OR ${unaccent(CUSTOMER_NAME)} LIKE @pattern ESCAPE '\\' OR ${unaccent('p.product_name')} LIKE @pattern ESCAPE '\\')`;
     const from = `${REVIEW_FROM} JOIN products p ON p.product_id = r.product_id`;
     const count = await query<{ total: number }>(`SELECT COUNT(*) AS total ${from} WHERE ${where}`, params, exec);
     const rows = await query<ReviewRow>(
@@ -221,7 +225,7 @@ export const reviewRepository = {
     if (!reviewIds.length) return [];
     const list = reviewIds.map((n) => Math.trunc(Number(n))).join(','); // id lấy từ CSDL, là số nguyên
     const r = await query<ReplyRow>(
-      `SELECT p.reply_id AS replyId, p.review_id AS reviewId, p.employee_id AS employeeId, e.full_name AS employeeName,
+      `SELECT p.reply_id AS replyId, p.review_id AS reviewId, p.employee_id AS employeeId, ${EMPLOYEE_NAME} AS employeeName,
               p.content, p.created_at AS createdAt, p.updated_at AS updatedAt
        FROM review_replies p JOIN employees e ON e.employee_id = p.employee_id
        WHERE p.review_id IN (${list}) AND p.is_deleted = 0 ORDER BY p.reply_id`,
@@ -233,7 +237,7 @@ export const reviewRepository = {
 
   async findReply(replyId: number, exec?: Executor): Promise<ReplyRow | null> {
     const r = await query<ReplyRow>(
-      `SELECT p.reply_id AS replyId, p.review_id AS reviewId, p.employee_id AS employeeId, e.full_name AS employeeName,
+      `SELECT p.reply_id AS replyId, p.review_id AS reviewId, p.employee_id AS employeeId, ${EMPLOYEE_NAME} AS employeeName,
               p.content, p.created_at AS createdAt, p.updated_at AS updatedAt
        FROM review_replies p JOIN employees e ON e.employee_id = p.employee_id
        WHERE p.reply_id = @id AND p.is_deleted = 0`,

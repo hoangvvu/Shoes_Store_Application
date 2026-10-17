@@ -7,13 +7,14 @@ import { Modal } from '../common/Modal';
 
 interface Props {
   /** Không truyền = thêm khách tại quầy; có truyền = sửa. */
-  customer?: Pick<CustomerListItem, 'customerId' | 'fullName' | 'phone' | 'gender' | 'dateOfBirth' | 'email'>;
+  customer?: Pick<CustomerListItem, 'customerId' | 'lastName' | 'firstName' | 'phone' | 'gender' | 'dateOfBirth' | 'email'>;
   onClose: () => void;
   onSaved: () => void;
 }
 
 export function CustomerFormModal({ customer, onClose, onSaved }: Props) {
-  const [fullName, setFullName] = useState(customer?.fullName ?? '');
+  const [lastName, setLastName] = useState(customer?.lastName ?? '');
+  const [firstName, setFirstName] = useState(customer?.firstName ?? '');
   const [phone, setPhone] = useState(customer?.phone ?? '');
   const [gender, setGender] = useState<'' | Gender>(customer?.gender ?? '');
   const [dob, setDob] = useState(customer?.dateOfBirth ? customer.dateOfBirth.slice(0, 10) : '');
@@ -24,7 +25,10 @@ export function CustomerFormModal({ customer, onClose, onSaved }: Props) {
   async function submit(e: FormEvent) {
     e.preventDefault();
     setError('');
-    if (fullName.trim().length < 2) return setError('Họ tên tối thiểu 2 ký tự');
+    if (!lastName.trim()) return setError('Vui lòng nhập họ');
+    if (lastName.trim().length > 50) return setError('Họ tối đa 50 ký tự');
+    if (!firstName.trim()) return setError('Vui lòng nhập tên');
+    if (firstName.trim().length > 50) return setError('Tên tối đa 50 ký tự');
     if (!/^(0|\+84)\d{9}$/.test(phone.trim())) return setError('Số điện thoại không hợp lệ');
     const msg = validateCustomerBirthDate(dob) || validateEmail(email);
     if (msg) return setError(msg);
@@ -33,7 +37,8 @@ export function CustomerFormModal({ customer, onClose, onSaved }: Props) {
     try {
       // Thông tin cá nhân không bắt buộc: để trống = xóa giá trị (null) khi sửa, bỏ qua khi thêm mới
       const values = {
-        fullName: fullName.trim(),
+        lastName: lastName.trim(),
+        firstName: firstName.trim(),
         phone: phone.trim(),
         gender: (gender || null) as Gender | null,
         dateOfBirth: dob || null,
@@ -52,10 +57,16 @@ export function CustomerFormModal({ customer, onClose, onSaved }: Props) {
   return (
     <Modal title={customer ? 'Sửa thông tin khách hàng' : 'Thêm khách tại quầy'} onClose={onClose}>
       <form onSubmit={submit} className="form" noValidate>
-        <label className="field">
-          <span>Họ và tên *</span>
-          <input value={fullName} onChange={(e) => setFullName(e.target.value)} autoFocus />
-        </label>
+        <div className="form__row">
+          <label className="field">
+            <span>Họ và tên đệm *</span>
+            <input value={lastName} onChange={(e) => setLastName(e.target.value)} maxLength={50} placeholder="Nguyễn Văn" autoFocus />
+          </label>
+          <label className="field">
+            <span>Tên *</span>
+            <input value={firstName} onChange={(e) => setFirstName(e.target.value)} maxLength={50} placeholder="An" />
+          </label>
+        </div>
         <label className="field">
           <span>Số điện thoại *</span>
           <input value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" />
