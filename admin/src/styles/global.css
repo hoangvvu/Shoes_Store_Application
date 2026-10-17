@@ -166,8 +166,6 @@ h3 { margin: 0 0 12px; font-size: 16px; }
 .form__actions { display: flex; justify-content: flex-end; gap: 10px; }
 
 /* ---- Đơn hàng (M8) ---- */
-.filters { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
-.filters .search { margin-bottom: 0; flex: 1 1 220px; }
 .select, .date-filter input, .textarea, .qty-input { padding: 9px 12px; border: 1px solid #d9deea; border-radius: 10px; font: inherit; background: #fff; }
 .date-filter { display: flex; align-items: center; gap: 6px; font-size: 14px; color: #6b7488; }
 .textarea { width: 100%; resize: vertical; font-weight: 400; }
@@ -237,3 +235,39 @@ h3 { margin: 0 0 12px; font-size: 16px; }
 .rules li.ok { color: #168a4f; }
 .rules li.ok::before { content: '● '; }
 @media (max-width: 899px) { .profile { grid-template-columns: 1fr; } .profile__side { min-height: 0; } .info-grid { grid-template-columns: 1fr; } .profile__main { padding: 18px; min-height: 0; } }
+
+/* ---- Đánh giá sản phẩm (M14) ---- */
+.stars { letter-spacing: 2px; font-size: 16px; }
+.star { color: #d3d8e6; }
+.star--on { color: #f5a623; }
+.review-list { display: flex; flex-direction: column; gap: 14px; }
+.review-card { border: 1px solid #e3e8f2; border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 8px; }
+.review-card__head { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.review-card__badges { display: flex; gap: 6px; align-items: flex-start; }
+.review-card__comment { margin: 0; white-space: pre-wrap; word-break: break-word; }
+.review-card__actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+.review-status--pending { background: #fff4e0; color: #b26a00; }
+.review-status--approved { background: #e3f7ec; color: #168a4f; }
+.review-status--hidden { background: #eef1f7; color: #5b6479; }
+.reply-list { list-style: none; margin: 0 0 14px; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.reply-list li { padding: 10px 12px; background: #f6f8fc; border-radius: 10px; }
+.reply-list p { margin: 4px 0 0; white-space: pre-wrap; word-break: break-word; }
+.reply-list__head { display: flex; justify-content: space-between; gap: 10px; }
+.reply-list__actions { display: flex; gap: 8px; margin-top: 8px; }
+.reply-list--inline { margin: 0; }
+.review-quote { padding: 12px; border: 1px solid #e3e8f2; border-radius: 10px; margin-bottom: 14px; }
+.review-quote p { margin: 6px 0 0; white-space: pre-wrap; word-break: break-word; }
+
+.form__row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.info-row select { width: 100%; max-width: 240px; padding: 8px 10px; border: 1px solid #d9deea; border-radius: 8px; font: inherit; background: #fff; }
+
+/* ---- Thanh tìm kiếm dùng chung: mọi điều kiện + nút "Tìm kiếm" nằm trên MỘT dòng ---- */
+.search-bar-wrap { margin-bottom: 6px; }
+.search-bar { display: flex; flex-wrap: nowrap; align-items: center; gap: 10px; overflow-x: auto; padding-bottom: 2px; }
+.search-bar .search { flex: 1 1 200px; min-width: 150px; max-width: none; margin: 0; }
+.search-bar .select { flex: 0 1 auto; min-width: 0; max-width: 190px; padding: 9px 8px; font-size: 14px; }
+.search-bar .date-filter { flex: 0 0 auto; white-space: nowrap; }
+.search-bar .date-filter input { padding: 8px 8px; font-size: 14px; }
+.search-bar__btn { flex: 0 0 auto; min-width: 96px; white-space: nowrap; }
+.search-bar__hint { margin: 6px 0 0; font-size: 13px; line-height: 20px; min-height: 20px; } /* giữ chỗ cố định, tránh giật layout */
+.adv-search__empty { padding: 36px 0; }

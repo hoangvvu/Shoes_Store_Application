@@ -46,6 +46,7 @@ export interface OrderPreview {
 
 export interface OrderLine {
   variantId: number;
+  productId: number;
   productName: string;
   imageUrl: string | null;
   sizeLabel: string;

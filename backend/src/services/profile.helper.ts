@@ -16,13 +16,27 @@ export function toAuthUser(u: UserRow): AuthUser {
 /** Thông tin an toàn trả về client sau đăng nhập (không có passwordHash, không có lương). */
 export async function toPublicUser(u: UserRow) {
   let fullName = u.username;
-  if (u.customerId) fullName = (await customerRepository.findById(u.customerId))?.fullName ?? fullName;
-  else if (u.employeeId) fullName = (await employeeRepository.findById(u.employeeId))?.fullName ?? fullName;
+  let firstName: string | null = null;
+  let lastName: string | null = null;
+
+  const person = u.customerId
+    ? await customerRepository.findById(u.customerId)
+    : u.employeeId
+      ? await employeeRepository.findById(u.employeeId)
+      : null;
+  if (person) {
+    fullName = person.fullName || fullName;
+    firstName = person.firstName;
+    lastName = person.lastName;
+  }
+
   return {
     userId: u.userId,
     username: u.username,
     role: u.role,
     userType: u.userType,
-    fullName,
+    lastName,
+    firstName,
+    fullName, // ghép sẵn (Họ + Tên) để hiển thị lời chào / avatar
   };
 }

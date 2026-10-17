@@ -1,9 +1,11 @@
-import type { CustomerDetail, CustomerFormValues, CustomerListItem, Paged } from '../types/customer';
+import type { CustomerDetail, CustomerFilters, CustomerFormValues, CustomerListItem, Paged } from '../types/customer';
+import { toApiParams } from '../utils/customerSearch';
 import { api } from './api';
 
 export const customerService = {
-  async list(params: { q?: string; page: number; size: number }): Promise<Paged<CustomerListItem>> {
-    const { data } = await api.get<Paged<CustomerListItem>>('/customers', { params: { ...params, q: params.q || undefined } });
+  /** `filters` là bộ lọc ĐÃ ÁP DỤNG (sau khi bấm "Tìm kiếm"). */
+  async list(filters: CustomerFilters, page: number, size: number): Promise<Paged<CustomerListItem>> {
+    const { data } = await api.get<Paged<CustomerListItem>>('/customers', { params: { ...toApiParams(filters), page, size } });
     return data;
   },
   async get(id: number): Promise<CustomerDetail> {
