@@ -1,9 +1,10 @@
 import { z } from 'zod';
 import { OTP_LENGTH, PORTALS } from '../constants/auth.constant';
-import { fullNameField, passwordField, phoneField, usernameField } from './common';
+import { firstNameField, lastNameField, passwordField, phoneField, usernameField } from './common';
 
 export const registerSchema = z.object({
-  fullName: fullNameField,
+  lastName: lastNameField,
+  firstName: firstNameField,
   phone: phoneField,
   username: usernameField,
   password: passwordField,

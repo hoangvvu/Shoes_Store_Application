@@ -1,6 +1,6 @@
 import { query, sql, type Executor, type Param } from '../config/database';
 import type { Channel, OrderStatus } from '../constants/order.constant';
-import { likePattern } from '../utils/pagination';
+import { searchPattern, unaccent } from '../utils/search';
 
 export interface OrderListRow {
   invoiceId: number;
@@ -81,9 +81,16 @@ export interface ListFilter {
 
 const VN_OFFSET_MS = 7 * 3600 * 1000; // ngày lọc theo giờ GMT+7, dữ liệu lưu UTC
 
+/**
+ * Họ tên khách / nhân viên ghép từ last_name + first_name. NULLIF để trả NULL (không phải chuỗi rỗng)
+ * khi LEFT JOIN không có bản ghi, giúp COALESCE(..., receiver_name) và "Khách lẻ" ở giao diện vẫn đúng.
+ */
+const CUSTOMER_NAME = `NULLIF(LTRIM(RTRIM(CONCAT(c.last_name, N' ', c.first_name))), N'')`;
+const EMPLOYEE_NAME = `NULLIF(LTRIM(RTRIM(CONCAT(e.last_name, N' ', e.first_name))), N'')`;
+
 const ORDER_COLS = `
   i.invoice_id AS invoiceId, i.invoice_date AS invoiceDate, i.channel, i.order_status AS orderStatus,
-  i.customer_id AS customerId, COALESCE(c.full_name, i.receiver_name) AS customerName, e.full_name AS employeeName,
+  i.customer_id AS customerId, COALESCE(${CUSTOMER_NAME}, i.receiver_name) AS customerName, ${EMPLOYEE_NAME} AS employeeName,
   i.total_amount AS totalAmount, i.discount_amount AS discountAmount, i.amount_payable AS amountPayable,
   ISNULL(ps.payment_status, 'UNPAID') AS paymentStatus`;
 
@@ -283,7 +290,7 @@ export const orderRepository = {
   async listHistory(invoiceId: number, exec?: Executor): Promise<HistoryRow[]> {
     const r = await query<HistoryRow>(
       `SELECT h.history_id AS historyId, h.old_status AS oldStatus, h.new_status AS newStatus, h.changed_at AS changedAt,
-              COALESCE(e.full_name, c.full_name, u.username) AS changedByName, h.note
+              COALESCE(${EMPLOYEE_NAME}, ${CUSTOMER_NAME}, u.username) AS changedByName, h.note
        FROM order_status_history h
        LEFT JOIN users u ON u.user_id = h.changed_by
        LEFT JOIN employees e ON e.employee_id = u.employee_id
@@ -304,7 +311,7 @@ export const orderRepository = {
       employeeId: [sql.Int, f.employeeId ?? null],
       fromUtc: [sql.DateTime2(3), f.from ? new Date(f.from.getTime() - VN_OFFSET_MS) : null],
       toUtc: [sql.DateTime2(3), f.to ? new Date(f.to.getTime() + 24 * 3600 * 1000 - VN_OFFSET_MS) : null],
-      pattern: [sql.NVarChar(210), f.q ? likePattern(f.q) : null],
+      pattern: [sql.NVarChar(210), f.q ? searchPattern(f.q) : null],
       qId: [sql.Int, qNum],
     };
     const where = `i.is_deleted = 0
@@ -314,7 +321,7 @@ export const orderRepository = {
       AND (@employeeId IS NULL OR i.employee_id = @employeeId)
       AND (@fromUtc IS NULL OR i.invoice_date >= @fromUtc)
       AND (@toUtc IS NULL OR i.invoice_date < @toUtc)
-      AND (@pattern IS NULL OR i.invoice_id = @qId OR c.full_name LIKE @pattern ESCAPE '\\' OR i.receiver_name LIKE @pattern ESCAPE '\\' OR c.phone LIKE @pattern ESCAPE '\\')`;
+      AND (@pattern IS NULL OR i.invoice_id = @qId OR ${unaccent(CUSTOMER_NAME)} LIKE @pattern ESCAPE '\\' OR ${unaccent('i.receiver_name')} LIKE @pattern ESCAPE '\\' OR ${unaccent('c.phone')} LIKE @pattern ESCAPE '\\')`;
 
     const count = await query<{ total: number }>(`SELECT COUNT(*) AS total ${ORDER_FROM} WHERE ${where}`, params, exec);
     const rows = await query<OrderListRow>(

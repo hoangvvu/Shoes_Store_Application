@@ -12,7 +12,7 @@ import { firstError, validators as v } from '@/utils/validation';
 
 export default function RegisterScreen() {
   const setSession = useAuthStore((s) => s.setSession);
-  const [f, setF] = useState({ fullName: '', phone: '', username: '', password: '', confirm: '' });
+  const [f, setF] = useState({ lastName: '', firstName: '', phone: '', username: '', password: '', confirm: '' });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -21,7 +21,8 @@ export default function RegisterScreen() {
   async function onSubmit() {
     setServerError('');
     const e = {
-      fullName: v.fullName(f.fullName),
+      lastName: v.lastName(f.lastName),
+      firstName: v.firstName(f.firstName),
       phone: v.phone(f.phone),
       username: v.username(f.username),
       password: v.password(f.password),
@@ -32,7 +33,7 @@ export default function RegisterScreen() {
 
     setLoading(true);
     try {
-      const payload = { fullName: f.fullName.trim(), phone: f.phone.trim(), username: f.username.trim(), password: f.password };
+      const payload = { lastName: f.lastName.trim(), firstName: f.firstName.trim(), phone: f.phone.trim(), username: f.username.trim(), password: f.password };
       await authService.register(payload);
       // /auth/register không trả token -> đăng nhập luôn bằng thông tin vừa tạo
       const res = await authService.login({ username: payload.username, password: payload.password });
@@ -53,7 +54,8 @@ export default function RegisterScreen() {
         </Text>
       </View>
 
-      <AppTextInput icon="person-circle-outline" placeholder="Họ và tên" value={f.fullName} onChangeText={set('fullName')} autoCapitalize="words" error={errors.fullName} />
+      <AppTextInput icon="person-circle-outline" placeholder="Họ và tên đệm (vd: Nguyễn Văn)" value={f.lastName} onChangeText={set('lastName')} autoCapitalize="words" error={errors.lastName} />
+      <AppTextInput icon="person-circle-outline" placeholder="Tên (vd: An)" value={f.firstName} onChangeText={set('firstName')} autoCapitalize="words" error={errors.firstName} />
       <AppTextInput icon="call-outline" placeholder="Số điện thoại" value={f.phone} onChangeText={set('phone')} keyboardType="phone-pad" error={errors.phone} />
       <AppTextInput icon="person-outline" placeholder="Tên đăng nhập (4–50 ký tự)" value={f.username} onChangeText={set('username')} error={errors.username} />
       <AppTextInput icon="lock-closed-outline" placeholder="Mật khẩu (8+ ký tự, hoa-thường-số)" value={f.password} onChangeText={set('password')} secure error={errors.password} />

@@ -13,6 +13,7 @@ import AdminEmployeeDetailPage from '../pages/admin/AdminEmployeeDetailPage';
 import AdminEmployeesPage from '../pages/admin/AdminEmployeesPage';
 import AdminHomePage from '../pages/admin/AdminHomePage';
 import AdminInventoryPage from '../pages/admin/AdminInventoryPage';
+import AdminReviewsPage from '../pages/admin/AdminReviewsPage';
 import AdminOrderDetailPage from '../pages/admin/AdminOrderDetailPage';
 import AdminOrdersPage from '../pages/admin/AdminOrdersPage';
 import AdminProductDetailPage from '../pages/admin/AdminProductDetailPage';
@@ -25,6 +26,7 @@ import AdminSuppliersPage from '../pages/admin/AdminSuppliersPage';
 import SalesCustomerDetailPage from '../pages/sales/SalesCustomerDetailPage';
 import SalesCustomersPage from '../pages/sales/SalesCustomersPage';
 import SalesHomePage from '../pages/sales/SalesHomePage';
+import SalesReviewsPage from '../pages/sales/SalesReviewsPage';
 import SalesOrderDetailPage from '../pages/sales/SalesOrderDetailPage';
 import SalesOrdersPage from '../pages/sales/SalesOrdersPage';
 import SalesProductDetailPage from '../pages/sales/SalesProductDetailPage';
@@ -67,6 +69,7 @@ export function AppRoutes() {
           <Route path="products" element={<AdminProductsPage />} />
           <Route path="products/:id" element={<AdminProductDetailPage />} />
           <Route path="catalog" element={<AdminCatalogPage />} />
+          <Route path="reviews" element={<AdminReviewsPage />} />
           <Route path="suppliers" element={<AdminSuppliersPage />} />
           <Route path="receipts" element={<AdminReceiptsPage />} />
           <Route path="inventory" element={<AdminInventoryPage />} />
@@ -86,6 +89,7 @@ export function AppRoutes() {
           <Route path="orders/:id" element={<SalesOrderDetailPage />} />
           <Route path="products" element={<SalesProductsPage />} />
           <Route path="products/:id" element={<SalesProductDetailPage />} />
+          <Route path="reviews" element={<SalesReviewsPage />} />
           <Route path="reports" element={<SalesReportsPage />} />
           <Route path="profile" element={<ProfilePage />} />
           <Route path="*" element={<PlaceholderPage role="SALES" />} />
