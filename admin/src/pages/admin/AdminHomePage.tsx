@@ -123,19 +123,6 @@ export default function AdminHomePage() {
           )}
         </div>
       </div>
-
-      <div className="card">
-        <h3>Lối tắt chức năng quản lý nhanh</h3>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginTop: 14 }}>
-          <Link to="/admin/employees" className="btn btn--ghost">👥 Quản lý nhân viên</Link>
-          <Link to="/admin/products" className="btn btn--ghost">👟 Quản lý sản phẩm</Link>
-          <Link to="/admin/catalog" className="btn btn--ghost">🏷️ Danh mục & Màu sắc</Link>
-          <Link to="/admin/suppliers" className="btn btn--ghost">🏭 Nhà cung cấp</Link>
-          <Link to="/admin/receipts" className="btn btn--ghost">📦 Phiếu nhập kho</Link>
-          <Link to="/admin/inventory" className="btn btn--ghost">📊 Tồn kho & Kiểm kê</Link>
-          <Link to="/admin/reports" className="btn btn--ghost">📈 Báo cáo chuyên sâu</Link>
-        </div>
-      </div>
     </>
   );
 }

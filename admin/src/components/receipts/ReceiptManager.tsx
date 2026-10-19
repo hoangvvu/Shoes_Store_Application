@@ -1,26 +1,39 @@
 import { useState } from 'react';
 import { receiptService, supplierService } from '../../services/inventory.service';
 import type { ReceiptListItem, Supplier } from '../../types/inventory';
+import { useSearchFilters } from '../../hooks/useSearchFilters';
 import { getErrorMessage } from '../../utils/error';
 import { formatDateTime, formatNumber, formatVnd, lastDays } from '../../utils/format';
 import { useAsync } from '../../utils/useAsync';
 import { PageHeader } from '../common/PageHeader';
-import { DateRangeFilter, LoadState } from '../common/Widgets';
+import { SearchBar } from '../common/SearchBar';
+import { LoadState } from '../common/Widgets';
 import { Pagination } from '../tables/Pagination';
 import { ReceiptCreateModal } from './ReceiptCreateModal';
 import { ReceiptDetailModal } from './ReceiptDetailModal';
 
 const SIZE = 10;
+const DEFAULT_RANGE = lastDays(60);
 
 interface Props {
   canDelete?: boolean;
 }
 
+interface ReceiptFilters {
+  from: string;
+  to: string;
+  supplierId: string;
+}
+
+const EMPTY_RECEIPT_FILTERS: ReceiptFilters = {
+  from: DEFAULT_RANGE.from,
+  to: DEFAULT_RANGE.to,
+  supplierId: '',
+};
+
 /** M5 #3, #5 – Danh sách phiếu nhập kho, lọc theo ngày/nhà cung cấp, xem chi tiết, hoàn tác xóa mềm. */
 export function ReceiptManager({ canDelete = true }: Props) {
-  const [range, setRange] = useState(lastDays(60));
-  const [supplierId, setSupplierId] = useState<number | ''>('');
-  const [page, setPage] = useState(1);
+  const { draft, applied, page, setPage, set, apply, pending } = useSearchFilters<ReceiptFilters>(EMPTY_RECEIPT_FILTERS);
 
   const [createModal, setCreateModal] = useState(false);
   const [selectedReceiptId, setSelectedReceiptId] = useState<number | null>(null);
@@ -30,14 +43,22 @@ export function ReceiptManager({ canDelete = true }: Props) {
   const { data, loading, error, reload } = useAsync(
     () =>
       receiptService.list({
-        from: range.from,
-        to: range.to,
-        supplierId: supplierId === '' ? undefined : supplierId,
+        from: applied.from || undefined,
+        to: applied.to || undefined,
+        supplierId: applied.supplierId ? Number(applied.supplierId) : undefined,
         page,
         size: SIZE,
       }),
-    [range, supplierId, page],
+    [applied, page],
   );
+
+  function handleSearch() {
+    if (draft.from && draft.to && draft.from > draft.to) {
+      window.alert('"Từ ngày" phải trước hoặc bằng "Đến ngày"');
+      return;
+    }
+    apply();
+  }
 
   async function removeReceipt(r: ReceiptListItem) {
     const reason = window.prompt(
@@ -62,22 +83,24 @@ export function ReceiptManager({ canDelete = true }: Props) {
       />
 
       <div className="card">
-        <div className="filters">
-          <DateRangeFilter
-            value={range}
-            onChange={(r) => { setRange(r); setPage(1); }}
-          />
+        <SearchBar
+          onSearch={handleSearch}
+          hint={pending ? 'Bạn đã đổi tiêu chí, bấm "Tìm kiếm" để cập nhật kết quả.' : undefined}
+        >
+          <label className="date-filter">Từ <input type="date" value={draft.from} onChange={set('from')} /></label>
+          <label className="date-filter">Đến <input type="date" value={draft.to} onChange={set('to')} /></label>
           <select
             className="select"
-            value={supplierId}
-            onChange={(e) => { setSupplierId(e.target.value ? Number(e.target.value) : ''); setPage(1); }}
+            value={draft.supplierId}
+            onChange={set('supplierId')}
+            aria-label="Lọc nhà cung cấp"
           >
             <option value="">Tất cả nhà cung cấp</option>
             {suppliers?.items.map((s: Supplier) => (
-              <option key={s.supplierId} value={s.supplierId}>{s.supplierName}</option>
+              <option key={s.supplierId} value={String(s.supplierId)}>{s.supplierName}</option>
             ))}
           </select>
-        </div>
+        </SearchBar>
 
         <LoadState loading={loading} error={error} empty={!loading && data?.items.length === 0} emptyText="Không có phiếu nhập kho nào trong kỳ" />
 

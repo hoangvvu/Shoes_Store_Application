@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { inventoryService } from '../../services/inventory.service';
 import type { StockItem } from '../../types/inventory';
+import { useSearchFilters } from '../../hooks/useSearchFilters';
 import { formatNumber, LOW_STOCK_THRESHOLD } from '../../utils/format';
-import { useAsync, useDebounced } from '../../utils/useAsync';
+import { useAsync } from '../../utils/useAsync';
 import { PageHeader } from '../common/PageHeader';
+import { SearchBar } from '../common/SearchBar';
 import { ColorDot, LoadState } from '../common/Widgets';
 import { Pagination } from '../tables/Pagination';
 import { LedgerModal } from './LedgerModal';
@@ -15,29 +17,41 @@ interface Props {
   canAdjust?: boolean;
 }
 
+interface InventoryFilters {
+  q: string;
+  lowStockOnly: string;
+}
+
+const EMPTY_INVENTORY_FILTERS: InventoryFilters = { q: '', lowStockOnly: '' };
+
 /** M6 #1, #2, #3, #4 – Quản lý tồn kho theo biến thể, cảnh báo sắp hết hàng, xem thẻ kho, điều chỉnh tồn. */
 export function InventoryManager({ canAdjust = true }: Props) {
-  const [q, setQ] = useState('');
-  const [lowStockOnly, setLowStockOnly] = useState(false);
-  const [page, setPage] = useState(1);
-  const search = useDebounced(q.trim());
+  const { draft, applied, page, setPage, set, apply, pending } = useSearchFilters<InventoryFilters>(EMPTY_INVENTORY_FILTERS);
 
   const [ledgerVariant, setLedgerVariant] = useState<StockItem | null>(null);
   const [adjustVariant, setAdjustVariant] = useState<StockItem | null>(null);
 
   const { data: lowStockItems } = useAsync(() => inventoryService.lowStock(LOW_STOCK_THRESHOLD), []);
 
+  const isLowStockActive = applied.lowStockOnly === 'true';
+
   const { data, loading, error, reload } = useAsync(
     () =>
       inventoryService.list({
-        q: search,
-        lowStockOnly,
+        q: applied.q.trim() || undefined,
+        lowStockOnly: isLowStockActive,
         threshold: LOW_STOCK_THRESHOLD,
         page,
         size: SIZE,
       }),
-    [search, lowStockOnly, page],
+    [applied, page],
   );
+
+  function toggleLowStockHeader() {
+    const nextVal = isLowStockActive ? '' : 'true';
+    draft.lowStockOnly = nextVal;
+    apply();
+  }
 
   return (
     <>
@@ -47,8 +61,8 @@ export function InventoryManager({ canAdjust = true }: Props) {
         actions={
           lowStockItems && lowStockItems.length > 0 ? (
             <button
-              className={`btn ${lowStockOnly ? 'btn--primary' : 'btn--ghost'}`}
-              onClick={() => { setLowStockOnly(!lowStockOnly); setPage(1); }}
+              className={`btn ${isLowStockActive ? 'btn--primary' : 'btn--ghost'}`}
+              onClick={toggleLowStockHeader}
             >
               ⚠️ Cảnh báo sắp hết hàng ({lowStockItems.length})
             </button>
@@ -57,23 +71,26 @@ export function InventoryManager({ canAdjust = true }: Props) {
       />
 
       <div className="card">
-        <div className="filters">
+        <SearchBar
+          onSearch={apply}
+          hint={pending ? 'Bạn đã đổi tiêu chí, bấm "Tìm kiếm" để cập nhật kết quả.' : undefined}
+        >
           <input
             className="search"
             placeholder="Tìm theo mã SKU, tên giày..."
-            value={q}
-            onChange={(e) => { setQ(e.target.value); setPage(1); }}
+            value={draft.q}
+            onChange={set('q')}
           />
-
-          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 14, cursor: 'pointer', userSelect: 'none' }}>
-            <input
-              type="checkbox"
-              checked={lowStockOnly}
-              onChange={(e) => { setLowStockOnly(e.target.checked); setPage(1); }}
-            />
-            Chỉ hiện sản phẩm sắp hết hàng (≤ {LOW_STOCK_THRESHOLD} đôi)
-          </label>
-        </div>
+          <select
+            className="select"
+            value={draft.lowStockOnly}
+            onChange={set('lowStockOnly')}
+            aria-label="Lọc mức tồn kho"
+          >
+            <option value="">Tất cả mức tồn</option>
+            <option value="true">Sắp hết hàng (≤ {LOW_STOCK_THRESHOLD} đôi)</option>
+          </select>
+        </SearchBar>
 
         <LoadState loading={loading} error={error} empty={!loading && data?.items.length === 0} emptyText="Không tìm thấy biến thể nào trong kho" />
 

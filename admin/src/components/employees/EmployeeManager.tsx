@@ -4,27 +4,32 @@ import { EMPLOYEE_ROLES, ROLE_LABEL } from '../../config/roles';
 import { employeeService } from '../../services/employee.service';
 import type { EmployeeRole } from '../../types/auth';
 import type { EmployeeDetail } from '../../types/employee';
+import { useSearchFilters } from '../../hooks/useSearchFilters';
 import { getErrorMessage } from '../../utils/error';
 import { formatVnd } from '../../utils/format';
-import { useAsync, useDebounced } from '../../utils/useAsync';
+import { useAsync } from '../../utils/useAsync';
 import { PageHeader } from '../common/PageHeader';
+import { SearchBar } from '../common/SearchBar';
 import { Pagination } from '../tables/Pagination';
 import { EmployeeFormModal } from './EmployeeFormModal';
 import { RoleBadge } from './RoleBadge';
 
 const SIZE = 10;
 
+interface EmployeeFilters {
+  q: string;
+  role: EmployeeRole | '';
+}
+const EMPTY_FILTERS: EmployeeFilters = { q: '', role: '' };
+
 /** M3 #1 – Danh sách và tìm nhân viên (chỉ ADMIN). */
 export function EmployeeManager({ basePath }: { basePath: string }) {
-  const [q, setQ] = useState('');
-  const [role, setRole] = useState<EmployeeRole | ''>('');
-  const [page, setPage] = useState(1);
-  const search = useDebounced(q.trim());
+  const { draft, applied, page, setPage, set, apply, pending } = useSearchFilters<EmployeeFilters>(EMPTY_FILTERS);
   const [modal, setModal] = useState<{ employee?: EmployeeDetail } | null>(null);
 
   const { data, loading, error, reload } = useAsync(
-    () => employeeService.list({ q: search, role, page, size: SIZE }),
-    [search, role, page],
+    () => employeeService.list({ q: applied.q.trim() || undefined, role: applied.role || undefined, page, size: SIZE }),
+    [applied, page],
   );
 
   async function remove(id: number, name: string) {
@@ -68,13 +73,26 @@ export function EmployeeManager({ basePath }: { basePath: string }) {
       />
 
       <div className="card">
-        <div className="filters">
-          <input className="search" placeholder="Tìm theo tên hoặc số điện thoại…" value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} />
-          <select className="select" value={role} onChange={(e) => { setRole(e.target.value as EmployeeRole | ''); setPage(1); }} aria-label="Lọc vai trò">
+        <SearchBar
+          onSearch={apply}
+          hint={pending ? 'Bạn đã đổi tiêu chí, bấm "Tìm kiếm" để cập nhật kết quả.' : undefined}
+        >
+          <input
+            className="search"
+            placeholder="Tìm theo tên hoặc số điện thoại…"
+            value={draft.q}
+            onChange={set('q')}
+          />
+          <select
+            className="select"
+            value={draft.role}
+            onChange={set('role')}
+            aria-label="Lọc vai trò"
+          >
             <option value="">Tất cả vai trò</option>
             {EMPLOYEE_ROLES.map((r) => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}
           </select>
-        </div>
+        </SearchBar>
 
         {error && <p className="form-error">{error}</p>}
         <div className="table-wrap">
