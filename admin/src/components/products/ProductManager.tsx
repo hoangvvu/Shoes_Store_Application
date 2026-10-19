@@ -31,7 +31,7 @@ const EMPTY_FILTERS: ProductFilters = { q: '', categoryId: '', brandId: '', isAc
 
 /** Quản lý danh sách sản phẩm, lọc theo danh mục/hãng/trạng thái, tìm kiếm, tạo biến thể, ẩn/hiện, xóa mềm. */
 export function ProductManager({ basePath, canEdit = true }: Props) {
-  const { draft, applied, page, setPage, set, apply, pending } = useSearchFilters<ProductFilters>(EMPTY_FILTERS);
+  const { draft, applied, page, setPage, set, apply } = useSearchFilters<ProductFilters>(EMPTY_FILTERS);
   const [modal, setModal] = useState<{ product?: ProductDetail } | null>(null);
   const [bulkModal, setBulkModal] = useState<{ productId: number; productName: string } | null>(null);
 
@@ -83,7 +83,6 @@ export function ProductManager({ basePath, canEdit = true }: Props) {
       <div className="card">
         <SearchBar
           onSearch={apply}
-          hint={pending ? 'Bạn đã đổi tiêu chí, bấm "Tìm kiếm" để cập nhật kết quả.' : undefined}
         >
           <input
             className="search"
@@ -134,7 +133,7 @@ export function ProductManager({ basePath, canEdit = true }: Props) {
                 <tr>
                   <th style={{ width: 64 }}>Ảnh</th>
                   <th>Tên sản phẩm</th>
-                  <th>Danh mục / Hãng</th>
+                  <th>Loại sản phẩm</th>
                   <th className="num">Giá bán</th>
                   <th className="num">Biến thể</th>
                   <th className="num">Tổng tồn</th>

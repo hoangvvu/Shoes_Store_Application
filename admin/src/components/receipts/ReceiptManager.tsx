@@ -33,7 +33,7 @@ const EMPTY_RECEIPT_FILTERS: ReceiptFilters = {
 
 /** M5 #3, #5 – Danh sách phiếu nhập kho, lọc theo ngày/nhà cung cấp, xem chi tiết, hoàn tác xóa mềm. */
 export function ReceiptManager({ canDelete = true }: Props) {
-  const { draft, applied, page, setPage, set, apply, pending } = useSearchFilters<ReceiptFilters>(EMPTY_RECEIPT_FILTERS);
+  const { draft, applied, page, setPage, set, apply } = useSearchFilters<ReceiptFilters>(EMPTY_RECEIPT_FILTERS);
 
   const [createModal, setCreateModal] = useState(false);
   const [selectedReceiptId, setSelectedReceiptId] = useState<number | null>(null);
@@ -83,10 +83,7 @@ export function ReceiptManager({ canDelete = true }: Props) {
       />
 
       <div className="card">
-        <SearchBar
-          onSearch={handleSearch}
-          hint={pending ? 'Bạn đã đổi tiêu chí, bấm "Tìm kiếm" để cập nhật kết quả.' : undefined}
-        >
+        <SearchBar onSearch={handleSearch}>
           <label className="date-filter">Từ <input type="date" value={draft.from} onChange={set('from')} /></label>
           <label className="date-filter">Đến <input type="date" value={draft.to} onChange={set('to')} /></label>
           <select

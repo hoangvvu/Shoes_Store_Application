@@ -26,7 +26,7 @@ const EMPTY_INVENTORY_FILTERS: InventoryFilters = { q: '', lowStockOnly: '' };
 
 /** M6 #1, #2, #3, #4 – Quản lý tồn kho theo biến thể, cảnh báo sắp hết hàng, xem thẻ kho, điều chỉnh tồn. */
 export function InventoryManager({ canAdjust = true }: Props) {
-  const { draft, applied, page, setPage, set, apply, pending } = useSearchFilters<InventoryFilters>(EMPTY_INVENTORY_FILTERS);
+  const { draft, applied, page, setPage, set, apply } = useSearchFilters<InventoryFilters>(EMPTY_INVENTORY_FILTERS);
 
   const [ledgerVariant, setLedgerVariant] = useState<StockItem | null>(null);
   const [adjustVariant, setAdjustVariant] = useState<StockItem | null>(null);
@@ -71,10 +71,7 @@ export function InventoryManager({ canAdjust = true }: Props) {
       />
 
       <div className="card">
-        <SearchBar
-          onSearch={apply}
-          hint={pending ? 'Bạn đã đổi tiêu chí, bấm "Tìm kiếm" để cập nhật kết quả.' : undefined}
-        >
+        <SearchBar onSearch={apply}>
           <input
             className="search"
             placeholder="Tìm theo mã SKU, tên giày..."

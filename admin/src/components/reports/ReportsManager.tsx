@@ -125,9 +125,6 @@ export function ReportsManager({ role }: Props) {
     setApplied(draft);
   }
 
-  const pending =
-    draft.from !== applied.from || draft.to !== applied.to || draft.q.trim() !== applied.q.trim();
-
   const query = applied.q.trim().toLowerCase();
 
   async function handleExportExcel() {
@@ -256,10 +253,7 @@ export function ReportsManager({ role }: Props) {
                 })}
               </div>
 
-              <SearchBar
-                onSearch={handleSearch}
-                hint={pending ? 'Bạn đã đổi thời gian hoặc từ khóa, bấm "Tìm kiếm" để cập nhật số liệu báo cáo.' : undefined}
-              >
+              <SearchBar onSearch={handleSearch}>
                 <label className="date-filter">
                   Từ <input
                     type="date"

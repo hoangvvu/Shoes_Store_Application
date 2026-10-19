@@ -23,7 +23,7 @@ export function CatalogManager() {
   const [tab, setTab] = useState<TabKey>('categories');
   const [modal, setModal] = useState<{ kind: TabKey; item?: any } | null>(null);
 
-  const { draft, applied, set, apply, pending } = useSearchFilters<CatalogFilters>(EMPTY_CATALOG_FILTERS);
+  const { draft, applied, set, apply } = useSearchFilters<CatalogFilters>(EMPTY_CATALOG_FILTERS);
 
   const { data: categories, loading: catLoading, error: catError, reload: reloadCat } = useAsync(
     () => catalogService.list('categories'),
@@ -131,10 +131,7 @@ export function CatalogManager() {
           ]}
         />
 
-        <SearchBar
-          onSearch={handleSearch}
-          hint={pending ? 'Bạn đã đổi tiêu chí, bấm "Tìm kiếm" để cập nhật kết quả.' : undefined}
-        >
+        <SearchBar onSearch={handleSearch}>
           <input
             className="search"
             placeholder={

@@ -24,7 +24,7 @@ const EMPTY_FILTERS: EmployeeFilters = { q: '', role: '' };
 
 /** M3 #1 – Danh sách và tìm nhân viên (chỉ ADMIN). */
 export function EmployeeManager({ basePath }: { basePath: string }) {
-  const { draft, applied, page, setPage, set, apply, pending } = useSearchFilters<EmployeeFilters>(EMPTY_FILTERS);
+  const { draft, applied, page, setPage, set, apply } = useSearchFilters<EmployeeFilters>(EMPTY_FILTERS);
   const [modal, setModal] = useState<{ employee?: EmployeeDetail } | null>(null);
 
   const { data, loading, error, reload } = useAsync(
@@ -73,10 +73,7 @@ export function EmployeeManager({ basePath }: { basePath: string }) {
       />
 
       <div className="card">
-        <SearchBar
-          onSearch={apply}
-          hint={pending ? 'Bạn đã đổi tiêu chí, bấm "Tìm kiếm" để cập nhật kết quả.' : undefined}
-        >
+        <SearchBar onSearch={apply}>
           <input
             className="search"
             placeholder="Tìm theo tên hoặc số điện thoại…"
