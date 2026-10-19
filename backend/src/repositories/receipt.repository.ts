@@ -31,6 +31,8 @@ export interface ReceiptLineRow {
   lineTotal: number;
 }
 
+const EMPLOYEE_NAME = `LTRIM(RTRIM(CONCAT(e.last_name, N' ', e.first_name)))`;
+
 export const receiptRepository = {
   async list(
     p: { from?: string; to?: string; supplierId?: number; page: number; size: number },
@@ -58,7 +60,7 @@ export const receiptRepository = {
       `SELECT r.receipt_id AS receiptId, r.receipt_date AS receiptDate,
               r.total_amount AS totalAmount, r.supplier_id AS supplierId,
               s.supplier_name AS supplierName, r.employee_id AS employeeId,
-              e.full_name AS employeeName,
+              ${EMPLOYEE_NAME} AS employeeName,
               COUNT(d.variant_id) AS itemCount,
               ISNULL(SUM(d.quantity), 0) AS totalQuantity,
               r.is_deleted AS isDeleted
@@ -70,7 +72,7 @@ export const receiptRepository = {
          AND (@from IS NULL OR r.receipt_date >= @from)
          AND (@to IS NULL OR r.receipt_date <= @to)
        GROUP BY r.receipt_id, r.receipt_date, r.total_amount, r.supplier_id,
-                s.supplier_name, r.employee_id, e.full_name, r.is_deleted
+                s.supplier_name, r.employee_id, e.last_name, e.first_name, r.is_deleted
        ORDER BY r.receipt_id DESC
        OFFSET @offset ROWS FETCH NEXT @size ROWS ONLY`,
       {
@@ -102,7 +104,7 @@ export const receiptRepository = {
               r.total_amount AS totalAmount, r.supplier_id AS supplierId,
               s.supplier_name AS supplierName, s.phone AS supplierPhone,
               s.email AS supplierEmail, s.address AS supplierAddress,
-              r.employee_id AS employeeId, e.full_name AS employeeName,
+              r.employee_id AS employeeId, ${EMPLOYEE_NAME} AS employeeName,
               COUNT(d.variant_id) AS itemCount,
               ISNULL(SUM(d.quantity), 0) AS totalQuantity,
               r.is_deleted AS isDeleted
@@ -113,7 +115,7 @@ export const receiptRepository = {
        WHERE r.receipt_id = @id
        GROUP BY r.receipt_id, r.receipt_date, r.total_amount, r.supplier_id,
                 s.supplier_name, s.phone, s.email, s.address,
-                r.employee_id, e.full_name, r.is_deleted`,
+                r.employee_id, e.last_name, e.first_name, r.is_deleted`,
       { id: [sql.Int, id] },
       exec,
     );

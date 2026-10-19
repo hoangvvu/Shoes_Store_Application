@@ -1,5 +1,8 @@
 import { query, sql, type Executor } from '../config/database';
 
+const CUSTOMER_NAME = `LTRIM(RTRIM(CONCAT(c.last_name, N' ', c.first_name)))`;
+const EMPLOYEE_NAME = `LTRIM(RTRIM(CONCAT(e.last_name, N' ', e.first_name)))`;
+
 export interface RevenuePointRow {
   period: string;
   orders: number;
@@ -314,7 +317,7 @@ export const reportRepository = {
     const r = await query<TopCustomerRow>(
       `SELECT TOP (@limit)
          c.customer_id AS customerId,
-         c.full_name AS fullName,
+         ${CUSTOMER_NAME} AS fullName,
          c.phone,
          COUNT(i.invoice_id) AS orders,
          ISNULL(SUM(i.amount_payable), 0) AS totalPurchased
@@ -322,7 +325,7 @@ export const reportRepository = {
        JOIN invoices i ON i.customer_id = c.customer_id
        WHERE i.order_status = 'DELIVERED' AND i.is_deleted = 0
          AND i.invoice_date >= @from AND i.invoice_date <= @to
-       GROUP BY c.customer_id, c.full_name, c.phone
+       GROUP BY c.customer_id, c.last_name, c.first_name, c.phone
        ORDER BY totalPurchased DESC`,
       {
         limit: [sql.Int, limit],
@@ -350,14 +353,14 @@ export const reportRepository = {
     const r = await query<EmployeeSalesRow>(
       `SELECT
          e.employee_id AS employeeId,
-         e.full_name AS fullName,
+         ${EMPLOYEE_NAME} AS fullName,
          COUNT(i.invoice_id) AS orders,
          ISNULL(SUM(i.amount_payable), 0) AS revenue
        FROM employees e
        JOIN invoices i ON i.employee_id = e.employee_id
        WHERE i.order_status = 'DELIVERED' AND i.is_deleted = 0
          AND i.invoice_date >= @from AND i.invoice_date <= @to
-       GROUP BY e.employee_id, e.full_name
+       GROUP BY e.employee_id, e.last_name, e.first_name
        ORDER BY revenue DESC`,
       {
         from: [sql.DateTime2, fromDate],
