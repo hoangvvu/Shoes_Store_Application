@@ -1,11 +1,7 @@
 USE master;
 GO
-
--- Chuyển database sang chế độ single_user và ngắt các kết nối đang hoạt động
 ALTER DATABASE ShoeStore SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
 GO
-
--- Xóa database ShoeStore
 DROP DATABASE ShoeStore;
 GO
 SET NOCOUNT ON;
