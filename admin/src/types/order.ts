@@ -45,6 +45,7 @@ export interface OrderPayment {
   amount: number;
   status: 'PENDING' | 'SUCCESS' | 'FAILED';
   paidAt: string | null;
+  proofUrl?: string | null;
 }
 
 export interface OrderDetail extends OrderListItem {

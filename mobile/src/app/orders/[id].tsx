@@ -1,6 +1,6 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { StatusBadge } from '@/components/StatusBadge';
 import { PAYMENT_STATUS_LABEL, STATUS_LABEL } from '@/constants/order';
@@ -124,6 +124,13 @@ export default function OrderDetailScreen() {
                 <Text style={styles.muted}>{formatVnd(p.amount)} · {PAY_TX[p.status]}</Text>
               </View>
             ))}
+            {/* M9: nút xem chi tiết thanh toán */}
+            <TouchableOpacity
+              style={styles.paymentLink}
+              onPress={() => router.push(`/orders/payment/${orderId}`)}
+            >
+              <Text style={styles.paymentLinkText}>Xem chi tiết thanh toán →</Text>
+            </TouchableOpacity>
           </View>
         </>
       )}
@@ -164,4 +171,6 @@ const styles = StyleSheet.create({
   total: { color: colors.primaryDark, fontSize: 18, fontWeight: '800' },
   timelineItem: { flexDirection: 'row', gap: 10 },
   dot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.primary, marginTop: 5 },
+  paymentLink: { paddingTop: 6, borderTopWidth: 1, borderTopColor: colors.border, marginTop: 4 },
+  paymentLinkText: { color: colors.primary, fontWeight: '700', fontSize: 14, textAlign: 'center' },
 });

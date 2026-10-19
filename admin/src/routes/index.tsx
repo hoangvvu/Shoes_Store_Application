@@ -9,7 +9,7 @@ export function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={user ? <Navigate to="/" replace /> : <LoginPage />} />
-      <Route element={<ProtectedRoute roles={['ADMIN', 'STAFF']} />}>
+      <Route element={<ProtectedRoute roles={['ADMIN', 'SALES', 'WAREHOUSE']} />}>
         <Route path="/" element={<DashboardPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

@@ -70,10 +70,11 @@ export const orderPaymentRepository = {
   async listByInvoice(invoiceId: number, exec?: Executor) {
     const r = await query<{
       paymentId: number; methodCode: string; methodName: string; amount: number;
-      status: string; paidAt: Date | null; createdAt: Date;
+      status: string; paidAt: Date | null; createdAt: Date; proofUrl: string | null;
     }>(
       `SELECT p.payment_id AS paymentId, m.method_code AS methodCode, m.method_name AS methodName,
-              p.amount, p.status, p.paid_at AS paidAt, p.created_at AS createdAt
+              p.amount, p.status, p.paid_at AS paidAt, p.created_at AS createdAt,
+              p.proof_image_url AS proofUrl
        FROM payments p JOIN payment_methods m ON m.method_id = p.method_id
        WHERE p.invoice_id = @invoiceId AND p.is_deleted = 0 ORDER BY p.payment_id`,
       { invoiceId: [sql.Int, invoiceId] },

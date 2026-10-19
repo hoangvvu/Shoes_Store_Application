@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { orderService } from '../../services/order.service';
+import { paymentService } from '../../services/payment.service';
 import type { OrderDetail } from '../../types/order';
 import { getErrorMessage } from '../../utils/error';
 import { ORDER_STATUS_LABEL, formatDateTime, formatVnd } from '../../utils/format';
@@ -52,6 +53,48 @@ export function OrderDetailView({ basePath, canDelete }: Props) {
     try {
       await orderService.remove(orderId);
       navigate(basePath, { replace: true });
+    } catch (err) {
+      window.alert(getErrorMessage(err));
+    }
+  }
+
+  async function handleConfirmCash(paymentId: number) {
+    if (!window.confirm('Xác nhận đã thu đủ tiền mặt cho đơn hàng?')) return;
+    try {
+      await paymentService.confirmCash(paymentId);
+      void load();
+    } catch (err) {
+      window.alert(getErrorMessage(err));
+    }
+  }
+
+  async function handleReviewProof(paymentId: number, status: 'SUCCESS' | 'FAILED') {
+    const note = window.prompt(status === 'SUCCESS' ? 'Ghi chú duyệt (không bắt buộc):' : 'Lý do từ chối:') ?? '';
+    if (status === 'FAILED' && !note.trim()) {
+      window.alert('Vui lòng nhập lý do từ chối.');
+      return;
+    }
+    try {
+      await paymentService.reviewProof(paymentId, status, note);
+      void load();
+    } catch (err) {
+      window.alert(getErrorMessage(err));
+    }
+  }
+
+  async function handleCreateRefund() {
+    if (!order) return;
+    const remainingRefundable = order.paidAmount - order.refundedAmount;
+    const reason = window.prompt(`Nhập lý do hoàn tiền cho đơn #${order.invoiceId} (tối đa ${formatVnd(remainingRefundable)}):`) ?? '';
+    if (!reason.trim()) return;
+    try {
+      await paymentService.createRefund({
+        invoiceId: order.invoiceId,
+        amount: remainingRefundable,
+        reason,
+      });
+      window.alert('Đã tạo yêu cầu hoàn tiền thành công.');
+      void load();
     } catch (err) {
       window.alert(getErrorMessage(err));
     }
@@ -148,12 +191,55 @@ export function OrderDetailView({ basePath, canDelete }: Props) {
           {order.payments.length === 0 && <p className="muted">Chưa có giao dịch.</p>}
           <ul className="plain-list">
             {order.payments.map((p) => (
-              <li key={p.paymentId}>
-                <strong>{p.methodName}</strong> · {formatVnd(p.amount)} · {PAYMENT_TX_LABEL[p.status]}
-                {p.paidAt && <span className="muted"> ({formatDateTime(p.paidAt)})</span>}
+              <li key={p.paymentId} style={{ marginBottom: 12, paddingBottom: 8, borderBottom: '1px dashed #e5e7eb' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>
+                    <strong>{p.methodName}</strong> · {formatVnd(p.amount)}
+                  </span>
+                  <span className={`badge ${p.status === 'SUCCESS' ? 'badge--confirmed' : p.status === 'FAILED' ? 'badge--cancelled' : 'badge--pending'}`}>
+                    {PAYMENT_TX_LABEL[p.status] ?? p.status}
+                  </span>
+                </div>
+                {p.paidAt && <div className="muted" style={{ fontSize: '0.85em', marginTop: 2 }}>Đã thu: {formatDateTime(p.paidAt)}</div>}
+
+                {p.status === 'PENDING' && p.methodCode === 'CASH' && (
+                  <div style={{ marginTop: 8 }}>
+                    <button className="btn btn--small btn--primary" onClick={() => handleConfirmCash(p.paymentId)}>
+                      ✓ Xác nhận đã thu tiền mặt
+                    </button>
+                  </div>
+                )}
+
+                {p.proofUrl && (
+                  <div style={{ marginTop: 8, background: '#f9fafb', padding: 8, borderRadius: 6 }}>
+                    <div style={{ marginBottom: 6 }}>
+                      <a href={p.proofUrl} target="_blank" rel="noreferrer" className="link" style={{ fontWeight: 500 }}>
+                        📷 Xem ảnh chứng từ chuyển khoản ↗
+                      </a>
+                    </div>
+                    {p.status === 'PENDING' && (
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button className="btn btn--small btn--primary" onClick={() => handleReviewProof(p.paymentId, 'SUCCESS')}>
+                          Duyệt hợp lệ
+                        </button>
+                        <button className="btn btn--small btn--danger" onClick={() => handleReviewProof(p.paymentId, 'FAILED')}>
+                          Từ chối
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </li>
             ))}
           </ul>
+
+          {order.refundRequired && (
+            <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid #e5e7eb' }}>
+              <button className="btn btn--danger btn--small" onClick={handleCreateRefund}>
+                💸 Tạo yêu cầu hoàn tiền ({formatVnd(order.paidAmount - order.refundedAmount)})
+              </button>
+            </div>
+          )}
         </section>
         <section className="card">
           <h3>Lịch sử trạng thái</h3>

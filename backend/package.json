@@ -7,7 +7,7 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/src/server.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "ngrok": "ngrok http --domain=swiftness-stuffed-writing.ngrok-free.dev 5000"
+    "ngrok": "ngrok http --domain=stained-twiddle-attribute.ngrok-free.dev 5000"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
