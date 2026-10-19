@@ -27,7 +27,15 @@ export const authService = {
     const { data } = await api.get<MeResponse>('/me');
     return data;
   },
-  async updateMe(p: { fullName?: string; phone?: string }): Promise<MeResponse> {
+  /** Giới tính, ngày sinh, email không bắt buộc: gửi null để xóa giá trị. */
+  async updateMe(p: {
+    lastName?: string;
+    firstName?: string;
+    phone?: string;
+    gender?: 'MALE' | 'FEMALE' | 'OTHER' | null;
+    dateOfBirth?: string | null;
+    email?: string | null;
+  }): Promise<MeResponse> {
     const { data } = await api.put<MeResponse>('/me', p);
     return data;
   },

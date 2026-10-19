@@ -3,35 +3,33 @@ import { Link } from 'react-router-dom';
 import { orderService } from '../../services/order.service';
 import type { Paged } from '../../types/customer';
 import type { Channel, OrderListItem, OrderStatus } from '../../types/order';
+import { useSearchFilters } from '../../hooks/useSearchFilters';
 import { getErrorMessage } from '../../utils/error';
 import { formatDateTime, formatVnd } from '../../utils/format';
 import { PAYMENT_STATUS_LABEL, STATUS_OPTIONS } from '../../utils/order';
 import { PageHeader } from '../common/PageHeader';
+import { SearchBar } from '../common/SearchBar';
 import { Pagination } from '../tables/Pagination';
 import { OrderStatusBadge } from './OrderStatusBadge';
 
 const SIZE = 10;
 
-/** Danh sách đơn dùng chung cho Admin và Bán hàng. */
+interface Filters {
+  q: string;
+  status: string;
+  channel: string;
+  from: string;
+  to: string;
+}
+const EMPTY: Filters = { q: '', status: '', channel: '', from: '', to: '' };
+
+/** Danh sách đơn dùng chung cho Admin và Bán hàng. Bộ lọc chỉ có hiệu lực khi bấm "Tìm kiếm". */
 export function OrderManager({ basePath }: { basePath: string }) {
-  const [status, setStatus] = useState('');
-  const [channel, setChannel] = useState('');
-  const [from, setFrom] = useState('');
-  const [to, setTo] = useState('');
-  const [q, setQ] = useState('');
-  const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
+  // draft = đang chọn trên giao diện; applied = đã bấm Tìm kiếm; tất cả về mặc định thì tự về danh sách đầy đủ
+  const { draft, applied, page, setPage, set, apply, pending } = useSearchFilters<Filters>(EMPTY);
   const [data, setData] = useState<Paged<OrderListItem> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-
-  useEffect(() => {
-    const t = setTimeout(() => {
-      setSearch(q.trim());
-      setPage(1);
-    }, 350);
-    return () => clearTimeout(t);
-  }, [q]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -39,11 +37,11 @@ export function OrderManager({ basePath }: { basePath: string }) {
     try {
       setData(
         await orderService.list({
-          status: (status || undefined) as OrderStatus | undefined,
-          channel: (channel || undefined) as Channel | undefined,
-          from: from || undefined,
-          to: to || undefined,
-          q: search,
+          status: (applied.status || undefined) as OrderStatus | undefined,
+          channel: (applied.channel || undefined) as Channel | undefined,
+          from: applied.from || undefined,
+          to: applied.to || undefined,
+          q: applied.q.trim(),
           page,
           size: SIZE,
         }),
@@ -53,34 +51,37 @@ export function OrderManager({ basePath }: { basePath: string }) {
     } finally {
       setLoading(false);
     }
-  }, [status, channel, from, to, search, page]);
+  }, [applied, page]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
-  const reset = (setter: (v: string) => void) => (e: { target: { value: string } }) => {
-    setter(e.target.value);
-    setPage(1);
-  };
+  function search() {
+    if (draft.from && draft.to && draft.from > draft.to) return setError('"Từ ngày" phải trước hoặc bằng "Đến ngày"');
+    apply();
+  }
 
   return (
     <>
       <PageHeader title="Đơn hàng" subtitle="Theo dõi và xử lý đơn hàng online và bán tại quầy" />
       <div className="card">
-        <div className="filters">
-          <input className="search" placeholder="Mã đơn, tên khách, SĐT…" value={q} onChange={(e) => setQ(e.target.value)} />
-          <select className="select" value={status} onChange={reset(setStatus)}>
+        <SearchBar
+          onSearch={search}
+          hint={pending ? 'Bạn đã đổi tiêu chí, bấm "Tìm kiếm" để cập nhật kết quả.' : undefined}
+        >
+          <input className="search" placeholder="Mã đơn, tên khách, SĐT…" value={draft.q} onChange={set('q')} />
+          <select className="select" value={draft.status} onChange={set('status')} aria-label="Trạng thái">
             {STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
-          <select className="select" value={channel} onChange={reset(setChannel)}>
+          <select className="select" value={draft.channel} onChange={set('channel')} aria-label="Kênh bán">
             <option value="">Tất cả kênh</option>
             <option value="ONLINE">Online</option>
             <option value="POS">Tại quầy (POS)</option>
           </select>
-          <label className="date-filter">Từ <input type="date" value={from} onChange={reset(setFrom)} /></label>
-          <label className="date-filter">Đến <input type="date" value={to} onChange={reset(setTo)} /></label>
-        </div>
+          <label className="date-filter">Từ <input type="date" value={draft.from} onChange={set('from')} /></label>
+          <label className="date-filter">Đến <input type="date" value={draft.to} onChange={set('to')} /></label>
+        </SearchBar>
 
         {error && <p className="form-error">{error}</p>}
         <div className="table-wrap">

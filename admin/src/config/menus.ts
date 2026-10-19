@@ -13,8 +13,9 @@ export const MENUS: Record<EmployeeRole, MenuItem[]> = {
     { label: 'Dashboard', path: '/admin', icon: 'dashboard' },
     { label: 'Nhân viên & tài khoản', path: '/admin/employees', icon: 'users' },
     { label: 'Khách hàng', path: '/admin/customers', icon: 'user' },
-    { label: 'Đơn hàng', path: '/admin/orders', icon: 'cart' },
+    { label: 'Hóa đơn', path: '/admin/orders', icon: 'cart' },
     { label: 'Sản phẩm', path: '/admin/products', icon: 'box' },
+    { label: 'Đánh giá', path: '/admin/reviews', icon: 'star' },
     { label: 'Khuyến mãi & voucher', path: '/admin/promotions', icon: 'tag' },
     { label: 'Banner', path: '/admin/banners', icon: 'image' },
     { label: 'Thông báo', path: '/admin/notifications', icon: 'bell' },
@@ -29,6 +30,7 @@ export const MENUS: Record<EmployeeRole, MenuItem[]> = {
     { label: 'Thanh toán', path: '/sales/payments', icon: 'card' },
     { label: 'Đổi trả', path: '/sales/returns', icon: 'return' },
     { label: 'Sản phẩm', path: '/sales/products', icon: 'box' },
+    { label: 'Đánh giá', path: '/sales/reviews', icon: 'star' },
     { label: 'Báo cáo bán hàng', path: '/sales/reports', icon: 'chart' },
   ],
   WAREHOUSE: [

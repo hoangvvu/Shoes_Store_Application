@@ -1,11 +1,18 @@
 import { query, sql, type Executor } from '../config/database';
+import type { Gender } from '../validators/common';
 
 export interface EmployeeRow {
   employeeId: number;
+  lastName: string;
+  firstName: string;
+  /** Họ + Tên ghép sẵn bằng SQL, chỉ để hiển thị. */
   fullName: string;
   dateOfBirth: Date | null;
   address: string | null;
   phone: string | null;
+  gender: Gender | null;
+  email: string | null;
+  hireDate: Date | null;
   baseSalary: number;
 }
 
@@ -23,23 +30,31 @@ export const employeeRepository = {
 
   async insert(
     d: {
-      fullName: string;
+      lastName: string;
+      firstName: string;
       dateOfBirth?: Date;
       address?: string;
       phone?: string;
+      gender?: Gender;
+      email?: string;
+      hireDate?: Date;
       baseSalary?: number;
     },
     exec?: Executor,
   ): Promise<number> {
     const r = await query<{ id: number }>(
-      `INSERT INTO employees (full_name, date_of_birth, address, phone, base_salary)
-       VALUES (@fullName, @dob, @address, @phone, @salary);
+      `INSERT INTO employees (last_name, first_name, date_of_birth, address, phone, gender, email, hire_date, base_salary)
+       VALUES (@lastName, @firstName, @dob, @address, @phone, @gender, @email, @hire, @salary);
        SELECT CAST(SCOPE_IDENTITY() AS INT) AS id;`,
       {
-        fullName: [sql.NVarChar(100), d.fullName],
+        lastName: [sql.NVarChar(50), d.lastName],
+        firstName: [sql.NVarChar(50), d.firstName],
         dob: [sql.Date, d.dateOfBirth ?? null],
         address: [sql.NVarChar(255), d.address ?? null],
         phone: [sql.VarChar(20), d.phone ?? null],
+        gender: [sql.VarChar(10), d.gender ?? null],
+        email: [sql.VarChar(100), d.email ?? null],
+        hire: [sql.Date, d.hireDate ?? null],
         salary: [sql.Decimal(18, 2), d.baseSalary ?? 0],
       },
       exec,
@@ -49,8 +64,9 @@ export const employeeRepository = {
 
   async findById(employeeId: number, exec?: Executor): Promise<EmployeeRow | null> {
     const r = await query<EmployeeRow>(
-      `SELECT employee_id AS employeeId, full_name AS fullName, date_of_birth AS dateOfBirth,
-              address, phone, base_salary AS baseSalary
+      `SELECT employee_id AS employeeId, last_name AS lastName, first_name AS firstName,
+              LTRIM(RTRIM(CONCAT(last_name, N' ', first_name))) AS fullName, date_of_birth AS dateOfBirth,
+              address, phone, gender, email, hire_date AS hireDate, base_salary AS baseSalary
        FROM employees WHERE employee_id = @id AND is_deleted = 0`,
       { id: [sql.Int, employeeId] },
       exec,
@@ -58,23 +74,36 @@ export const employeeRepository = {
     return r.recordset[0] ?? null;
   },
 
+  /**
+   * Cập nhật hồ sơ cá nhân. Họ/Tên/ngày sinh/địa chỉ/SĐT: bỏ qua = giữ nguyên.
+   * Giới tính và email (không bắt buộc): `undefined` = giữ nguyên, `null` = xóa về NULL.
+   * Ngày vào làm do Admin quản lý nên không sửa ở đây.
+   */
   async update(
     employeeId: number,
-    d: { fullName?: string; dateOfBirth?: Date; address?: string; phone?: string },
+    d: { lastName?: string; firstName?: string; dateOfBirth?: Date; address?: string; phone?: string; gender?: Gender | null; email?: string | null },
     exec?: Executor,
   ): Promise<void> {
     await query(
       `UPDATE employees SET
-         full_name = COALESCE(@fullName, full_name),
+         last_name = COALESCE(@lastName, last_name),
+         first_name = COALESCE(@firstName, first_name),
          date_of_birth = COALESCE(@dob, date_of_birth),
          address = COALESCE(@address, address),
-         phone = COALESCE(@phone, phone)
+         phone = COALESCE(@phone, phone),
+         gender = CASE WHEN @genderSet = 1 THEN @gender ELSE gender END,
+         email = CASE WHEN @emailSet = 1 THEN @email ELSE email END
        WHERE employee_id = @id AND is_deleted = 0`,
       {
-        fullName: [sql.NVarChar(100), d.fullName ?? null],
+        lastName: [sql.NVarChar(50), d.lastName ?? null],
+        firstName: [sql.NVarChar(50), d.firstName ?? null],
         dob: [sql.Date, d.dateOfBirth ?? null],
         address: [sql.NVarChar(255), d.address ?? null],
         phone: [sql.VarChar(20), d.phone ?? null],
+        genderSet: [sql.Bit, d.gender !== undefined],
+        gender: [sql.VarChar(10), d.gender ?? null],
+        emailSet: [sql.Bit, d.email !== undefined],
+        email: [sql.VarChar(100), d.email ?? null],
         id: [sql.Int, employeeId],
       },
       exec,

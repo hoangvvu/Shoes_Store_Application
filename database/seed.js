@@ -1,5 +1,5 @@
 /**
- * database/seed.js – dữ liệu mẫu để TEST M1 (xác thực & tài khoản), M2 (khách hàng & địa chỉ), M7 (giỏ hàng) và M8 (đặt hàng).
+ * database/seed.js – dữ liệu mẫu để TEST M1 (xác thực & tài khoản), M2 (khách hàng & địa chỉ), M7 (giỏ hàng), M8 (đặt hàng) và M14 (đánh giá, yêu thích), kèm thông tin cá nhân (giới tính, email, ngày sinh…) để thử tìm kiếm nâng cao.
  *
  * Cách chạy:   cd database && npm i && npm run seed
  * Tùy chọn:    npm run seed -- --reset-passwords   (đặt lại mật khẩu các tài khoản mẫu)
@@ -21,14 +21,14 @@ const resetPasswords = process.argv.includes('--reset-passwords');
  * kind: 'EMPLOYEE' | 'CUSTOMER'
  */
 const ACCOUNTS = [
-  { username: 'admin',        password: 'Admin@12345',  role: 'ADMIN',     kind: 'EMPLOYEE', fullName: 'Quản Trị Viên',       phone: '0901000001', salary: 20000000, note: 'Đăng nhập web → layout Admin; thấy baseSalary trong GET /me' },
-  { username: 'sales01',      password: 'Sales@12345',  role: 'SALES',     kind: 'EMPLOYEE', fullName: 'Nhân Viên Bán Hàng',  phone: '0901000002', salary: 9000000,  note: 'Web → layout Bán hàng; KHÔNG thấy lương' },
-  { username: 'warehouse01',  password: 'Kho@12345',    role: 'WAREHOUSE', kind: 'EMPLOYEE', fullName: 'Nhân Viên Kho',       phone: '0901000003', salary: 9000000,  note: 'Web → layout Kho; KHÔNG thấy lương' },
-  { username: 'sales_locked', password: 'Sales@12345',  role: 'SALES',     kind: 'EMPLOYEE', fullName: 'NV Bị Khóa',          phone: '0901000004', salary: 0, locked: true, note: 'Đăng nhập phải báo "Sai tên đăng nhập hoặc mật khẩu" (tài khoản bị khóa)' },
-  { username: 'khach01',      password: 'Khach@12345',  role: 'CUSTOMER',  kind: 'CUSTOMER', fullName: 'Khách Hàng Mẫu',      phone: '0900000001', note: 'Đăng nhập mobile; thử đổi hồ sơ/mật khẩu' },
-  { username: 'khach02',      password: 'Khach@12345',  role: 'CUSTOMER',  kind: 'CUSTOMER', fullName: 'Khách Hàng Thứ Hai',  phone: '0900000002', note: 'Thử sửa SĐT thành 0900000001 → 409 PHONE_TAKEN' },
-  { username: 'khach_locked', password: 'Khach@12345',  role: 'CUSTOMER',  kind: 'CUSTOMER', fullName: 'Khách Bị Khóa',       phone: '0900000003', locked: true, note: 'Đăng nhập mobile phải bị từ chối (tài khoản khóa)' },
-  { username: 'khach_cu',     password: 'Khach@12345',  role: 'CUSTOMER',  kind: 'CUSTOMER', fullName: 'Khách Đã Xóa Mềm',    phone: '0900000004', deleted: true, note: 'Đã xóa mềm: không đăng nhập được; đăng ký lại username "khach_cu" + SĐT 0900000004 phải thành công' },
+  { username: 'admin',        password: 'Admin@12345',  role: 'ADMIN',     kind: 'EMPLOYEE', lastName: 'Quản Trị', firstName: 'Viên',       phone: '0901000001', salary: 20000000, note: 'Đăng nhập web → layout Admin; thấy baseSalary trong GET /me' },
+  { username: 'sales01',      password: 'Sales@12345',  role: 'SALES',     kind: 'EMPLOYEE', lastName: 'Nhân Viên', firstName: 'Bán Hàng',  phone: '0901000002', salary: 9000000,  note: 'Web → layout Bán hàng; KHÔNG thấy lương' },
+  { username: 'warehouse01',  password: 'Kho@12345',    role: 'WAREHOUSE', kind: 'EMPLOYEE', lastName: 'Nhân Viên', firstName: 'Kho',       phone: '0901000003', salary: 9000000,  note: 'Web → layout Kho; KHÔNG thấy lương' },
+  { username: 'sales_locked', password: 'Sales@12345',  role: 'SALES',     kind: 'EMPLOYEE', lastName: 'NV', firstName: 'Bị Khóa',          phone: '0901000004', salary: 0, locked: true, note: 'Đăng nhập phải báo "Sai tên đăng nhập hoặc mật khẩu" (tài khoản bị khóa)' },
+  { username: 'khach01',      password: 'Khach@12345',  role: 'CUSTOMER',  kind: 'CUSTOMER', lastName: 'Khách Hàng', firstName: 'Mẫu',      phone: '0900000001', note: 'Đăng nhập mobile; thử đổi hồ sơ/mật khẩu' },
+  { username: 'khach02',      password: 'Khach@12345',  role: 'CUSTOMER',  kind: 'CUSTOMER', lastName: 'Khách Hàng', firstName: 'Thứ Hai',  phone: '0900000002', note: 'Thử sửa SĐT thành 0900000001 → 409 PHONE_TAKEN' },
+  { username: 'khach_locked', password: 'Khach@12345',  role: 'CUSTOMER',  kind: 'CUSTOMER', lastName: 'Khách', firstName: 'Bị Khóa',       phone: '0900000003', locked: true, note: 'Đăng nhập mobile phải bị từ chối (tài khoản khóa)' },
+  { username: 'khach_cu',     password: 'Khach@12345',  role: 'CUSTOMER',  kind: 'CUSTOMER', lastName: 'Khách', firstName: 'Đã Xóa Mềm',    phone: '0900000004', deleted: true, note: 'Đã xóa mềm: không đăng nhập được; đăng ký lại username "khach_cu" + SĐT 0900000004 phải thành công' },
 ];
 
 const config = {
@@ -79,17 +79,19 @@ async function seedAccount(pool, a) {
 
     if (a.kind === 'EMPLOYEE') {
       const e = await new sql.Request(tx)
-        .input('n', sql.NVarChar(100), a.fullName).input('p', sql.VarChar(20), a.phone)
+        .input('ln', sql.NVarChar(50), a.lastName).input('fn', sql.NVarChar(50), a.firstName)
+        .input('p', sql.VarChar(20), a.phone)
         .input('s', sql.Decimal(18, 2), a.salary || 0)
-        .query(`INSERT INTO employees (full_name, phone, base_salary, is_deleted, deleted_at)
-                VALUES (@n, @p, @s, ${a.deleted ? 1 : 0}, ${a.deleted ? 'SYSUTCDATETIME()' : 'NULL'});
+        .query(`INSERT INTO employees (last_name, first_name, phone, base_salary, is_deleted, deleted_at)
+                VALUES (@ln, @fn, @p, @s, ${a.deleted ? 1 : 0}, ${a.deleted ? 'SYSUTCDATETIME()' : 'NULL'});
                 SELECT CAST(SCOPE_IDENTITY() AS INT) AS id;`);
       employeeId = e.recordset[0].id;
     } else {
       const c = await new sql.Request(tx)
-        .input('n', sql.NVarChar(100), a.fullName).input('p', sql.VarChar(20), a.phone)
-        .query(`INSERT INTO customers (full_name, phone, is_deleted, deleted_at)
-                VALUES (@n, @p, ${a.deleted ? 1 : 0}, ${a.deleted ? 'SYSUTCDATETIME()' : 'NULL'});
+        .input('ln', sql.NVarChar(50), a.lastName).input('fn', sql.NVarChar(50), a.firstName)
+        .input('p', sql.VarChar(20), a.phone)
+        .query(`INSERT INTO customers (last_name, first_name, phone, is_deleted, deleted_at)
+                VALUES (@ln, @fn, @p, ${a.deleted ? 1 : 0}, ${a.deleted ? 'SYSUTCDATETIME()' : 'NULL'});
                 SELECT CAST(SCOPE_IDENTITY() AS INT) AS id;`);
       customerId = c.recordset[0].id;
     }
@@ -111,9 +113,10 @@ async function seedAccount(pool, a) {
 
 /* ---------------- M2: khách tại quầy, khách để test phân trang, địa chỉ ---------------- */
 const WALK_IN = [
-  { fullName: 'Khách Tại Quầy', phone: '0900000005' }, // không có tài khoản -> badge "Tại quầy"
+  { lastName: 'Khách', firstName: 'Tại Quầy', phone: '0900000005' }, // không có tài khoản -> badge "Tại quầy"
   ...Array.from({ length: 12 }, (_, i) => ({
-    fullName: `Khách Mẫu ${String(i + 1).padStart(2, '0')}`,
+    lastName: 'Khách',
+    firstName: `Mẫu ${String(i + 1).padStart(2, '0')}`,
     phone: `09100000${String(i + 1).padStart(2, '0')}`, // đủ nhiều để test phân trang (size = 10) và tìm kiếm
   })),
 ];
@@ -133,8 +136,10 @@ async function seedWalkIn(pool, c) {
   const exists = await pool.request().input('p', sql.VarChar(20), c.phone)
     .query('SELECT 1 AS x FROM customers WHERE phone = @p AND is_deleted = 0');
   if (exists.recordset.length) return false;
-  await pool.request().input('n', sql.NVarChar(100), c.fullName).input('p', sql.VarChar(20), c.phone)
-    .query('INSERT INTO customers (full_name, phone) VALUES (@n, @p)');
+  await pool.request()
+    .input('ln', sql.NVarChar(50), c.lastName).input('fn', sql.NVarChar(50), c.firstName)
+    .input('p', sql.VarChar(20), c.phone)
+    .query('INSERT INTO customers (last_name, first_name, phone) VALUES (@ln, @fn, @p)');
   return true;
 }
 
@@ -343,11 +348,165 @@ async function seedOrders(pool, ids) {
   return `tạo mới ${created}/${SEED_ORDERS.length} đơn (PENDING / CONFIRMED / DELIVERED / CANCELLED)`;
 }
 
+/* ---------------- M14: đánh giá, phản hồi, yêu thích mẫu ---------------- */
+// Dùng sản phẩm TEST-* ở M7. Khách mẫu không có tài khoản chỉ để tạo số liệu thống kê sao.
+async function customerIdBy(pool, { username, phone }) {
+  const r = username
+    ? await pool.request().input('u', sql.NVarChar(50), username).query('SELECT customer_id AS id FROM users WHERE username = @u AND is_deleted = 0 AND customer_id IS NOT NULL')
+    : await pool.request().input('p', sql.VarChar(20), phone).query('SELECT customer_id AS id FROM customers WHERE phone = @p AND is_deleted = 0');
+  return r.recordset[0]?.id ?? null;
+}
+
+async function seedReviewsAndFavorites(pool, ids) {
+  const productOf = async (sku) =>
+    (await pool.request().input('v', sql.Int, ids[sku]).query('SELECT product_id AS id FROM product_variants WHERE variant_id = @v')).recordset[0].id;
+  const okP = await productOf('TEST-OK-40');
+  const lowP = await productOf('TEST-LOW-39');
+  const offP = await productOf('TEST-OFF-40');
+
+  const inv = await pool.request().query(`SELECT invoice_id AS id FROM invoices WHERE note = 'SEED-M8-DELIVERED' AND is_deleted = 0`);
+  const deliveredInvoice = inv.recordset[0]?.id ?? null; // đơn đã giao có "Giày Test – Còn hàng" → nhãn "Đã mua hàng"
+  const emp = await pool.request().query(`SELECT employee_id AS id FROM users WHERE username = 'sales01' AND is_deleted = 0`);
+  const salesEmployeeId = emp.recordset[0]?.id ?? null;
+
+  const REVIEWS = [
+    { who: { username: 'khach01' },     product: okP,  rating: 5, status: 'APPROVED', invoice: deliveredInvoice, comment: 'Giày đi rất êm, đúng size, giao nhanh.' },
+    { who: { username: 'khach02' },     product: okP,  rating: 4, status: 'APPROVED', comment: 'Đẹp nhưng hơi chật, nên lấy lớn hơn 1 size.', reply: 'Cảm ơn bạn đã góp ý! Lần sau bạn có thể đổi size miễn phí trong 7 ngày nhé.' },
+    { who: { phone: '0910000001' },    product: okP,  rating: 5, status: 'APPROVED', comment: 'Đóng gói cẩn thận, chất liệu tốt.' },
+    { who: { phone: '0910000002' },    product: okP,  rating: 3, status: 'PENDING',  comment: 'Tạm ổn, đang chờ duyệt (để thử nút Duyệt).' },
+    { who: { phone: '0910000003' },    product: okP,  rating: 1, status: 'HIDDEN',   comment: 'Nội dung vi phạm (để thử ẩn / xóa, không tính vào điểm trung bình).' },
+    { who: { phone: '0910000004' },    product: lowP, rating: 4, status: 'APPROVED', comment: 'Mẫu này đẹp, tiếc là sắp hết hàng.' },
+  ];
+
+  let created = 0;
+  for (const r of REVIEWS) {
+    const cid = await customerIdBy(pool, r.who);
+    if (!cid) continue;
+    const has = await pool.request().input('c', sql.Int, cid).input('p', sql.Int, r.product)
+      .query('SELECT 1 AS x FROM product_reviews WHERE customer_id = @c AND product_id = @p AND is_deleted = 0');
+    if (has.recordset.length) continue;
+    const ins = await pool.request().input('c', sql.Int, cid).input('p', sql.Int, r.product).input('i', sql.Int, r.invoice ?? null)
+      .input('r', sql.TinyInt, r.rating).input('t', sql.NVarChar(sql.MAX), r.comment).input('s', sql.VarChar(10), r.status)
+      .query(`INSERT INTO product_reviews (customer_id, product_id, invoice_id, rating, comment, status)
+              VALUES (@c, @p, @i, @r, @t, @s); SELECT CAST(SCOPE_IDENTITY() AS INT) AS id;`);
+    created++;
+    if (r.reply && salesEmployeeId) {
+      await pool.request().input('rv', sql.Int, ins.recordset[0].id).input('e', sql.Int, salesEmployeeId).input('t', sql.NVarChar(sql.MAX), r.reply)
+        .query('INSERT INTO review_replies (review_id, employee_id, content) VALUES (@rv, @e, @t)');
+    }
+  }
+
+  // Yêu thích của khach01: 2 sản phẩm đang bán + 1 sản phẩm ngừng bán (phải bị ẩn khỏi danh sách)
+  
+  // Yêu thích của khach01: 2 sản phẩm đang bán + 1 sản phẩm ngừng bán
+  const k1 = await customerIdBy(pool, { username: 'khach01' });
+  let favs = 0;
+
+  if (k1) {
+    for (const p of [okP, lowP, offP]) {
+      const r = await pool.request()
+        .input('c', sql.Int, k1)
+        .input('p', sql.Int, p)
+        .query(`
+          IF NOT EXISTS (
+            SELECT 1
+            FROM favorite_products
+            WHERE customer_id = @c
+              AND product_id = @p
+          )
+          BEGIN
+            INSERT INTO favorite_products (customer_id, product_id)
+            VALUES (@c, @p);
+
+            SELECT 1 AS added;
+          END
+          ELSE
+          BEGIN
+            SELECT 0 AS added;
+          END
+        `);
+
+      if (r.recordset?.[0]?.added === 1) {
+        favs++;
+      }
+    }
+  }
+  return `tạo mới ${created} đánh giá (APPROVED/PENDING/HIDDEN, có 1 phản hồi, 1 đã mua hàng) và ${favs} sản phẩm yêu thích cho khach01`;
+}
+
+/* ---------------- Thông tin cá nhân (migration 002): giới tính, email, ngày sinh, ngày vào làm ---------------- */
+// Điền vào các ô còn NULL (không ghi đè dữ liệu đã nhập). Có cả bản ghi để trống hoàn toàn để thử NULL / "Chưa cung cấp".
+const d = (ymd) => (ymd ? new Date(`${ymd}T00:00:00.000Z`) : null);
+
+const EMPLOYEE_PROFILE = {
+  admin:       { gender: 'MALE',   email: 'admin@ouran.vn',       dob: '1990-04-12', hire: '2022-01-10' },
+  sales01:     { gender: 'FEMALE', email: 'sales01@ouran.vn',     dob: '1996-08-21', hire: '2023-03-01' },
+  warehouse01: { gender: 'MALE',   email: 'kho01@ouran.vn',       dob: '1993-11-05', hire: '2023-06-15' },
+  // sales_locked: để trống toàn bộ
+};
+
+const CUSTOMER_PROFILE_BY_USERNAME = {
+  khach01: { gender: 'MALE',   email: 'khach01@example.com', dob: '2000-05-20' },
+  khach02: { gender: 'FEMALE', email: 'khach02@example.com', dob: '1997-02-14' },
+  // khach_locked: để trống toàn bộ
+};
+
+// Khách không có tài khoản (nhận diện bằng SĐT) – đa dạng giới tính / tuổi / mức mua để thử bộ lọc
+const CUSTOMER_PROFILE_BY_PHONE = {
+  '0910000001': { gender: 'FEMALE', dob: '2003-03-10', email: 'a01@example.com', spent: 3200000 },
+  '0910000002': { gender: 'MALE',   dob: '1998-07-01', email: null,              spent: 12500000 },
+  '0910000003': { gender: 'FEMALE', dob: '1985-09-30', email: 'a03@example.com', spent: 25000000 },
+  '0910000004': { gender: 'MALE',   dob: '1979-01-15', email: 'a04@example.com', spent: 800000 },
+  '0910000005': { gender: 'OTHER',  dob: '2008-12-25', email: null,              spent: 0 },
+  '0910000006': { gender: 'FEMALE', dob: '1992-06-18', email: 'a06@example.com', spent: 7400000 },
+  '0910000007': { gender: 'MALE',   dob: '1969-10-02', email: null,              spent: 1900000 },
+  '0910000008': { gender: 'FEMALE', dob: '2001-04-04', email: 'a08@example.com', spent: 5000000 },
+  '0910000009': { gender: 'MALE',   dob: '1995-11-11', email: 'a09@example.com', spent: 0 },
+  '0910000011': { gender: 'FEMALE', dob: '1988-02-29', email: 'a11@example.com', spent: 4300000 },
+  '0910000012': { gender: 'MALE',   dob: '2005-08-08', email: 'a12@example.com', spent: 21000000 },
+  // 0900000005, 0910000010: để trống toàn bộ ("Chưa cung cấp")
+};
+
+async function assertProfileColumns(pool) {
+  const r = await pool.request().query(`SELECT COL_LENGTH('customers', 'gender') AS c, COL_LENGTH('employees', 'hire_date') AS e`);
+  if (r.recordset[0].c === null || r.recordset[0].e === null) {
+    throw new Error('Thiếu cột gender/email/hire_date. Chạy "npm run migrate" (migrations/002_profile_fields.sql) trước khi seed.');
+  }
+}
+
+async function seedProfileFields(pool) {
+  let n = 0;
+  for (const [username, p] of Object.entries(EMPLOYEE_PROFILE)) {
+    const r = await pool.request().input('u', sql.NVarChar(50), username).input('g', sql.VarChar(10), p.gender).input('e', sql.VarChar(100), p.email)
+      .input('b', sql.Date, d(p.dob)).input('h', sql.Date, d(p.hire))
+      .query(`UPDATE e SET gender = COALESCE(e.gender, @g), email = COALESCE(e.email, @e),
+                           date_of_birth = COALESCE(e.date_of_birth, @b), hire_date = COALESCE(e.hire_date, @h)
+              FROM employees e JOIN users u ON u.employee_id = e.employee_id WHERE u.username = @u AND u.is_deleted = 0`);
+    n += r.rowsAffected[0] ?? 0;
+  }
+  for (const [username, p] of Object.entries(CUSTOMER_PROFILE_BY_USERNAME)) {
+    const r = await pool.request().input('u', sql.NVarChar(50), username).input('g', sql.VarChar(10), p.gender).input('e', sql.VarChar(100), p.email).input('b', sql.Date, d(p.dob))
+      .query(`UPDATE c SET gender = COALESCE(c.gender, @g), email = COALESCE(c.email, @e), date_of_birth = COALESCE(c.date_of_birth, @b)
+              FROM customers c JOIN users u ON u.customer_id = c.customer_id WHERE u.username = @u AND u.is_deleted = 0`);
+    n += r.rowsAffected[0] ?? 0;
+  }
+  for (const [phone, p] of Object.entries(CUSTOMER_PROFILE_BY_PHONE)) {
+    const r = await pool.request().input('ph', sql.VarChar(20), phone).input('g', sql.VarChar(10), p.gender).input('e', sql.VarChar(100), p.email)
+      .input('b', sql.Date, d(p.dob)).input('s', sql.Decimal(18, 2), p.spent)
+      .query(`UPDATE customers SET gender = COALESCE(gender, @g), email = COALESCE(email, @e), date_of_birth = COALESCE(date_of_birth, @b),
+                     total_purchased = CASE WHEN total_purchased = 0 THEN @s ELSE total_purchased END
+              WHERE phone = @ph AND is_deleted = 0`);
+    n += r.rowsAffected[0] ?? 0;
+  }
+  return n;
+}
+
 async function main() {
   if (!config.user || !config.password) {
     throw new Error('Thiếu DB_USER / DB_PASSWORD. Tạo backend/.env (hoặc database/.env) trước.');
   }
   const pool = await new sql.ConnectionPool(config).connect();
+  await assertProfileColumns(pool);
   console.log(`Seed M1 → ${config.server}/${config.database}\n`);
   for (const a of ACCOUNTS) {
     const status = await seedAccount(pool, a);
@@ -362,6 +521,8 @@ async function main() {
     console.log(`  [địa chỉ ${username.padEnd(8)}] ${await seedAddresses(pool, username, list)}`);
   }
 
+  console.log(`  [thông tin cá nhân] đã điền ${await seedProfileFields(pool)} bản ghi (giới tính, email, ngày sinh, ngày vào làm; một số để trống để thử NULL)`);
+
   console.log('\nM7 – giỏ hàng:');
   const ids = await seedTestCatalog(pool);
   for (const [sku, id] of Object.entries(ids)) console.log(`  [sản phẩm test] ${sku.padEnd(12)} → variantId ${id}`);
@@ -370,6 +531,9 @@ async function main() {
   console.log('\nM8 – khuyến mãi & đơn hàng:');
   console.log(`  [khuyến mãi test] tạo mới ${await seedPromotions(pool, ids)}/3 (giảm 10% giày test · hóa đơn ≥ 2 triệu giảm 5% · voucher TEST10, TESTFULL hết lượt)`);
   console.log(`  [đơn mẫu khach01] ${await seedOrders(pool, ids)}`);
+
+  console.log('\nM14 – đánh giá & yêu thích:');
+  console.log(`  [mẫu] ${await seedReviewsAndFavorites(pool, ids)}`);
 
   console.log('\nXong. Web: admin / sales01 / warehouse01 · Mobile: khach01.');
   await pool.close();

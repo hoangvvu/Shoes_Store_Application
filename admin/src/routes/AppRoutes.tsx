@@ -7,6 +7,7 @@ import WarehouseLayout from '../layouts/WarehouseLayout';
 import AdminCustomerDetailPage from '../pages/admin/AdminCustomerDetailPage';
 import AdminCustomersPage from '../pages/admin/AdminCustomersPage';
 import AdminHomePage from '../pages/admin/AdminHomePage';
+import AdminReviewsPage from '../pages/admin/AdminReviewsPage';
 import AdminOrderDetailPage from '../pages/admin/AdminOrderDetailPage';
 import AdminOrdersPage from '../pages/admin/AdminOrdersPage';
 import LoginPage from '../pages/LoginPage';
@@ -14,6 +15,7 @@ import ProfilePage from '../pages/ProfilePage';
 import SalesCustomerDetailPage from '../pages/sales/SalesCustomerDetailPage';
 import SalesCustomersPage from '../pages/sales/SalesCustomersPage';
 import SalesHomePage from '../pages/sales/SalesHomePage';
+import SalesReviewsPage from '../pages/sales/SalesReviewsPage';
 import SalesOrderDetailPage from '../pages/sales/SalesOrderDetailPage';
 import SalesOrdersPage from '../pages/sales/SalesOrdersPage';
 import WarehouseHomePage from '../pages/warehouse/WarehouseHomePage';
@@ -35,6 +37,7 @@ export function AppRoutes() {
           <Route path="customers/:id" element={<AdminCustomerDetailPage />} />
           <Route path="orders" element={<AdminOrdersPage />} />
           <Route path="orders/:id" element={<AdminOrderDetailPage />} />
+          <Route path="reviews" element={<AdminReviewsPage />} />
           <Route path="profile" element={<ProfilePage />} />
           <Route path="*" element={<PlaceholderPage role="ADMIN" />} />
         </Route>
@@ -47,6 +50,7 @@ export function AppRoutes() {
           <Route path="customers/:id" element={<SalesCustomerDetailPage />} />
           <Route path="orders" element={<SalesOrdersPage />} />
           <Route path="orders/:id" element={<SalesOrderDetailPage />} />
+          <Route path="reviews" element={<SalesReviewsPage />} />
           <Route path="profile" element={<ProfilePage />} />
           <Route path="*" element={<PlaceholderPage role="SALES" />} />
         </Route>
