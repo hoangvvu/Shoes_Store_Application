@@ -8,6 +8,7 @@ import { signAccessToken, signRefreshToken, verifyRefreshToken } from '../utils/
 import { loginLimiter, otpLimiter } from '../utils/loginLimiter';
 import { deliverOtp, generateOtp } from '../utils/otp';
 import { comparePassword, dummyCompare, hashPassword } from '../utils/password';
+import { fullNameOf } from '../utils/name';
 import { normalizePhone } from '../utils/phone';
 import { setActor } from '../utils/session';
 import { isDuplicateKey } from '../utils/sqlError';
@@ -30,7 +31,10 @@ export const authService = {
         const role = await userRepository.findRoleByName(ROLES.CUSTOMER, tx);
         if (!role) throw new Error('Thiếu vai trò CUSTOMER trong bảng roles');
 
-        const customerId = await customerRepository.insert({ fullName: input.fullName, phone }, tx);
+        const customerId = await customerRepository.insert(
+          { lastName: input.lastName, firstName: input.firstName, phone },
+          tx,
+        );
         const userId = await userRepository.insert(
           {
             username: input.username,
@@ -41,7 +45,14 @@ export const authService = {
           },
           tx,
         );
-        return { userId, username: input.username, role: ROLES.CUSTOMER, fullName: input.fullName };
+        return {
+          userId,
+          username: input.username,
+          role: ROLES.CUSTOMER,
+          lastName: input.lastName,
+          firstName: input.firstName,
+          fullName: fullNameOf(input.lastName, input.firstName),
+        };
       });
     } catch (err) {
       // Hai request đồng thời có thể lọt qua bước kiểm tra; unique index là chốt chặn cuối.

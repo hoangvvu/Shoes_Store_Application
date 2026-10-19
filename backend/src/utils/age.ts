@@ -24,3 +24,11 @@ export function isFutureDate(dob: Date): boolean {
   const d = dob.getUTCDate();
   return y > t.y || (y === t.y && (m > t.m || (m === t.m && d > t.d)));
 }
+
+/** Ngày (UTC 00:00) cách hôm nay (GMT+7) đúng `years` năm; 29/02 lùi về 28/02 khi năm đích không nhuận. */
+export function yearsAgo(years: number): Date {
+  const t = todayVn();
+  const y = t.y - years;
+  const d = t.m === 2 && t.d === 29 && new Date(Date.UTC(y, 1, 29)).getUTCMonth() !== 1 ? 28 : t.d;
+  return new Date(Date.UTC(y, t.m - 1, d));
+}

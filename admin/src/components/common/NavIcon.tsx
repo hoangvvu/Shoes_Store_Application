@@ -1,6 +1,7 @@
 export type IconName =
   | 'dashboard' | 'users' | 'user' | 'box' | 'tag' | 'image' | 'bell' | 'chart' | 'history'
-  | 'cart' | 'card' | 'return' | 'store' | 'warehouse' | 'clipboard' | 'book' | 'logout' | 'menu' | 'key' | 'edit';
+  | 'cart' | 'card' | 'return' | 'store' | 'warehouse' | 'clipboard' | 'book' | 'logout' | 'menu' | 'key' | 'edit' | 'star'
+  | 'layers' | 'truck' | 'download' | 'printer' | 'alert' | 'trend' | 'wallet';
 
 const PATHS: Record<IconName, JSX.Element> = {
   dashboard: (<><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></>),
@@ -21,8 +22,16 @@ const PATHS: Record<IconName, JSX.Element> = {
   book: (<><path d="M5 4h12a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2z" /><path d="M5 18a2 2 0 0 1 2-2h12" /></>),
   logout: (<><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><path d="M16 17l5-5-5-5M21 12H9" /></>),
   menu: (<path d="M4 6h16M4 12h16M4 18h16" />),
+  star: (<path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9L12 3z" />),
   key: (<><circle cx="8" cy="15" r="4" /><path d="M10.8 12.2L20 3M16 7l3 3M14 9l2 2" /></>),
   edit: (<><path d="M4 20h4L19 9a2.1 2.1 0 0 0-3-3L5 17v3z" /><path d="M14 7l3 3" /></>),
+  layers: (<><path d="M12 3l9 5-9 5-9-5 9-5z" /><path d="M3 13l9 5 9-5" /></>),
+  truck: (<><path d="M2 6h11v10H2zM13 10h4l3 3v3h-7" /><circle cx="6" cy="18" r="1.8" /><circle cx="17" cy="18" r="1.8" /></>),
+  download: (<><path d="M12 4v11M7 10l5 5 5-5" /><path d="M4 20h16" /></>),
+  printer: (<><path d="M7 9V3h10v6" /><rect x="3" y="9" width="18" height="8" rx="2" /><path d="M7 14h10v7H7z" /></>),
+  alert: (<><path d="M12 3l10 18H2L12 3z" /><path d="M12 10v5M12 18h.01" /></>),
+  trend: (<><path d="M3 17l6-6 4 4 8-8" /><path d="M15 7h6v6" /></>),
+  wallet: (<><rect x="3" y="6" width="18" height="14" rx="2" /><path d="M3 10h18M16 15h2" /></>),
 };
 
 export function NavIcon({ name, size = 20 }: { name: IconName; size?: number }) {

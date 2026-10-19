@@ -54,11 +54,65 @@ export const adultBirthDateField = z
     else if (ageOf(d) > 100) ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Ngày sinh không hợp lệ' });
   });
 
-export const fullNameField = z
-  .string({ required_error: 'Vui lòng nhập họ tên' })
+export const GENDERS = ['MALE', 'FEMALE', 'OTHER'] as const;
+export type Gender = (typeof GENDERS)[number];
+
+/** Giới tính (không bắt buộc ở mọi nơi dùng). */
+export const genderField = z.enum(GENDERS, { errorMap: () => ({ message: 'Giới tính phải là MALE, FEMALE hoặc OTHER' }) });
+
+/** Email: đúng định dạng, tối đa 100 ký tự (cột VARCHAR(100)). */
+export const emailField = z
+  .string({ invalid_type_error: 'Email không hợp lệ' })
   .trim()
-  .min(2, 'Họ tên tối thiểu 2 ký tự')
-  .max(100, 'Họ tên tối đa 100 ký tự');
+  .max(100, 'Email tối đa 100 ký tự')
+  .email('Email không hợp lệ');
+
+/** Chuỗi YYYY-MM-DD → Date (UTC 00:00); chặn ngày không có thật như 2000-02-31. */
+const ymdDate = z
+  .string({ invalid_type_error: 'Ngày không hợp lệ' })
+  .trim()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, 'Ngày phải theo định dạng YYYY-MM-DD')
+  .transform((v, ctx) => {
+    const d = new Date(`${v}T00:00:00.000Z`);
+    if (Number.isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== v) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Ngày không hợp lệ' });
+      return z.NEVER;
+    }
+    return d;
+  });
+
+/** Ngày sinh khách hàng: không bắt buộc, không ở tương lai, không quá 120 tuổi (khách không bị giới hạn 18 tuổi như nhân viên). */
+export const customerBirthDateField = ymdDate.superRefine((d, ctx) => {
+  if (!(d instanceof Date)) return;
+  if (isFutureDate(d)) ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Ngày sinh không được ở tương lai' });
+  else if (ageOf(d) > 120) ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Ngày sinh không hợp lệ' });
+});
+
+/** Ngày vào làm của nhân viên: không ở tương lai, từ năm 1950. */
+export const hireDateField = ymdDate.superRefine((d, ctx) => {
+  if (!(d instanceof Date)) return;
+  if (isFutureDate(d)) ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Ngày vào làm không được ở tương lai' });
+  else if (d.getUTCFullYear() < 1950) ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Ngày vào làm không hợp lệ' });
+});
+
+/** Họ (kèm tên đệm), ví dụ "Nguyễn Văn". Cột NVARCHAR(50). */
+export const lastNameField = z
+  .string({ required_error: 'Vui lòng nhập họ' })
+  .trim()
+  .min(1, 'Vui lòng nhập họ')
+  .max(50, 'Họ tối đa 50 ký tự');
+
+/** Tên, ví dụ "An". Cột NVARCHAR(50). */
+export const firstNameField = z
+  .string({ required_error: 'Vui lòng nhập tên' })
+  .trim()
+  .min(1, 'Vui lòng nhập tên')
+/** Họ và tên (dùng khi form nhập họ tên gộp thay vì tách riêng). */
+export const fullNameField = z
+  .string({ required_error: 'Vui lòng nhập họ và tên' })
+  .trim()
+  .min(2, 'Họ và tên tối thiểu 2 ký tự')
+  .max(100, 'Họ và tên tối đa 100 ký tự');
 
 export const idParam = z.object({
   id: z.coerce.number({ invalid_type_error: 'Mã không hợp lệ' }).int().positive('Mã không hợp lệ'),

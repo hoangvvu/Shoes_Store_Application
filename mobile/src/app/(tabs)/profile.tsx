@@ -8,17 +8,22 @@ import { PrimaryButton } from '@/components/PrimaryButton';
 import { authService } from '@/services/auth.service';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useCartStore } from '@/store/useCartStore';
+import { useFavoriteStore } from '@/store/useFavoriteStore';
 import { colors } from '@/theme';
 import { getErrorMessage } from '@/utils/error';
-import { validators as v } from '@/utils/validation';
+import { dmyToYmd, optionalValidators, validators as v, ymdToDmy } from '@/utils/validation';
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { clear, setUserName } = useAuthStore.getState();
 
-  const [fullName, setFullName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [firstName, setFirstName] = useState('');
   const [phone, setPhone] = useState('');
+  const [gender, setGender] = useState<'MALE' | 'FEMALE' | 'OTHER' | null>(null);
+  const [dob, setDob] = useState('');
+  const [email, setEmail] = useState('');
   const [savingProfile, setSavingProfile] = useState(false);
 
   const [oldPw, setOldPw] = useState('');
@@ -30,18 +35,30 @@ export default function ProfileScreen() {
     authService
       .getMe()
       .then((me) => {
-        setFullName(me.profile.fullName);
+        setLastName(me.profile.lastName);
+        setFirstName(me.profile.firstName);
         setPhone(me.profile.phone ?? '');
+        setGender(me.profile.gender);
+        setDob(ymdToDmy(me.profile.dateOfBirth));
+        setEmail(me.profile.email ?? '');
       })
       .catch((e) => Alert.alert('Lỗi', getErrorMessage(e)));
   }, []);
 
   async function saveProfile() {
-    const msg = v.fullName(fullName) || v.phone(phone);
+    const msg = v.lastName(lastName) || v.firstName(firstName) || v.phone(phone) || optionalValidators.birthDate(dob) || optionalValidators.email(email);
     if (msg) return Alert.alert('Chưa hợp lệ', msg);
     setSavingProfile(true);
     try {
-      const me = await authService.updateMe({ fullName: fullName.trim(), phone: phone.trim() });
+      // Giới tính, ngày sinh, email không bắt buộc: để trống = xóa (null)
+      const me = await authService.updateMe({
+        lastName: lastName.trim(),
+        firstName: firstName.trim(),
+        phone: phone.trim(),
+        gender,
+        dateOfBirth: dob.trim() ? dmyToYmd(dob) : null,
+        email: email.trim() || null,
+      });
       setUserName(me.profile.fullName);
       Alert.alert('Đã lưu', 'Cập nhật hồ sơ thành công');
     } catch (e) {
@@ -71,6 +88,7 @@ export default function ProfileScreen() {
   async function logout() {
     await authService.logout();
     useCartStore.getState().reset(); // không để giỏ của tài khoản này lọt sang tài khoản khác
+    useFavoriteStore.getState().reset(); // tương tự với danh sách yêu thích
     await clear(); // AuthGate đưa về màn hình chào
   }
 
@@ -83,9 +101,26 @@ export default function ProfileScreen() {
       <Text style={styles.h1}>Tài khoản</Text>
 
       <Text style={styles.h2}>Hồ sơ</Text>
-      <AppTextInput icon="person-circle-outline" placeholder="Họ và tên" value={fullName} onChangeText={setFullName} autoCapitalize="words" />
+      <AppTextInput icon="person-circle-outline" placeholder="Họ và tên đệm" value={lastName} onChangeText={setLastName} autoCapitalize="words" />
+      <AppTextInput icon="person-circle-outline" placeholder="Tên" value={firstName} onChangeText={setFirstName} autoCapitalize="words" />
       <AppTextInput icon="call-outline" placeholder="Số điện thoại" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
+      <AppTextInput icon="mail-outline" placeholder="Email (không bắt buộc)" value={email} onChangeText={setEmail} keyboardType="email-address" />
+      <AppTextInput icon="calendar-outline" placeholder="Ngày sinh dd/mm/yyyy (không bắt buộc)" value={dob} onChangeText={setDob} keyboardType="numbers-and-punctuation" maxLength={10} />
+      <View style={styles.genderRow}>
+        {([['MALE', 'Nam'], ['FEMALE', 'Nữ'], ['OTHER', 'Khác']] as const).map(([value, text]) => (
+          <Pressable key={value} onPress={() => setGender(gender === value ? null : value)} style={[styles.genderChip, gender === value && styles.genderChipActive]}>
+            <Text style={[styles.genderText, gender === value && styles.genderTextActive]}>{text}</Text>
+          </Pressable>
+        ))}
+      </View>
+      <Text style={styles.optional}>Giới tính, ngày sinh và email không bắt buộc; chạm lại giới tính đã chọn để bỏ chọn.</Text>
       <PrimaryButton title="Lưu hồ sơ" onPress={saveProfile} loading={savingProfile} />
+
+      <Pressable style={styles.linkRow} onPress={() => router.push('/favorites')}>
+        <Ionicons name="heart-outline" size={22} color={colors.primary} />
+        <Text style={styles.linkText}>Sản phẩm yêu thích</Text>
+        <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+      </Pressable>
 
       <Pressable style={styles.linkRow} onPress={() => router.push('/orders')}>
         <Ionicons name="receipt-outline" size={22} color={colors.primary} />
@@ -115,6 +150,12 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: { paddingHorizontal: 24, paddingBottom: 40, gap: 12 },
   h1: { fontSize: 28, fontWeight: '800', color: colors.text },
+  genderRow: { flexDirection: 'row', gap: 8 },
+  genderChip: { paddingHorizontal: 18, paddingVertical: 9, borderRadius: 999, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
+  genderChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  genderText: { color: colors.text, fontWeight: '600' },
+  genderTextActive: { color: colors.white },
+  optional: { color: colors.textMuted, fontSize: 12 },
   h2: { fontSize: 18, fontWeight: '700', color: colors.text },
   linkRow: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, borderRadius: 14, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
   linkText: { flex: 1, color: colors.text, fontWeight: '600', fontSize: 16 },

@@ -5,6 +5,8 @@ import { useAuthStore } from '../../store/useAuthStore';
 import type { EmployeeRole } from '../../types/auth';
 import type { EmployeeMe } from '../../types/profile';
 import { getErrorMessage } from '../../utils/error';
+import { GENDER_OPTIONS, genderText, validateEmail, type Gender } from '../../utils/person';
+import { fullNameOf } from '../../utils/name';
 import { formatYmdVn, latestBirthDate, validateBirthDate, validatePhone } from '../../utils/validators';
 import { NavIcon } from '../common/NavIcon';
 
@@ -13,20 +15,26 @@ export function ProfileInfoCard({ role }: { role: EmployeeRole }) {
   const setFullName = useAuthStore((s) => s.setFullName);
   const [me, setMe] = useState<EmployeeMe | null>(null);
   const [editing, setEditing] = useState(false);
-  const [fullName, setName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [firstName, setFirstName] = useState('');
   const [phone, setPhone] = useState('');
   const [dob, setDob] = useState('');
   const [address, setAddress] = useState('');
+  const [gender, setGender] = useState<'' | Gender>('');
+  const [email, setEmail] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [saving, setSaving] = useState(false);
 
   function fill(m: EmployeeMe) {
     setMe(m);
-    setName(m.profile.fullName);
+    setLastName(m.profile.lastName);
+    setFirstName(m.profile.firstName);
     setPhone(m.profile.phone ?? '');
     setDob(m.profile.dateOfBirth ? m.profile.dateOfBirth.slice(0, 10) : ''); // input[type=date] cần YYYY-MM-DD
     setAddress(m.profile.address ?? '');
+    setGender(m.profile.gender ?? '');
+    setEmail(m.profile.email ?? '');
   }
 
   useEffect(() => {
@@ -49,7 +57,10 @@ export function ProfileInfoCard({ role }: { role: EmployeeRole }) {
     e.preventDefault();
     setError('');
     setSuccess('');
-    if (fullName.trim().length < 2) return setError('Họ tên tối thiểu 2 ký tự');
+    if (!lastName.trim()) return setError('Vui lòng nhập họ');
+    if (lastName.trim().length > 50) return setError('Họ tối đa 50 ký tự');
+    if (!firstName.trim()) return setError('Vui lòng nhập tên');
+    if (firstName.trim().length > 50) return setError('Tên tối đa 50 ký tự');
     if (phone.trim()) {
       const msg = validatePhone(phone);
       if (msg) return setError(msg);
@@ -59,18 +70,24 @@ export function ProfileInfoCard({ role }: { role: EmployeeRole }) {
       if (msg) return setError(msg);
     }
     if (address.trim().length > 255) return setError('Địa chỉ tối đa 255 ký tự');
+    const emailMsg = validateEmail(email);
+    if (emailMsg) return setError(emailMsg);
 
     setSaving(true);
     try {
       // Chỉ gửi trường có giá trị (backend chưa hỗ trợ xóa trắng một trường)
       const updated = await profileService.updateMe({
-        fullName: fullName.trim(),
+        lastName: lastName.trim(),
+        firstName: firstName.trim(),
         ...(phone.trim() && { phone: phone.trim() }),
         ...(dob && { dateOfBirth: dob }),
         ...(address.trim() && { address: address.trim() }),
+        // Giới tính và email không bắt buộc: để trống = xóa (null)
+        gender: (gender || null) as Gender | null,
+        email: email.trim() || null,
       });
       fill(updated);
-      setFullName(updated.profile.fullName); // lời chào ở header cập nhật ngay
+      setFullName(fullNameOf(updated.profile.lastName, updated.profile.firstName)); // lời chào ở header cập nhật ngay
       setEditing(false);
       setSuccess('Đã lưu thông tin cá nhân');
     } catch (err) {
@@ -109,15 +126,24 @@ export function ProfileInfoCard({ role }: { role: EmployeeRole }) {
       {head}
       {success && <p className="form-success">{success}</p>}
       <dl className="info-grid">
-        {row('Họ và tên', me.profile.fullName, <input value={fullName} onChange={(e) => setName(e.target.value)} maxLength={100} autoFocus />)}
+        {row('Họ và tên đệm', me.profile.lastName, <input value={lastName} onChange={(e) => setLastName(e.target.value)} maxLength={50} autoFocus />)}
+        {row('Tên', me.profile.firstName, <input value={firstName} onChange={(e) => setFirstName(e.target.value)} maxLength={50} />)}
         {row('Ngày sinh', formatYmdVn(me.profile.dateOfBirth), <input type="date" value={dob} max={latestBirthDate()} min="1900-01-01" onChange={(e) => setDob(e.target.value)} />)}
+        {row('Giới tính', genderText(me.profile.gender), (
+          <select value={gender} onChange={(e) => setGender(e.target.value as '' | Gender)}>
+            {GENDER_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+        ))}
         {row('Số điện thoại', me.profile.phone ?? '', <input value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" maxLength={11} placeholder="0901234567" />)}
+        {row('Email', me.profile.email ?? '', <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} maxLength={100} placeholder="ten@congty.vn" />)}
         {row('Địa chỉ', me.profile.address ?? '', <input value={address} onChange={(e) => setAddress(e.target.value)} maxLength={255} />)}
+        {row('Ngày vào làm', formatYmdVn(me.profile.hireDate))}
         {row('Tên đăng nhập', me.username)}
         {row('Vai trò', ROLE_LABEL[role])}
       </dl>
       {editing && (
         <>
+          <p className="muted">Số điện thoại gồm 10–11 chữ số, bắt đầu bằng số 0 · Ngày sinh phải đủ 18 tuổi trở lên.</p>
           {error && <p className="form-error" role="alert">{error}</p>}
           <div className="form__actions">
             <button type="button" className="btn btn--ghost" onClick={cancelEdit}>Hủy</button>
