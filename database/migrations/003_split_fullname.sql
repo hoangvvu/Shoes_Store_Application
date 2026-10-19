@@ -14,37 +14,37 @@ GO
 
 IF COL_LENGTH('employees', 'full_name') IS NOT NULL
 BEGIN
-    UPDATE employees
+    EXEC(N'UPDATE employees
     SET 
       first_name = CASE 
-        WHEN CHARINDEX(' ', LTRIM(RTRIM(full_name))) > 0 
-          THEN RIGHT(LTRIM(RTRIM(full_name)), CHARINDEX(' ', REVERSE(LTRIM(RTRIM(full_name)))) - 1)
+        WHEN CHARINDEX('' '', LTRIM(RTRIM(full_name))) > 0 
+          THEN RIGHT(LTRIM(RTRIM(full_name)), CHARINDEX('' '', REVERSE(LTRIM(RTRIM(full_name)))) - 1)
         ELSE LTRIM(RTRIM(full_name))
       END,
       last_name = CASE 
-        WHEN CHARINDEX(' ', LTRIM(RTRIM(full_name))) > 0 
-          THEN LEFT(LTRIM(RTRIM(full_name)), LEN(LTRIM(RTRIM(full_name))) - CHARINDEX(' ', REVERSE(LTRIM(RTRIM(full_name)))))
-        ELSE N''
+        WHEN CHARINDEX('' '', LTRIM(RTRIM(full_name))) > 0 
+          THEN LEFT(LTRIM(RTRIM(full_name)), LEN(LTRIM(RTRIM(full_name))) - CHARINDEX('' '', REVERSE(LTRIM(RTRIM(full_name)))))
+        ELSE N''''
       END
-    WHERE (last_name IS NULL OR first_name IS NULL) AND full_name IS NOT NULL;
+    WHERE (last_name IS NULL OR first_name IS NULL) AND full_name IS NOT NULL;');
 END
 GO
 
 IF COL_LENGTH('customers', 'full_name') IS NOT NULL
 BEGIN
-    UPDATE customers
+    EXEC(N'UPDATE customers
     SET 
       first_name = CASE 
-        WHEN CHARINDEX(' ', LTRIM(RTRIM(full_name))) > 0 
-          THEN RIGHT(LTRIM(RTRIM(full_name)), CHARINDEX(' ', REVERSE(LTRIM(RTRIM(full_name)))) - 1)
+        WHEN CHARINDEX('' '', LTRIM(RTRIM(full_name))) > 0 
+          THEN RIGHT(LTRIM(RTRIM(full_name)), CHARINDEX('' '', REVERSE(LTRIM(RTRIM(full_name)))) - 1)
         ELSE LTRIM(RTRIM(full_name))
       END,
       last_name = CASE 
-        WHEN CHARINDEX(' ', LTRIM(RTRIM(full_name))) > 0 
-          THEN LEFT(LTRIM(RTRIM(full_name)), LEN(LTRIM(RTRIM(full_name))) - CHARINDEX(' ', REVERSE(LTRIM(RTRIM(full_name)))))
-        ELSE N''
+        WHEN CHARINDEX('' '', LTRIM(RTRIM(full_name))) > 0 
+          THEN LEFT(LTRIM(RTRIM(full_name)), LEN(LTRIM(RTRIM(full_name))) - CHARINDEX('' '', REVERSE(LTRIM(RTRIM(full_name)))))
+        ELSE N''''
       END
-    WHERE (last_name IS NULL OR first_name IS NULL) AND full_name IS NOT NULL;
+    WHERE (last_name IS NULL OR first_name IS NULL) AND full_name IS NOT NULL;');
 END
 GO
 
@@ -56,4 +56,11 @@ ALTER TABLE employees ALTER COLUMN last_name NVARCHAR(50) NOT NULL;
 ALTER TABLE employees ALTER COLUMN first_name NVARCHAR(50) NOT NULL;
 ALTER TABLE customers ALTER COLUMN last_name NVARCHAR(50) NOT NULL;
 ALTER TABLE customers ALTER COLUMN first_name NVARCHAR(50) NOT NULL;
+GO
+
+-- Xóa cột full_name cũ để tránh lỗi NOT NULL khi chạy seed hoặc tạo mới
+IF COL_LENGTH('employees', 'full_name') IS NOT NULL
+    ALTER TABLE employees DROP COLUMN full_name;
+IF COL_LENGTH('customers', 'full_name') IS NOT NULL
+    ALTER TABLE customers DROP COLUMN full_name;
 GO
