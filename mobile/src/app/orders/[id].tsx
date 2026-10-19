@@ -1,7 +1,9 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { PrimaryButton } from '@/components/PrimaryButton';
+import { QrPaymentCard } from '@/components/QrPaymentCard';
 import { StatusBadge } from '@/components/StatusBadge';
 import { PAYMENT_STATUS_LABEL, STATUS_LABEL } from '@/constants/order';
 import { orderService } from '@/services/order.service';
@@ -132,12 +134,24 @@ export default function OrderDetailScreen() {
                 <Text style={styles.muted}>{formatVnd(p.amount)} · {PAY_TX[p.status]}</Text>
               </View>
             ))}
+
+            {/* HIỆN MÃ QR TRỰC TIẾP TRÊN TRANG CHI TIẾT ĐƠN HÀNG */}
+            {order.payments.find((p) => p.status === 'PENDING') && (
+              <QrPaymentCard
+                orderId={orderId}
+                paymentId={order.payments.find((p) => p.status === 'PENDING')!.paymentId}
+                amount={order.payments.find((p) => p.status === 'PENDING')!.amount}
+                createdAt={order.invoiceDate}
+                onSuccess={() => void load()}
+              />
+            )}
+
             {/* M9: nút xem chi tiết thanh toán */}
             <TouchableOpacity
               style={styles.paymentLink}
               onPress={() => router.push(`/orders/payment/${orderId}`)}
             >
-              <Text style={styles.paymentLinkText}>Xem chi tiết thanh toán →</Text>
+              <Text style={styles.paymentLinkText}>Xem lịch sử & đối soát thanh toán →</Text>
             </TouchableOpacity>
           </View>
         </>
@@ -182,4 +196,33 @@ const styles = StyleSheet.create({
   dot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.primary, marginTop: 5 },
   paymentLink: { paddingTop: 6, borderTopWidth: 1, borderTopColor: colors.border, marginTop: 4 },
   paymentLinkText: { color: colors.primary, fontWeight: '700', fontSize: 14, textAlign: 'center' },
+  payNowBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#EDFDF5',
+    borderWidth: 1.5,
+    borderColor: '#168A4F',
+    borderRadius: radius.md,
+    padding: 14,
+    marginVertical: 4,
+  },
+  payNowIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#168A4F',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  payNowTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#168A4F',
+  },
+  payNowSub: {
+    fontSize: 12,
+    color: colors.textMuted,
+    marginTop: 2,
+  },
 });

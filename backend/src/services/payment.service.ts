@@ -84,24 +84,28 @@ export const paymentService = {
   },
 
   /** M9 #4/#5 – Webhook từ ngân hàng/MoMo xác nhận giao dịch (idempotent). */
-  async handleWebhook(paymentId: number, transactionCode: string, amountFromGateway: number) {
+  async handleWebhook(id: number, transactionCode: string, amountFromGateway: number) {
     return withTransaction(async (tx) => {
-      const payment = await paymentRepository.findById(paymentId, tx);
+      let payment = await paymentRepository.findById(id, tx);
+      if (!payment) {
+        // Fallback: nếu webhook gửi id là invoiceId (hoặc orderId)
+        payment = await paymentRepository.findActiveByInvoice(id, tx);
+      }
       if (!payment) throw AppError.notFound('Giao dịch không tồn tại');
 
       // Idempotent: đã SUCCESS thì bỏ qua
       if (payment.status === 'SUCCESS') return { skipped: true };
 
       // Đối chiếu số tiền
-      if (Number(amountFromGateway) !== Number(payment.amount)) {
+      if (Math.abs(Number(amountFromGateway) - Number(payment.amount)) > 1) {
         throw AppError.badRequest(
           `Số tiền không khớp: cổng gửi ${amountFromGateway}, đơn yêu cầu ${payment.amount}`,
           'AMOUNT_MISMATCH',
         );
       }
 
-      await paymentRepository.markSuccess(paymentId, transactionCode, tx);
-      return { paymentId, status: 'SUCCESS', transactionCode };
+      await paymentRepository.markSuccess(payment.paymentId, transactionCode, tx);
+      return { paymentId: payment.paymentId, status: 'SUCCESS', transactionCode };
     });
   },
 

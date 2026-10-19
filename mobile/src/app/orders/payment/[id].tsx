@@ -1,9 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   Linking,
   ScrollView,
   StyleSheet,
@@ -11,7 +12,6 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { PAYMENT_METHODS } from '@/constants/order';
 import {
   METHOD_DISPLAY,
   PAYMENT_TX_COLOR,
@@ -21,7 +21,7 @@ import {
 } from '@/constants/payment';
 import { paymentService } from '@/services/payment.service';
 import { colors, radius } from '@/theme';
-import type { Payment, PaymentMethod, PaymentStatus, PaymentStatusResult, Refund } from '@/types/payment';
+import type { Payment, PaymentMethod, PaymentStatusResult, Refund } from '@/types/payment';
 import { formatDateTime } from '@/utils/datetime';
 import { getErrorMessage } from '@/utils/error';
 import { formatVnd } from '@/utils/format';
@@ -41,13 +41,309 @@ function StatusPill({ status, type }: { status: string; type: 'payment' | 'refun
   );
 }
 
+// ─── Interactive Dynamic QR Payment Card ───────────────────────────────────────
+
+function QrPaymentCard({
+  payment,
+  orderId,
+  onSimulate,
+  onRetry,
+}: {
+  payment: Payment;
+  orderId: number;
+  onSimulate: () => Promise<void>;
+  onRetry: () => void;
+}) {
+  const [timeLeft, setTimeLeft] = useState<number>(() => {
+    const created = new Date(payment.createdAt).getTime();
+    const expiry = created + 15 * 60 * 1000;
+    return Math.max(0, Math.floor((expiry - Date.now()) / 1000));
+  });
+  const [channel, setChannel] = useState<'vietqr' | 'momo'>(
+    payment.methodCode === 'MOMO' ? 'momo' : 'vietqr',
+  );
+  const [qrLoaded, setQrLoaded] = useState(false);
+  const [simulating, setSimulating] = useState(false);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const created = new Date(payment.createdAt).getTime();
+      const expiry = created + 15 * 60 * 1000;
+      const rem = Math.max(0, Math.floor((expiry - Date.now()) / 1000));
+      setTimeLeft(rem);
+      if (rem <= 0) clearInterval(timer);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [payment.createdAt]);
+
+  const isExpired = timeLeft <= 0;
+  const minutes = Math.floor(timeLeft / 60);
+  const seconds = timeLeft % 60;
+  const timeFormatted = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+
+  // Chuẩn VietQR Napas247 qua ngân hàng Sacombank (BIN: 970403)
+  const bankName = 'Sacombank (Ngân hàng Sài Gòn Thương Tín)';
+  const bankId = '970403'; // BIN chính thức Napas của Sacombank (STB)
+  const accountNo = '060279584557';
+  const accountName = 'CUA HANG SHOESTORE';
+  const transferContent = `SHOESTORE HD${orderId}`;
+
+  const vietQrUrl = `https://img.vietqr.io/image/${bankId}-${accountNo}-compact2.png?amount=${payment.amount}&addInfo=${encodeURIComponent(
+    transferContent,
+  )}`;
+
+  // Link mã MoMo QR (chuẩn VietQR quét được trên cả MoMo và ngân hàng)
+  const momoQrUrl = `https://img.vietqr.io/image/970422-${accountNo}-compact2.png?amount=${payment.amount}&addInfo=${encodeURIComponent(
+    transferContent,
+  )}`;
+
+  const activeQrUrl = channel === 'momo' ? momoQrUrl : vietQrUrl;
+
+  async function handleSimulatePress() {
+    setSimulating(true);
+    try {
+      await onSimulate();
+    } finally {
+      setSimulating(false);
+    }
+  }
+
+  function handleOpenMomo() {
+    Linking.openURL('momo://app').catch(() => {
+      Alert.alert(
+        'Mở ví MoMo',
+        'Vui lòng mở ứng dụng MoMo trên máy và dùng tính năng Quét mã để quét mã QR trên màn hình.',
+      );
+    });
+  }
+
+  return (
+    <View style={styles.qrCard}>
+      {/* Timer Header */}
+      <View style={[styles.timerBanner, isExpired && styles.timerBannerExpired]}>
+        <Ionicons
+          name={isExpired ? 'alert-circle' : 'time-outline'}
+          size={18}
+          color={isExpired ? colors.danger : '#B26A00'}
+        />
+        <Text style={[styles.timerText, isExpired && { color: colors.danger }]}>
+          {isExpired
+            ? 'Mã thanh toán đã hết hạn'
+            : `Mã có hiệu lực trong: ${timeFormatted}`}
+        </Text>
+      </View>
+
+      {/* Channel Switch (VietQR vs MoMo) */}
+      <View style={styles.channelRow}>
+        <TouchableOpacity
+          style={[styles.channelTab, channel === 'vietqr' && styles.channelTabActive]}
+          onPress={() => setChannel('vietqr')}
+        >
+          <Ionicons
+            name="qr-code-outline"
+            size={16}
+            color={channel === 'vietqr' ? colors.primary : colors.textMuted}
+          />
+          <Text
+            style={[
+              styles.channelTabText,
+              channel === 'vietqr' && styles.channelTabTextActive,
+            ]}
+          >
+            Quét VietQR
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.channelTab, channel === 'momo' && styles.channelTabActive]}
+          onPress={() => setChannel('momo')}
+        >
+          <Ionicons
+            name="wallet-outline"
+            size={16}
+            color={channel === 'momo' ? '#A50064' : colors.textMuted}
+          />
+          <Text
+            style={[
+              styles.channelTabText,
+              channel === 'momo' && { color: '#A50064', fontWeight: '700' },
+            ]}
+          >
+            Ví MoMo
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* QR Code Container */}
+      <View style={styles.qrContainer}>
+        {!qrLoaded && !isExpired && (
+          <View style={styles.qrLoadingBox}>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={styles.qrLoadingText}>Đang tạo mã QR thanh toán...</Text>
+          </View>
+        )}
+
+        <Image
+          source={{ uri: activeQrUrl }}
+          style={[styles.qrImage, isExpired && styles.qrImageExpired]}
+          resizeMode="contain"
+          onLoadEnd={() => setQrLoaded(true)}
+        />
+
+        {isExpired && (
+          <View style={styles.expiredOverlay}>
+            <Ionicons name="lock-closed" size={32} color={colors.danger} />
+            <Text style={styles.expiredTitle}>Mã QR đã hết hạn</Text>
+            <TouchableOpacity style={styles.expiredRetryBtn} onPress={onRetry}>
+              <Ionicons name="refresh-outline" size={16} color={colors.white} />
+              <Text style={styles.expiredRetryText}>Tạo mã mới</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
+
+      {/* Scan guide badge */}
+      <View style={styles.scanBadge}>
+        <Ionicons name="scan-outline" size={16} color={colors.primaryDark} />
+        <Text style={styles.scanBadgeText}>
+          Quét tự động điền đúng số tiền và nội dung đơn #{orderId}
+        </Text>
+      </View>
+
+      {/* Transfer Information Breakdown */}
+      <View style={styles.bankInfoBox}>
+        <View style={styles.bankInfoRow}>
+          <Text style={styles.infoLabel}>Số tiền cần trả:</Text>
+          <Text style={styles.infoAmount}>{formatVnd(payment.amount)}</Text>
+        </View>
+
+        <View style={styles.divider} />
+
+        <View style={styles.bankInfoRow}>
+          <Text style={styles.infoLabel}>Nội dung CK:</Text>
+          <View style={styles.contentPill}>
+            <Text style={styles.contentPillText}>{transferContent}</Text>
+          </View>
+        </View>
+
+        <View style={styles.bankInfoRow}>
+          <Text style={styles.infoLabel}>Ngân hàng:</Text>
+          <Text style={styles.infoVal}>{channel === 'momo' ? 'Ví điện tử MoMo' : bankName}</Text>
+        </View>
+
+        <View style={styles.bankInfoRow}>
+          <Text style={styles.infoLabel}>Số tài khoản:</Text>
+          <Text style={[styles.infoVal, { fontWeight: '700' }]}>{accountNo}</Text>
+        </View>
+
+        <View style={styles.bankInfoRow}>
+          <Text style={styles.infoLabel}>Chủ tài khoản:</Text>
+          <Text style={styles.infoVal}>{accountName}</Text>
+        </View>
+      </View>
+
+      {/* Action Buttons */}
+      <View style={styles.actionRow}>
+        {channel === 'momo' && (
+          <TouchableOpacity style={styles.momoAppBtn} onPress={handleOpenMomo}>
+            <Ionicons name="open-outline" size={16} color={colors.white} />
+            <Text style={styles.momoAppBtnText}>Mở App MoMo</Text>
+          </TouchableOpacity>
+        )}
+
+        <TouchableOpacity
+          style={styles.simulateBtn}
+          onPress={handleSimulatePress}
+          disabled={simulating || isExpired}
+        >
+          {simulating ? (
+            <ActivityIndicator size="small" color="#168A4F" />
+          ) : (
+            <Ionicons name="flash" size={16} color="#168A4F" />
+          )}
+          <Text style={styles.simulateBtnText}>
+            {simulating ? 'Đang xác nhận...' : '⚡ Giả lập thanh toán thành công (Test)'}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      <Text style={styles.autoDetectNote}>
+        Hệ thống tự động phát hiện khi bạn chuyển khoản thành công và chuyển màn hình sau 2-3 giây.
+      </Text>
+    </View>
+  );
+}
+
+// ─── Payment Success View ──────────────────────────────────────────────────────
+
+function PaymentSuccessView({
+  orderId,
+  payment,
+  onGoOrder,
+  onGoHome,
+}: {
+  orderId: number;
+  payment: Payment;
+  onGoOrder: () => void;
+  onGoHome: () => void;
+}) {
+  return (
+    <View style={styles.successCard}>
+      <View style={styles.successIconOuter}>
+        <View style={styles.successIconInner}>
+          <Ionicons name="checkmark" size={44} color={colors.white} />
+        </View>
+      </View>
+
+      <Text style={styles.successTitle}>Thanh toán thành công!</Text>
+      <Text style={styles.successSub}>
+        Đơn hàng #{orderId} đã được thanh toán hoàn tất. Cửa hàng sẽ chuẩn bị và giao sản phẩm đến bạn sớm nhất.
+      </Text>
+
+      <View style={styles.successSummaryBox}>
+        <View style={styles.summaryRow}>
+          <Text style={styles.muted}>Số tiền thanh toán</Text>
+          <Text style={styles.summaryAmount}>{formatVnd(payment.amount)}</Text>
+        </View>
+        <View style={styles.summaryRow}>
+          <Text style={styles.muted}>Phương thức</Text>
+          <Text style={styles.bold}>{payment.methodName}</Text>
+        </View>
+        {!!payment.transactionCode && (
+          <View style={styles.summaryRow}>
+            <Text style={styles.muted}>Mã giao dịch</Text>
+            <Text style={styles.bold}>{payment.transactionCode}</Text>
+          </View>
+        )}
+        {!!payment.paidAt && (
+          <View style={styles.summaryRow}>
+            <Text style={styles.muted}>Thời gian thanh toán</Text>
+            <Text style={styles.bold}>{formatDateTime(payment.paidAt)}</Text>
+          </View>
+        )}
+      </View>
+
+      <TouchableOpacity style={styles.primarySuccessBtn} onPress={onGoOrder}>
+        <Ionicons name="receipt-outline" size={18} color={colors.white} />
+        <Text style={styles.primarySuccessBtnText}>Xem chi tiết đơn hàng #{orderId}</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity style={styles.outlineSuccessBtn} onPress={onGoHome}>
+        <Ionicons name="home-outline" size={18} color={colors.primary} />
+        <Text style={styles.outlineSuccessBtnText}>Tiếp tục mua sắm</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+// ─── Transaction Detail Card ───────────────────────────────────────────────────
+
 function PaymentCard({ payment, onRetry }: { payment: Payment; onRetry: () => void }) {
   const isPending = payment.status === 'PENDING';
   const isFailed = payment.status === 'FAILED';
 
   return (
     <View style={styles.card}>
-      {/* Header */}
       <View style={styles.cardHeader}>
         <View style={{ flex: 1 }}>
           <Text style={styles.cardTitle}>{payment.methodName}</Text>
@@ -56,13 +352,11 @@ function PaymentCard({ payment, onRetry }: { payment: Payment; onRetry: () => vo
         <StatusPill status={payment.status} type="payment" />
       </View>
 
-      {/* Amount */}
       <View style={[styles.row, { marginTop: 8 }]}>
         <Text style={styles.muted}>Số tiền</Text>
         <Text style={styles.amount}>{formatVnd(payment.amount)}</Text>
       </View>
 
-      {/* Transaction code */}
       {!!payment.transactionCode && (
         <View style={styles.row}>
           <Text style={styles.muted}>Mã giao dịch</Text>
@@ -70,7 +364,6 @@ function PaymentCard({ payment, onRetry }: { payment: Payment; onRetry: () => vo
         </View>
       )}
 
-      {/* Paid at */}
       {!!payment.paidAt && (
         <View style={styles.row}>
           <Text style={styles.muted}>Thời gian thanh toán</Text>
@@ -78,7 +371,6 @@ function PaymentCard({ payment, onRetry }: { payment: Payment; onRetry: () => vo
         </View>
       )}
 
-      {/* Proof image link */}
       {!!payment.proofUrl && (
         <TouchableOpacity onPress={() => Linking.openURL(payment.proofUrl!)} style={styles.proofLink}>
           <Ionicons name="image-outline" size={16} color={colors.primary} />
@@ -86,19 +378,16 @@ function PaymentCard({ payment, onRetry }: { payment: Payment; onRetry: () => vo
         </TouchableOpacity>
       )}
 
-      {/* Note */}
       {!!payment.note && (
         <View style={styles.noteBox}>
           <Text style={styles.muted}>Ghi chú: {payment.note}</Text>
         </View>
       )}
 
-      {/* Created at */}
       <Text style={[styles.muted, { fontSize: 12, marginTop: 4 }]}>
         Tạo lúc: {formatDateTime(payment.createdAt)}
       </Text>
 
-      {/* Retry button */}
       {isFailed && (
         <TouchableOpacity style={styles.retryBtn} onPress={onRetry}>
           <Ionicons name="refresh-outline" size={16} color={colors.white} />
@@ -109,7 +398,7 @@ function PaymentCard({ payment, onRetry }: { payment: Payment; onRetry: () => vo
       {isPending && (
         <View style={styles.pendingNote}>
           <Ionicons name="time-outline" size={14} color="#B26A00" />
-          <Text style={styles.pendingText}>Đang chờ xác nhận. Giao dịch sẽ hết hạn sau 30 phút.</Text>
+          <Text style={styles.pendingText}>Đang chờ xác nhận thanh toán.</Text>
         </View>
       )}
     </View>
@@ -155,7 +444,6 @@ export default function PaymentDetailScreen() {
   const [data, setData] = useState<PaymentStatusResult | null>(null);
   const [methods, setMethods] = useState<PaymentMethod[]>([]);
   const [error, setError] = useState('');
-  const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -177,11 +465,30 @@ export default function PaymentDetailScreen() {
     }, [load]),
   );
 
+  // Polling tự động mỗi 2.5s khi có giao dịch PENDING
+  useEffect(() => {
+    const hasPending = data?.payments.some((p) => p.status === 'PENDING');
+    if (!hasPending) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const latest = await paymentService.getPaymentStatus(orderId);
+        setData(latest);
+        if (latest.payments.some((p) => p.status === 'SUCCESS')) {
+          clearInterval(interval);
+        }
+      } catch {
+        // Tạm thời bỏ qua nếu mất kết nối thoáng qua
+      }
+    }, 2500);
+
+    return () => clearInterval(interval);
+  }, [orderId, data?.payments]);
+
   function handleRetry(failedPayment: Payment) {
-    // Chọn phương thức thanh toán
     const choices = methods.map((m) => ({
       text: m.methodName,
-      onPress: () => doRetry(failedPayment, m.methodCode),
+      onPress: () => void doRetry(failedPayment, m.methodCode),
     }));
 
     Alert.alert(
@@ -195,7 +502,6 @@ export default function PaymentDetailScreen() {
   }
 
   async function doRetry(failedPayment: Payment, methodCode: string) {
-    setBusy(true);
     try {
       const result = await paymentService.retryPay(orderId, methodCode);
       Alert.alert(
@@ -205,8 +511,19 @@ export default function PaymentDetailScreen() {
       );
     } catch (e) {
       Alert.alert('Lỗi', getErrorMessage(e));
-    } finally {
-      setBusy(false);
+    }
+  }
+
+  async function handleSimulate(paymentId: number, amount: number) {
+    try {
+      await paymentService.simulateSuccess(paymentId, amount);
+      Alert.alert(
+        'Thanh toán thành công!',
+        'Đã ghi nhận chuyển khoản từ ngân hàng/ví điện tử.',
+      );
+      void load();
+    } catch (e) {
+      Alert.alert('Lỗi giả lập', getErrorMessage(e));
     }
   }
 
@@ -234,47 +551,60 @@ export default function PaymentDetailScreen() {
     );
   }
 
-  const hasPending = data.payments.some((p) => p.status === 'PENDING');
-  const isPaid = data.payments.some((p) => p.status === 'SUCCESS');
+  const successPayment = data.payments.find((p) => p.status === 'SUCCESS');
+  const pendingPayment = data.payments.find((p) => p.status === 'PENDING');
+  const isPaid = !!successPayment;
 
   return (
     <ScrollView
       style={{ backgroundColor: colors.background }}
       contentContainerStyle={styles.container}
     >
-      {/* Header */}
-      <View style={styles.headerBox}>
-        <View style={styles.headerIcon}>
-          <Ionicons
-            name={isPaid ? 'checkmark-circle' : hasPending ? 'time' : 'close-circle'}
-            size={36}
-            color={isPaid ? '#168A4F' : hasPending ? '#B26A00' : colors.danger}
-          />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.headerTitle}>Đơn #{orderId}</Text>
-          <Text style={styles.headerSub}>
-            {isPaid
-              ? 'Đã thanh toán'
-              : hasPending
-              ? 'Đang chờ xác nhận'
-              : 'Chưa/không thanh toán được'}
-          </Text>
-        </View>
-      </View>
-
-      {/* Payments */}
-      {data.payments.length > 0 ? (
-        <>
-          <Text style={styles.sectionTitle}>Giao dịch thanh toán</Text>
-          {data.payments.map((p) => (
-            <PaymentCard
-              key={p.paymentId}
-              payment={p}
-              onRetry={() => handleRetry(p)}
+      {/* SUCCESS BANNER VIEW */}
+      {isPaid && successPayment ? (
+        <PaymentSuccessView
+          orderId={orderId}
+          payment={successPayment}
+          onGoOrder={() => router.replace({ pathname: '/orders/[id]', params: { id: String(orderId) } })}
+          onGoHome={() => router.replace('/(tabs)')}
+        />
+      ) : pendingPayment ? (
+        /* DYNAMIC QR PAYMENT VIEW HIỂN THỊ CHO TẤT CẢ ĐƠN CHỜ THANH TOÁN */
+        <QrPaymentCard
+          payment={pendingPayment}
+          orderId={orderId}
+          onSimulate={() => handleSimulate(pendingPayment.paymentId, pendingPayment.amount)}
+          onRetry={() => handleRetry(pendingPayment)}
+        />
+      ) : (
+        /* Normal Header Status */
+        <View style={styles.headerBox}>
+          <View style={styles.headerIcon}>
+            <Ionicons
+              name={pendingPayment ? 'time' : 'close-circle'}
+              size={36}
+              color={pendingPayment ? '#B26A00' : colors.danger}
             />
-          ))}
-        </>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.headerTitle}>Đơn #{orderId}</Text>
+            <Text style={styles.headerSub}>
+              {pendingPayment ? 'Đang chờ xác nhận thanh toán' : 'Chưa/không thanh toán được'}
+            </Text>
+          </View>
+        </View>
+      )}
+
+      {/* Payment History List */}
+      <Text style={styles.sectionTitle}>Lịch sử giao dịch</Text>
+      {data.payments.length > 0 ? (
+        data.payments.map((p) => (
+          <PaymentCard
+            key={p.paymentId}
+            payment={p}
+            onRetry={() => handleRetry(p)}
+          />
+        ))
       ) : (
         <View style={styles.emptyBox}>
           <Ionicons name="wallet-outline" size={32} color={colors.textMuted} />
@@ -282,7 +612,7 @@ export default function PaymentDetailScreen() {
         </View>
       )}
 
-      {/* Refunds */}
+      {/* Refunds List */}
       {data.refunds.length > 0 && (
         <>
           <Text style={styles.sectionTitle}>Hoàn tiền</Text>
@@ -291,14 +621,6 @@ export default function PaymentDetailScreen() {
           ))}
         </>
       )}
-
-      {/* Info box */}
-      <View style={styles.infoBox}>
-        <Ionicons name="information-circle-outline" size={16} color={colors.primary} />
-        <Text style={styles.infoText}>
-          Nếu gặp vấn đề về thanh toán, vui lòng liên hệ cửa hàng để được hỗ trợ.
-        </Text>
-      </View>
 
       {/* Back button */}
       <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
@@ -313,10 +635,10 @@ export default function PaymentDetailScreen() {
 
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  container: { padding: 16, gap: 12, paddingBottom: 40 },
+  container: { padding: 16, gap: 14, paddingBottom: 40 },
   errorText: { color: colors.danger, textAlign: 'center', marginTop: 12, fontSize: 15 },
 
-  // Header
+  // Header Box
   headerBox: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -327,9 +649,336 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  headerIcon: { width: 52, height: 52, borderRadius: 26, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border },
+  headerIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
   headerTitle: { fontSize: 20, fontWeight: '800', color: colors.text },
   headerSub: { fontSize: 14, color: colors.textMuted, marginTop: 2 },
+
+  // Dynamic QR Card
+  qrCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: 16,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    alignItems: 'center',
+    gap: 12,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 3,
+  },
+  timerBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#FFF8E8',
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#FFD84D',
+  },
+  timerBannerExpired: {
+    backgroundColor: '#FDECEC',
+    borderColor: '#F8B4B4',
+  },
+  timerText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#B26A00',
+  },
+  channelRow: {
+    flexDirection: 'row',
+    backgroundColor: colors.background,
+    borderRadius: radius.sm,
+    padding: 4,
+    width: '100%',
+    gap: 6,
+  },
+  channelTab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    borderRadius: radius.sm,
+  },
+  channelTabActive: {
+    backgroundColor: colors.surface,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  channelTabText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textMuted,
+  },
+  channelTabTextActive: {
+    color: colors.primary,
+    fontWeight: '700',
+  },
+  qrContainer: {
+    width: 250,
+    height: 250,
+    backgroundColor: colors.white,
+    borderRadius: radius.md,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  qrImage: {
+    width: '100%',
+    height: '100%',
+  },
+  qrImageExpired: {
+    opacity: 0.15,
+  },
+  qrLoadingBox: {
+    position: 'absolute',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  qrLoadingText: {
+    fontSize: 12,
+    color: colors.textMuted,
+  },
+  expiredOverlay: {
+    position: 'absolute',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    padding: 12,
+  },
+  expiredTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.danger,
+  },
+  expiredRetryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.danger,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: radius.sm,
+  },
+  expiredRetryText: {
+    color: colors.white,
+    fontWeight: '700',
+    fontSize: 13,
+  },
+  scanBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#EBF8F8',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  scanBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.primaryDark,
+  },
+  bankInfoBox: {
+    width: '100%',
+    backgroundColor: colors.background,
+    borderRadius: radius.sm,
+    padding: 12,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  bankInfoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  infoLabel: {
+    fontSize: 13,
+    color: colors.textMuted,
+  },
+  infoVal: {
+    fontSize: 13,
+    color: colors.text,
+  },
+  infoAmount: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: colors.primaryDark,
+  },
+  contentPill: {
+    backgroundColor: '#FFEAD4',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  contentPillText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#B26A00',
+  },
+  divider: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginVertical: 4,
+  },
+  actionRow: {
+    width: '100%',
+    gap: 8,
+  },
+  momoAppBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#A50064',
+    paddingVertical: 10,
+    borderRadius: radius.sm,
+  },
+  momoAppBtnText: {
+    color: colors.white,
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  simulateBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#EDFDF5',
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderColor: '#168A4F',
+    paddingVertical: 10,
+    borderRadius: radius.sm,
+  },
+  simulateBtnText: {
+    color: '#168A4F',
+    fontWeight: '700',
+    fontSize: 13,
+  },
+  autoDetectNote: {
+    fontSize: 11,
+    color: colors.textMuted,
+    textAlign: 'center',
+    paddingHorizontal: 12,
+  },
+
+  // Success Card
+  successCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: 24,
+    alignItems: 'center',
+    gap: 14,
+    borderWidth: 2,
+    borderColor: '#168A4F',
+    shadowColor: '#168A4F',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  successIconOuter: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#EDFDF5',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  successIconInner: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#168A4F',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  successTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#168A4F',
+  },
+  successSub: {
+    fontSize: 14,
+    color: colors.textMuted,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  successSummaryBox: {
+    width: '100%',
+    backgroundColor: colors.background,
+    borderRadius: radius.sm,
+    padding: 14,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  summaryAmount: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#168A4F',
+  },
+  primarySuccessBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#168A4F',
+    width: '100%',
+    paddingVertical: 14,
+    borderRadius: radius.md,
+  },
+  primarySuccessBtnText: {
+    color: colors.white,
+    fontWeight: '700',
+    fontSize: 15,
+  },
+  outlineSuccessBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    width: '100%',
+    paddingVertical: 12,
+    borderRadius: radius.md,
+  },
+  outlineSuccessBtnText: {
+    color: colors.primary,
+    fontWeight: '700',
+    fontSize: 14,
+  },
 
   // Section
   sectionTitle: { fontSize: 17, fontWeight: '800', color: colors.text, marginTop: 4 },
@@ -366,22 +1015,51 @@ const styles = StyleSheet.create({
   noteBox: { backgroundColor: colors.background, borderRadius: 6, padding: 10, borderWidth: 1, borderColor: colors.border },
 
   // Pending notice
-  pendingNote: { flexDirection: 'row', gap: 6, alignItems: 'flex-start', backgroundColor: '#FFF8E8', borderRadius: 8, padding: 10, marginTop: 6, borderWidth: 1, borderColor: '#FFD84D' },
+  pendingNote: {
+    flexDirection: 'row',
+    gap: 6,
+    alignItems: 'flex-start',
+    backgroundColor: '#FFF8E8',
+    borderRadius: 8,
+    padding: 10,
+    marginTop: 6,
+    borderWidth: 1,
+    borderColor: '#FFD84D',
+  },
   pendingText: { color: '#B26A00', fontSize: 13, flex: 1 },
 
   // Retry button
-  retryBtn: { flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.primaryDark, borderRadius: radius.md, padding: 12, marginTop: 8 },
+  retryBtn: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primaryDark,
+    borderRadius: radius.md,
+    padding: 12,
+    marginTop: 8,
+  },
   retryText: { color: colors.white, fontWeight: '700', fontSize: 15 },
 
   // Empty
-  emptyBox: { alignItems: 'center', gap: 8, paddingVertical: 32, backgroundColor: colors.surface, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border },
+  emptyBox: {
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 32,
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
   emptyText: { color: colors.textMuted, fontSize: 15 },
 
-  // Info
-  infoBox: { flexDirection: 'row', gap: 8, backgroundColor: '#EBF8F8', borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, padding: 12, alignItems: 'flex-start' },
-  infoText: { color: colors.primaryDark, fontSize: 13, flex: 1 },
-
   // Back
-  backBtn: { flexDirection: 'row', gap: 6, alignItems: 'center', justifyContent: 'center', paddingVertical: 12 },
+  backBtn: {
+    flexDirection: 'row',
+    gap: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+  },
   backText: { color: colors.primary, fontSize: 15, fontWeight: '600' },
 });

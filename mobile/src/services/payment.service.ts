@@ -29,4 +29,14 @@ export const paymentService = {
     const { data } = await api.post<RetryPayResult>(`/orders/${orderId}/pay`, { methodCode });
     return data;
   },
+
+  /** Giả lập webhook xác nhận thanh toán thành công (dành cho test/demo) */
+  async simulateSuccess(paymentId: number, amount: number): Promise<void> {
+    await api.post('/webhooks/bank', {
+      paymentId,
+      transactionCode: `TEST_BANK_${Date.now()}`,
+      amount,
+      resultCode: 0,
+    });
+  },
 };

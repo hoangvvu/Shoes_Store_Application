@@ -81,8 +81,12 @@ export default function CheckoutScreen() {
         note: note.trim() || undefined,
       });
       useCartStore.getState().reset(); // giỏ đã được đóng ở server
-      Alert.alert('Đặt hàng thành công', `Mã đơn #${order.invoiceId}. Cửa hàng sẽ sớm xác nhận đơn của bạn.`);
-      router.replace({ pathname: '/orders/[id]', params: { id: String(order.invoiceId) } });
+      if (method === 'COD' || method === 'CASH') {
+        Alert.alert('Đặt hàng thành công', `Mã đơn #${order.invoiceId}. Cửa hàng sẽ sớm giao hàng đến bạn.`);
+        router.replace({ pathname: '/orders/[id]', params: { id: String(order.invoiceId) } });
+      } else {
+        router.replace({ pathname: '/orders/payment/[id]', params: { id: String(order.invoiceId) } });
+      }
     } catch (e) {
       Alert.alert('Không thể đặt hàng', getErrorMessage(e));
       void useCartStore.getState().refresh().catch(() => undefined);
