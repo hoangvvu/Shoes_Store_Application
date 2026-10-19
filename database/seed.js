@@ -43,8 +43,8 @@ const config = {
   },
 };
 
-async function getRoleId(pool, name) {
-  const r = await pool.request().input('n', sql.VarChar(30), name)
+async function getRoleId(executor, name) {
+  const r = await new sql.Request(executor).input('n', sql.VarChar(30), name)
     .query('SELECT role_id FROM roles WHERE role_name = @n');
   if (!r.recordset.length) {
     throw new Error(`Thiếu role ${name}. Hãy chạy database/migrations/001_roles_sales_warehouse.sql trước.`);
@@ -72,7 +72,7 @@ async function seedAccount(pool, a) {
       return 'đã có';
     }
 
-    const roleId = await getRoleId(pool, a.role);
+    const roleId = await getRoleId(tx, a.role);
     const hash = await bcrypt.hash(a.password, BCRYPT_COST);
     let employeeId = null;
     let customerId = null;
@@ -162,11 +162,11 @@ async function seedAddresses(pool, username, list) {
 /* ---------------- M7: sản phẩm test (tạm, chờ M4) + giỏ hàng mẫu ---------------- */
 // Chỉ để thử giỏ hàng. Khi M4 có dữ liệu thật, bỏ các SKU bắt đầu bằng TEST- là được.
 const TEST_VARIANTS = [
-  { sku: 'TEST-OK-40',  product: 'Giày Test – Còn hàng',   price: 1250000, size: '40', color: 'Đen',   stock: 20, active: 1 },
-  { sku: 'TEST-OK-41',  product: 'Giày Test – Còn hàng',   price: 1250000, size: '41', color: 'Đen',   stock: 20, active: 1 },
-  { sku: 'TEST-LOW-39', product: 'Giày Test – Sắp hết',    price: 890000,  size: '39', color: 'Trắng', stock: 3,  active: 1 },
-  { sku: 'TEST-OUT-42', product: 'Giày Test – Hết hàng',   price: 990000,  size: '42', color: 'Xám',   stock: 0,  active: 1 },
-  { sku: 'TEST-OFF-40', product: 'Giày Test – Ngừng bán',  price: 750000,  size: '40', color: 'Đỏ',    stock: 5,  active: 0 },
+  { sku: 'TEST-OK-40',  product: 'Giày Test – Còn hàng',   price: 1250000, size: '40', color: 'Đen',   stock: 20, active: 1, cat: 'Giày Sneaker', brand: 'Nike' },
+  { sku: 'TEST-OK-41',  product: 'Giày Test – Còn hàng',   price: 1250000, size: '41', color: 'Đen',   stock: 20, active: 1, cat: 'Giày Sneaker', brand: 'Nike' },
+  { sku: 'TEST-LOW-39', product: 'Giày Test – Sắp hết',    price: 890000,  size: '39', color: 'Trắng', stock: 3,  active: 1, cat: 'Giày Chạy Bộ', brand: 'Adidas' },
+  { sku: 'TEST-OUT-42', product: 'Giày Test – Hết hàng',   price: 990000,  size: '42', color: 'Xám',   stock: 0,  active: 1, cat: 'Giày Thể Thao', brand: 'Puma' },
+  { sku: 'TEST-OFF-40', product: 'Giày Test – Ngừng bán',  price: 750000,  size: '40', color: 'Đỏ',    stock: 5,  active: 0, cat: 'Giày Sneaker', brand: 'Converse' },
 ];
 
 // Giỏ của khach01: đủ 4 trạng thái để thấy cảnh báo trên màn hình giỏ
@@ -177,7 +177,84 @@ const CART_KHACH01 = [
   { sku: 'TEST-OFF-40', qty: 1 }, // UNAVAILABLE (sản phẩm ngừng bán)
 ];
 
+async function ensureCatalogAndSuppliers(pool) {
+  // Sizes
+  const sizes = [
+    { label: '38', order: 38 },
+    { label: '39', order: 39 },
+    { label: '40', order: 40 },
+    { label: '41', order: 41 },
+    { label: '42', order: 42 },
+    { label: '43', order: 43 },
+    { label: '44', order: 44 },
+  ];
+  for (const s of sizes) {
+    const ex = await pool.request().input('l', sql.VarChar(10), s.label)
+      .query('SELECT 1 FROM sizes WHERE size_label = @l AND is_deleted = 0');
+    if (!ex.recordset.length) {
+      await pool.request().input('l', sql.VarChar(10), s.label).input('o', sql.Int, s.order)
+        .query('INSERT INTO sizes (size_label, sort_order) VALUES (@l, @o)');
+    }
+  }
+
+  // Colors
+  const colors = [
+    { name: 'Đen', hex: '#000000' },
+    { name: 'Trắng', hex: '#FFFFFF' },
+    { name: 'Xám', hex: '#808080' },
+    { name: 'Đỏ', hex: '#FF0000' },
+    { name: 'Xanh', hex: '#0000FF' },
+  ];
+  for (const c of colors) {
+    const ex = await pool.request().input('n', sql.NVarChar(30), c.name)
+      .query('SELECT 1 FROM colors WHERE color_name = @n AND is_deleted = 0');
+    if (!ex.recordset.length) {
+      await pool.request().input('n', sql.NVarChar(30), c.name).input('h', sql.VarChar(7), c.hex)
+        .query('INSERT INTO colors (color_name, hex_code) VALUES (@n, @h)');
+    }
+  }
+
+  // Categories
+  const cats = ['Giày Thể Thao', 'Giày Chạy Bộ', 'Giày Sneaker', 'Giày Sandal'];
+  for (const name of cats) {
+    const ex = await pool.request().input('n', sql.NVarChar(100), name)
+      .query('SELECT 1 FROM categories WHERE category_name = @n AND is_deleted = 0');
+    if (!ex.recordset.length) {
+      await pool.request().input('n', sql.NVarChar(100), name)
+        .query('INSERT INTO categories (category_name) VALUES (@n)');
+    }
+  }
+
+  // Brands
+  const brands = ['Nike', 'Adidas', 'Puma', 'Converse', 'Vans'];
+  for (const name of brands) {
+    const ex = await pool.request().input('n', sql.NVarChar(100), name)
+      .query('SELECT 1 FROM brands WHERE brand_name = @n AND is_deleted = 0');
+    if (!ex.recordset.length) {
+      await pool.request().input('n', sql.NVarChar(100), name)
+        .query('INSERT INTO brands (brand_name) VALUES (@n)');
+    }
+  }
+
+  // Suppliers
+  const suppliers = [
+    { name: 'Công Ty TNHH Nike Việt Nam', phone: '0283800001', email: 'contact@nike.vn', address: 'Quận 1, TP. HCM' },
+    { name: 'Nhà Phân Phối Thể Thao An Hưng', phone: '0243800002', email: 'sales@anhung.vn', address: 'Cầu Giấy, Hà Nội' },
+    { name: 'Tổng Kho Giày Miền Nam', phone: '0283800003', email: 'kho@giaymiennam.com', address: 'Bình Tân, TP. HCM' },
+  ];
+  for (const s of suppliers) {
+    const ex = await pool.request().input('n', sql.NVarChar(150), s.name)
+      .query('SELECT 1 FROM suppliers WHERE supplier_name = @n AND is_deleted = 0');
+    if (!ex.recordset.length) {
+      await pool.request().input('n', sql.NVarChar(150), s.name).input('p', sql.VarChar(20), s.phone)
+        .input('e', sql.VarChar(100), s.email).input('a', sql.NVarChar(255), s.address)
+        .query('INSERT INTO suppliers (supplier_name, phone, email, address) VALUES (@n, @p, @e, @a)');
+    }
+  }
+}
+
 async function seedTestCatalog(pool) {
+  await ensureCatalogAndSuppliers(pool);
   const admin = await pool.request().query(`SELECT user_id FROM users WHERE username = 'admin' AND is_deleted = 0`);
   if (!admin.recordset.length) throw new Error('Cần tài khoản admin (seed ở phần M1) để ghi sổ kho.');
   const adminId = admin.recordset[0].user_id;
@@ -195,8 +272,17 @@ async function seedTestCatalog(pool) {
     let p = await pool.request().input('n', sql.NVarChar(200), v.product)
       .query('SELECT product_id FROM products WHERE product_name = @n AND is_deleted = 0');
     if (!p.recordset.length) {
-      p = await pool.request().input('n', sql.NVarChar(200), v.product).input('pr', sql.Decimal(18, 2), v.price).input('a', sql.Bit, v.active)
-        .query('INSERT INTO products (product_name, current_price, is_active) VALUES (@n, @pr, @a); SELECT SCOPE_IDENTITY() AS product_id;');
+      const catRes = v.cat ? await pool.request().input('cn', sql.NVarChar(100), v.cat).query('SELECT category_id FROM categories WHERE category_name = @cn') : { recordset: [] };
+      const brandRes = v.brand ? await pool.request().input('bn', sql.NVarChar(100), v.brand).query('SELECT brand_id FROM brands WHERE brand_name = @bn') : { recordset: [] };
+      const catId = catRes.recordset[0]?.category_id || null;
+      const brandId = brandRes.recordset[0]?.brand_id || null;
+      p = await pool.request()
+        .input('n', sql.NVarChar(200), v.product)
+        .input('cat', sql.Int, catId)
+        .input('brand', sql.Int, brandId)
+        .input('pr', sql.Decimal(18, 2), v.price)
+        .input('a', sql.Bit, v.active)
+        .query('INSERT INTO products (product_name, category_id, brand_id, current_price, is_active) VALUES (@n, @cat, @brand, @pr, @a); SELECT SCOPE_IDENTITY() AS product_id;');
     }
     const vr = await pool.request().input('p', sql.Int, p.recordset[0].product_id).input('sz', sql.Int, size.recordset[0].size_id)
       .input('c', sql.Int, color.recordset[0].color_id).input('s', sql.VarChar(50), v.sku)

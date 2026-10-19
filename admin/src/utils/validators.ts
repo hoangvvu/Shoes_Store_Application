@@ -47,3 +47,27 @@ export const formatYmdVn = (iso: string | null): string => {
   const [y, m, d] = iso.slice(0, 10).split('-');
   return `${d}/${m}/${y}`;
 };
+
+/** M4 #15: mã màu bắt đầu bằng # và 6 ký tự hex (#000000). Trả '' nếu hợp lệ. */
+export const validateHex = (v: string) => (/^#[0-9A-Fa-f]{6}$/.test(v.trim()) ? '' : 'Mã màu phải có dạng #RRGGBB, ví dụ #000000');
+
+/** URL ảnh phải là http(s) hoặc đường dẫn nội bộ /uploads/. Bỏ trống được coi là hợp lệ. */
+export function validateImageUrl(v: string): string {
+  if (!v.trim()) return '';
+  if (v.trim().startsWith('/uploads/')) return '';
+  try {
+    const u = new URL(v.trim());
+    return u.protocol === 'http:' || u.protocol === 'https:' ? '' : 'URL ảnh phải bắt đầu bằng http:// hoặc https://';
+  } catch {
+    return 'URL ảnh không hợp lệ';
+  }
+}
+
+/** M5 #7: email nhà cung cấp có @ và tên miền hợp lệ. Bỏ trống được coi là hợp lệ. */
+export const validateEmail = (v: string) =>
+  !v.trim() || /^[^\s@]+@[^\s@]+\.[A-Za-z]{2,}$/.test(v.trim()) ? '' : 'Email không đúng định dạng';
+
+/** M5 #7: SĐT nhà cung cấp 10–11 chữ số. Bỏ trống được coi là hợp lệ. */
+export const validateSupplierPhone = (v: string) =>
+  !v.trim() || /^\d{10,11}$/.test(v.trim()) ? '' : 'Số điện thoại nhà cung cấp phải gồm 10–11 chữ số';
+
