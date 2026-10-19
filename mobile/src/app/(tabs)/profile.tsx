@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppTextInput } from '@/components/AppTextInput';
+import { DatePickerField } from '@/components/DatePickerField';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { authService } from '@/services/auth.service';
 import { useAuthStore } from '@/store/useAuthStore';
@@ -105,7 +106,7 @@ export default function ProfileScreen() {
       <AppTextInput icon="person-circle-outline" placeholder="Tên" value={firstName} onChangeText={setFirstName} autoCapitalize="words" />
       <AppTextInput icon="call-outline" placeholder="Số điện thoại" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
       <AppTextInput icon="mail-outline" placeholder="Email (không bắt buộc)" value={email} onChangeText={setEmail} keyboardType="email-address" />
-      <AppTextInput icon="calendar-outline" placeholder="Ngày sinh dd/mm/yyyy (không bắt buộc)" value={dob} onChangeText={setDob} keyboardType="numbers-and-punctuation" maxLength={10} />
+      <DatePickerField value={dob} onChange={setDob} placeholder="Ngày sinh (không bắt buộc)" />
       <View style={styles.genderRow}>
         {([['MALE', 'Nam'], ['FEMALE', 'Nữ'], ['OTHER', 'Khác']] as const).map(([value, text]) => (
           <Pressable key={value} onPress={() => setGender(gender === value ? null : value)} style={[styles.genderChip, gender === value && styles.genderChipActive]}>
@@ -113,7 +114,7 @@ export default function ProfileScreen() {
           </Pressable>
         ))}
       </View>
-      <Text style={styles.optional}>Giới tính, ngày sinh và email không bắt buộc; chạm lại giới tính đã chọn để bỏ chọn.</Text>
+      <Text style={styles.optional}>Giới tính, ngày sinh và email không bắt buộc; chạm lại giới tính đã chọn để bỏ chọn, bấm dấu × để xóa ngày sinh.</Text>
       <PrimaryButton title="Lưu hồ sơ" onPress={saveProfile} loading={savingProfile} />
 
       <Pressable style={styles.linkRow} onPress={() => router.push('/favorites')}>

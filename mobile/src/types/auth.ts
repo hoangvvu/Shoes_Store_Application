@@ -13,7 +13,20 @@ export interface AuthUser {
 }
 
 export interface LoginPayload { username: string; password: string }
-export interface RegisterPayload { lastName: string; firstName: string; phone: string; username: string; password: string }
+export type Gender = 'MALE' | 'FEMALE' | 'OTHER';
+
+export interface RegisterPayload {
+  lastName: string;
+  firstName: string;
+  phone: string;
+  username: string;
+  password: string;
+  /** Không bắt buộc: chỉ gửi khi khách có nhập. */
+  gender?: Gender;
+  /** YYYY-MM-DD, không bắt buộc. */
+  dateOfBirth?: string;
+  email?: string;
+}
 export interface LoginResponse { accessToken: string; refreshToken: string; user: AuthUser }
 
 export interface CustomerProfile {
@@ -22,7 +35,7 @@ export interface CustomerProfile {
   firstName: string;
   fullName: string;
   phone: string | null;
-  gender: 'MALE' | 'FEMALE' | 'OTHER' | null;
+  gender: Gender | null;
   /** YYYY-MM-DD (hoặc ISO) hoặc null nếu chưa cung cấp. */
   dateOfBirth: string | null;
   email: string | null;
