@@ -74,18 +74,33 @@ export default function CheckoutScreen() {
     if (!addressId) return Alert.alert('Thiếu địa chỉ', 'Vui lòng chọn địa chỉ giao hàng');
     setPlacing(true);
     try {
-      const order = await orderService.create({
+      const payload = {
         addressId,
         methodCode: method,
         voucherCode: appliedVoucher || undefined,
         note: note.trim() || undefined,
-      });
+      };
+
+      if (method !== 'COD' && method !== 'CASH' && preview && preview.amountPayable > 0) {
+        router.push({
+          pathname: '/orders/payment/[id]',
+          params: {
+            id: 'draft',
+            addressId: String(addressId),
+            methodCode: method,
+            amount: String(preview.amountPayable),
+            ...(payload.voucherCode ? { voucherCode: payload.voucherCode } : {}),
+            ...(payload.note ? { note: payload.note } : {}),
+          },
+        });
+        return;
+      }
+
+      const order = await orderService.create(payload);
       useCartStore.getState().reset(); // giỏ đã được đóng ở server
-      if (method === 'COD' || method === 'CASH') {
+      if (method === 'COD' || method === 'CASH' || preview?.amountPayable === 0) {
         Alert.alert('Đặt hàng thành công', `Mã đơn #${order.invoiceId}. Cửa hàng sẽ sớm giao hàng đến bạn.`);
-        router.replace({ pathname: '/orders/[id]', params: { id: String(order.invoiceId) } });
-      } else {
-        router.replace({ pathname: '/orders/payment/[id]', params: { id: String(order.invoiceId) } });
+        router.replace(`/orders/${order.invoiceId}`);
       }
     } catch (e) {
       Alert.alert('Không thể đặt hàng', getErrorMessage(e));
@@ -180,7 +195,16 @@ export default function CheckoutScreen() {
       </ScrollView>
 
       <View style={styles.footer}>
-        <PrimaryButton title={`Đặt hàng · ${formatVnd(preview.amountPayable)}`} onPress={placeOrder} loading={placing} disabled={!canPlace} />
+        <PrimaryButton
+          title={
+            method === 'CASH' || method === 'COD'
+              ? `Đặt hàng (Tiền mặt) · ${formatVnd(preview.amountPayable)}`
+              : `Tiến hành quét QR · ${formatVnd(preview.amountPayable)}`
+          }
+          onPress={placeOrder}
+          loading={placing}
+          disabled={!canPlace}
+        />
       </View>
     </View>
   );

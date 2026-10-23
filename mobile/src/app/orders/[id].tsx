@@ -131,28 +131,38 @@ export default function OrderDetailScreen() {
             {order.payments.map((p) => (
               <View key={p.paymentId} style={styles.row}>
                 <Text style={styles.bold}>{p.methodName}</Text>
-                <Text style={styles.muted}>{formatVnd(p.amount)} · {PAY_TX[p.status]}</Text>
+                <Text style={styles.muted}>
+                  {formatVnd(p.amount)} · {p.methodCode === 'CASH' && p.status === 'PENDING' ? 'Thu tiền khi giao hàng' : (PAY_TX[p.status] ?? p.status)}
+                </Text>
               </View>
             ))}
 
-            {/* HIỆN MÃ QR TRỰC TIẾP TRÊN TRANG CHI TIẾT ĐƠN HÀNG */}
-            {order.payments.find((p) => p.status === 'PENDING') && (
-              <QrPaymentCard
-                orderId={orderId}
-                paymentId={order.payments.find((p) => p.status === 'PENDING')!.paymentId}
-                amount={order.payments.find((p) => p.status === 'PENDING')!.amount}
-                createdAt={order.invoiceDate}
-                onSuccess={() => void load()}
-              />
-            )}
+            {/* CHỈ HIỆN MÃ QR TRỰC TIẾP TRÊN TRANG CHI TIẾT NẾU LÀ ĐƠN ONLINE (KHÔNG PHẢI TIỀN MẶT) */}
+            {(() => {
+              const pendingOnline = order.payments.find(
+                (p) => p.status === 'PENDING' && p.methodCode !== 'CASH' && p.methodCode !== 'COD',
+              );
+              if (!pendingOnline) return null;
+              return (
+                <QrPaymentCard
+                  orderId={orderId}
+                  paymentId={pendingOnline.paymentId}
+                  amount={pendingOnline.amount}
+                  createdAt={order.invoiceDate}
+                  onSuccess={() => void load()}
+                />
+              );
+            })()}
 
-            {/* M9: nút xem chi tiết thanh toán */}
-            <TouchableOpacity
-              style={styles.paymentLink}
-              onPress={() => router.push(`/orders/payment/${orderId}`)}
-            >
-              <Text style={styles.paymentLinkText}>Xem lịch sử & đối soát thanh toán →</Text>
-            </TouchableOpacity>
+            {/* M9: nút xem chi tiết thanh toán cho đơn online */}
+            {order.payments.some((p) => p.methodCode !== 'CASH' && p.methodCode !== 'COD') && (
+              <TouchableOpacity
+                style={styles.paymentLink}
+                onPress={() => router.push(`/orders/payment/${orderId}`)}
+              >
+                <Text style={styles.paymentLinkText}>Xem lịch sử & đối soát thanh toán →</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </>
       )}

@@ -13,6 +13,7 @@ export default function OrdersLayout() {
     >
       <Stack.Screen name="index" options={{ title: 'Đơn hàng của tôi' }} />
       <Stack.Screen name="[id]" options={{ title: 'Chi tiết đơn hàng' }} />
+      <Stack.Screen name="payment" options={{ headerShown: false }} />
     </Stack>
   );
 }

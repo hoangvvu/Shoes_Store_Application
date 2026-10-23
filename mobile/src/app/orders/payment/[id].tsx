@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -19,8 +19,11 @@ import {
   REFUND_STATUS_COLOR,
   REFUND_STATUS_LABEL,
 } from '@/constants/payment';
+import { orderService } from '@/services/order.service';
 import { paymentService } from '@/services/payment.service';
+import { useCartStore } from '@/store/useCartStore';
 import { colors, radius } from '@/theme';
+import type { CreateOrderPayload } from '@/types/order';
 import type { Payment, PaymentMethod, PaymentStatusResult, Refund } from '@/types/payment';
 import { formatDateTime } from '@/utils/datetime';
 import { getErrorMessage } from '@/utils/error';
@@ -46,11 +49,13 @@ function StatusPill({ status, type }: { status: string; type: 'payment' | 'refun
 function QrPaymentCard({
   payment,
   orderId,
+  draftMode = false,
   onSimulate,
   onRetry,
 }: {
   payment: Payment;
-  orderId: number;
+  orderId: number | null;
+  draftMode?: boolean;
   onSimulate: () => Promise<void>;
   onRetry: () => void;
 }) {
@@ -86,7 +91,7 @@ function QrPaymentCard({
   const bankId = '970403'; // BIN chính thức Napas của Sacombank (STB)
   const accountNo = '060279584557';
   const accountName = 'CUA HANG SHOESTORE';
-  const transferContent = `SHOESTORE HD${orderId}`;
+  const transferContent = orderId ? `SHOESTORE HD${orderId}` : 'SHOESTORE THANHTOAN';
 
   const vietQrUrl = `https://img.vietqr.io/image/${bankId}-${accountNo}-compact2.png?amount=${payment.amount}&addInfo=${encodeURIComponent(
     transferContent,
@@ -206,7 +211,9 @@ function QrPaymentCard({
       <View style={styles.scanBadge}>
         <Ionicons name="scan-outline" size={16} color={colors.primaryDark} />
         <Text style={styles.scanBadgeText}>
-          Quét tự động điền đúng số tiền và nội dung đơn #{orderId}
+          {orderId
+            ? `Quét tự động điền đúng số tiền và nội dung đơn #${orderId}`
+            : 'Quét tự động điền đúng số tiền thanh toán'}
         </Text>
       </View>
 
@@ -268,7 +275,9 @@ function QrPaymentCard({
       </View>
 
       <Text style={styles.autoDetectNote}>
-        Hệ thống tự động phát hiện khi bạn chuyển khoản thành công và chuyển màn hình sau 2-3 giây.
+        {draftMode
+          ? 'Sau khi thanh toán, bấm giả lập để xác nhận và tạo đơn hàng.'
+          : 'Hệ thống tự động phát hiện khi bạn chuyển khoản thành công và chuyển màn hình sau 2-3 giây.'}
       </Text>
     </View>
   );
@@ -437,15 +446,65 @@ function RefundCard({ refund }: { refund: Refund }) {
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function PaymentDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, addressId, methodCode, amount, voucherCode, note } = useLocalSearchParams<{
+    id: string;
+    addressId?: string;
+    methodCode?: string;
+    amount?: string;
+    voucherCode?: string;
+    note?: string;
+  }>();
+  const isDraft = id === 'draft';
   const orderId = Number(id);
   const router = useRouter();
 
   const [data, setData] = useState<PaymentStatusResult | null>(null);
   const [methods, setMethods] = useState<PaymentMethod[]>([]);
   const [error, setError] = useState('');
+  const [draftCreatedAt, setDraftCreatedAt] = useState(() => new Date().toISOString());
+
+  const draft = useMemo(() => {
+    const parsedAddressId = Number(addressId);
+    const parsedAmount = Number(amount);
+    if (
+      !isDraft
+      || !Number.isSafeInteger(parsedAddressId)
+      || parsedAddressId < 1
+      || !methodCode
+      || !Number.isFinite(parsedAmount)
+      || parsedAmount <= 0
+    ) {
+      return null;
+    }
+
+    const payload: CreateOrderPayload = {
+      addressId: parsedAddressId,
+      methodCode,
+      ...(voucherCode ? { voucherCode } : {}),
+      ...(note ? { note } : {}),
+    };
+    return { payload, amount: parsedAmount };
+  }, [addressId, amount, isDraft, methodCode, note, voucherCode]);
+
+  const draftPayment = useMemo<Payment | null>(() => {
+    if (!draft) return null;
+    return {
+      paymentId: 0,
+      invoiceId: 0,
+      methodCode: draft.payload.methodCode,
+      methodName: METHOD_DISPLAY[draft.payload.methodCode] ?? draft.payload.methodCode,
+      amount: draft.amount,
+      status: 'PENDING',
+      transactionCode: null,
+      proofUrl: null,
+      note: null,
+      paidAt: null,
+      createdAt: draftCreatedAt,
+    };
+  }, [draft, draftCreatedAt]);
 
   const load = useCallback(async () => {
+    if (isDraft) return;
     try {
       const [status, methodList] = await Promise.all([
         paymentService.getPaymentStatus(orderId),
@@ -457,7 +516,7 @@ export default function PaymentDetailScreen() {
     } catch (e) {
       setError(getErrorMessage(e));
     }
-  }, [orderId]);
+  }, [isDraft, orderId]);
 
   useFocusEffect(
     useCallback(() => {
@@ -527,7 +586,108 @@ export default function PaymentDetailScreen() {
     }
   }
 
+  async function handleDraftSimulate() {
+    if (!draft) return;
+    try {
+      const latestPreview = await orderService.preview(draft.payload.voucherCode);
+      if (!latestPreview.canPlaceOrder || latestPreview.amountPayable !== draft.amount) {
+        Alert.alert(
+          'Đơn hàng đã thay đổi',
+          'Giá hoặc tình trạng sản phẩm đã thay đổi. Vui lòng kiểm tra lại đơn hàng trước khi thanh toán.',
+          [{ text: 'Quay lại đặt hàng', onPress: () => router.back() }],
+        );
+        return;
+      }
+
+      const order = await orderService.create(draft.payload);
+      useCartStore.getState().reset();
+      const payment = order.payments.find(
+        (item) => item.methodCode === draft.payload.methodCode && item.status === 'PENDING',
+      );
+      if (!payment) {
+        Alert.alert(
+          'Không thể tạo giao dịch',
+          `Đơn hàng #${order.invoiceId} đã được tạo nhưng chưa có giao dịch thanh toán.`,
+          [{ text: 'Xem đơn hàng', onPress: () => router.replace(`/orders/${order.invoiceId}`) }],
+        );
+        return;
+      }
+
+      try {
+        await paymentService.simulateSuccess(payment.paymentId, payment.amount);
+        router.replace(`/orders/payment/${order.invoiceId}`);
+      } catch (e) {
+        Alert.alert(
+          'Lỗi giả lập thanh toán',
+          `${getErrorMessage(e)}\nĐơn hàng #${order.invoiceId} đang chờ thanh toán.`,
+          [{
+            text: 'Xem giao dịch',
+            onPress: () => router.replace(`/orders/payment/${order.invoiceId}`),
+          }],
+        );
+      }
+    } catch (e) {
+      Alert.alert('Không thể đặt hàng', getErrorMessage(e));
+    }
+  }
+
+  function handleCancelOrder() {
+    Alert.alert(
+      'Hủy đơn hàng?',
+      'Đơn hàng sẽ bị hủy và sản phẩm sẽ quay lại giỏ hàng của bạn.',
+      [
+        { text: 'Không', style: 'cancel' },
+        {
+          text: 'Hủy đơn',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await orderService.cancel(orderId);
+              router.replace('/(tabs)/cart');
+            } catch (e) {
+              Alert.alert('Lỗi', getErrorMessage(e));
+            }
+          },
+        },
+      ],
+    );
+  }
+
   // ─── Render ────────────────────────────────────────────────────────────────
+
+  if (isDraft) {
+    if (!draft || !draftPayment) {
+      return (
+        <View style={styles.center}>
+          <Text style={styles.errorText}>Thông tin thanh toán không hợp lệ. Vui lòng quay lại đặt hàng.</Text>
+          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+            <Ionicons name="arrow-back-outline" size={18} color={colors.primary} />
+            <Text style={styles.backText}>Quay lại đặt hàng</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    return (
+      <ScrollView
+        style={{ backgroundColor: colors.background }}
+        contentContainerStyle={styles.container}
+      >
+        <QrPaymentCard
+          key={draftCreatedAt}
+          payment={draftPayment}
+          orderId={null}
+          draftMode
+          onSimulate={handleDraftSimulate}
+          onRetry={() => setDraftCreatedAt(new Date().toISOString())}
+        />
+        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+          <Ionicons name="arrow-back-outline" size={18} color={colors.primary} />
+          <Text style={styles.backText}>Quay lại đặt hàng</Text>
+        </TouchableOpacity>
+      </ScrollView>
+    );
+  }
 
   if (error && !data) {
     return (
@@ -565,17 +725,48 @@ export default function PaymentDetailScreen() {
         <PaymentSuccessView
           orderId={orderId}
           payment={successPayment}
-          onGoOrder={() => router.replace({ pathname: '/orders/[id]', params: { id: String(orderId) } })}
+          onGoOrder={() => router.replace(`/orders/${orderId}`)}
           onGoHome={() => router.replace('/(tabs)')}
         />
       ) : pendingPayment ? (
-        /* DYNAMIC QR PAYMENT VIEW HIỂN THỊ CHO TẤT CẢ ĐƠN CHỜ THANH TOÁN */
-        <QrPaymentCard
-          payment={pendingPayment}
-          orderId={orderId}
-          onSimulate={() => handleSimulate(pendingPayment.paymentId, pendingPayment.amount)}
-          onRetry={() => handleRetry(pendingPayment)}
-        />
+        pendingPayment.methodCode === 'CASH' || pendingPayment.methodCode === 'COD' ? (
+          /* THÔNG TIN THANH TOÁN TIỀN MẶT KHI GIAO HÀNG (KHÔNG HIỆN MÃ QR) */
+          <View style={styles.cashCard}>
+            <View style={styles.cashIconOuter}>
+              <Ionicons name="cash-outline" size={36} color="#B26A00" />
+            </View>
+            <Text style={styles.cashTitle}>Thanh toán tiền mặt khi nhận hàng (COD)</Text>
+            <Text style={styles.cashSub}>
+              Đơn hàng của bạn sẽ được thanh toán trực tiếp cho nhân viên giao hàng khi nhận sản phẩm.
+            </Text>
+            <View style={styles.cashAmountBox}>
+              <Text style={styles.muted}>Số tiền cần thanh toán khi nhận:</Text>
+              <Text style={styles.cashAmountText}>{formatVnd(pendingPayment.amount)}</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.cashPrimaryBtn}
+              onPress={() => router.replace(`/orders/${orderId}`)}
+            >
+              <Ionicons name="receipt-outline" size={18} color={colors.white} />
+              <Text style={styles.cashPrimaryBtnText}>Xem chi tiết đơn hàng #{orderId}</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          /* DYNAMIC QR PAYMENT VIEW HIỂN THỊ CHO ĐƠN ONLINE (VIETQR / MOMO) */
+          <>
+            <QrPaymentCard
+              payment={pendingPayment}
+              orderId={orderId}
+              onSimulate={() => handleSimulate(pendingPayment.paymentId, pendingPayment.amount)}
+              onRetry={() => handleRetry(pendingPayment)}
+            />
+            {/* Nút hủy đơn + quay lại giỏ hàng (chỉ khi chưa thanh toán) */}
+            <TouchableOpacity style={styles.cancelOrderBtn} onPress={handleCancelOrder}>
+              <Ionicons name="close-circle-outline" size={18} color={colors.danger} />
+              <Text style={styles.cancelOrderText}>Hủy đơn và quay lại giỏ hàng</Text>
+            </TouchableOpacity>
+          </>
+        )
       ) : (
         /* Normal Header Status */
         <View style={styles.headerBox}>
@@ -1062,4 +1253,84 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   backText: { color: colors.primary, fontSize: 15, fontWeight: '600' },
+
+  // Cancel order button (online QR pending)
+  cancelOrderBtn: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    backgroundColor: '#FFF0F0',
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: '#FFCDD2',
+  },
+  cancelOrderText: { color: colors.danger, fontSize: 15, fontWeight: '700' },
+
+
+  // Cash Card
+  cashCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: 24,
+    alignItems: 'center',
+    gap: 14,
+    borderWidth: 1.5,
+    borderColor: '#FFD84D',
+  },
+  cashIconOuter: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: '#FFF8E8',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cashTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: colors.text,
+    textAlign: 'center',
+  },
+  cashSub: {
+    fontSize: 14,
+    color: colors.textMuted,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  cashAmountBox: {
+    width: '100%',
+    backgroundColor: colors.background,
+    borderRadius: radius.sm,
+    padding: 14,
+    alignItems: 'center',
+    gap: 4,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  cashAmountText: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: colors.primaryDark,
+  },
+
+  // Primary success button (cash card)
+  cashPrimaryBtn: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primary,
+    borderRadius: radius.md,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    width: '100%',
+  },
+  cashPrimaryBtnText: {
+    color: colors.white,
+    fontSize: 15,
+    fontWeight: '700',
+  },
 });

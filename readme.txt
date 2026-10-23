@@ -33,11 +33,13 @@ Dán đường dẫn tên miền tĩnh chung của nhóm vào biến EXPO_PUBLIC
 Bước 4: 
 Khởi động Backend, Ngrok và Mobile App:Chạy dự án.
 
-Bật Backend & SQL Server: Mở terminal tại thư mục backend, đảm bảo server đang chạy ở cổng 5000.
+Bật Backend & SQL Server: Mở terminal tại thư mục backend, đảm bảo server đang chạy ở cổng 5000 bằng npm start.
 
 Bật Ngrok Tunnel: Vẫn tại thư mục backend, chạy câu lệnh rút gọn để bật đường hầm:Bash npm run ngrok
 
-Bật Mobile App: Mở terminal tại thư mục mobile, chạy lệnh sau để khởi động Expo kèm chế độ tunnel:Bashnpx expo start -c --tunnel
+Bật Mobile App: Mở terminal tại thư mục mobile, chạy lệnh sau để khởi động Expo kèm chế độ tunnel:npx expo start --tunnel
+
+Admin: npm run dev
 
 Cách kiểm tra: Dùng điện thoại ngắt Wi-Fi nhà chuyển sang 4G/5G, mở app qua Expo Go, quét mã QR và thao tác gọi dữ liệu thành công (đồng thời màn hình backend hiện log request).
 
