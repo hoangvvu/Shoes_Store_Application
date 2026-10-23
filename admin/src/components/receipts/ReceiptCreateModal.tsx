@@ -25,15 +25,33 @@ export function ReceiptCreateModal({ onClose, onSaved }: Props) {
   const [supplierId, setSupplierId] = useState<number | ''>('');
   const [lines, setLines] = useState<DraftLine[]>([]);
   const [selectedVariantId, setSelectedVariantId] = useState<number | ''>('');
+  const [variantSearch, setVariantSearch] = useState('');
   const [qtyInput, setQtyInput] = useState('10');
   const [priceInput, setPriceInput] = useState('500000');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const { data: suppliers, loading: supLoading } = useAsync(() => supplierService.list({ page: 1, size: 100 }), []);
-  const { data: stockData, loading: stLoading } = useAsync(() => inventoryService.list({ page: 1, size: 200 }), []);
+  const { data: suppliers, loading: supLoading, error: supErr } = useAsync(
+    () => supplierService.list({ page: 1, size: 100 }),
+    [],
+  );
+  const { data: stockData, loading: stLoading, error: stErr } = useAsync(
+    () => inventoryService.list({ page: 1, size: 100 }),
+    [],
+  );
 
   const variants = stockData?.items || [];
+  const filteredVariants = variantSearch.trim()
+    ? variants.filter((v: StockItem) => {
+        const term = variantSearch.toLowerCase();
+        return (
+          v.productName.toLowerCase().includes(term) ||
+          v.sku.toLowerCase().includes(term) ||
+          v.colorName.toLowerCase().includes(term) ||
+          v.sizeLabel.toLowerCase().includes(term)
+        );
+      })
+    : variants;
 
   const addLine = () => {
     if (!selectedVariantId) return setError('Vui lòng chọn biến thể cần nhập hàng');
@@ -72,6 +90,24 @@ export function ReceiptCreateModal({ onClose, onSaved }: Props) {
     setQtyInput('10');
   };
 
+  const updateLineQty = (idx: number, newQty: number) => {
+    if (newQty <= 0) return;
+    setLines((prev) => {
+      const next = [...prev];
+      next[idx].quantity = newQty;
+      return next;
+    });
+  };
+
+  const updateLinePrice = (idx: number, newPrice: number) => {
+    if (newPrice < 0) return;
+    setLines((prev) => {
+      const next = [...prev];
+      next[idx].importPrice = newPrice;
+      return next;
+    });
+  };
+
   const removeLine = (idx: number) => {
     setLines((prev) => prev.filter((_, i) => i !== idx));
   };
@@ -104,26 +140,50 @@ export function ReceiptCreateModal({ onClose, onSaved }: Props) {
   return (
     <Modal title="Lập phiếu nhập kho" onClose={onClose} wide>
       <form onSubmit={submit} className="form" noValidate>
-        <LoadState loading={supLoading || stLoading} error="" />
+        <LoadState loading={supLoading || stLoading} error={supErr || stErr} />
 
         <label className="field">
           <span>Nhà cung cấp đối tác *</span>
-          <select className="select" value={supplierId} onChange={(e) => setSupplierId(e.target.value ? Number(e.target.value) : '')} autoFocus>
+          <select
+            className="select"
+            value={supplierId}
+            onChange={(e) => setSupplierId(e.target.value ? Number(e.target.value) : '')}
+            autoFocus
+          >
             <option value="">-- Chọn nhà cung cấp --</option>
             {suppliers?.items.map((s: Supplier) => (
-              <option key={s.supplierId} value={s.supplierId}>{s.supplierName} ({s.phone || 'Chưa có SĐT'})</option>
+              <option key={s.supplierId} value={s.supplierId}>
+                {s.supplierName} ({s.phone || 'Chưa có SĐT'})
+              </option>
             ))}
           </select>
         </label>
 
         <fieldset className="fieldset">
           <legend>Thêm dòng hàng vào phiếu nhập</legend>
+
+          <div style={{ marginBottom: 10 }}>
+            <input
+              type="text"
+              placeholder="🔍 Lọc nhanh theo tên sản phẩm, SKU, size, màu..."
+              value={variantSearch}
+              onChange={(e) => setVariantSearch(e.target.value)}
+              style={{ width: '100%' }}
+            />
+          </div>
+
           <div className="form-grid" style={{ alignItems: 'flex-end' }}>
             <label className="field span-2">
-              <span>Chọn sản phẩm / biến thể (Size × Màu)</span>
-              <select className="select" value={selectedVariantId} onChange={(e) => setSelectedVariantId(e.target.value ? Number(e.target.value) : '')}>
+              <span>
+                Chọn sản phẩm / biến thể ({filteredVariants.length}/{variants.length})
+              </span>
+              <select
+                className="select"
+                value={selectedVariantId}
+                onChange={(e) => setSelectedVariantId(e.target.value ? Number(e.target.value) : '')}
+              >
                 <option value="">-- Chọn biến thể giày --</option>
-                {variants.map((v: StockItem) => (
+                {filteredVariants.map((v: StockItem) => (
                   <option key={v.variantId} value={v.variantId}>
                     {v.sku} · {v.productName} (Size {v.sizeLabel} - {v.colorName}) [Tồn hiện tại: {v.stockQuantity}]
                   </option>
@@ -143,7 +203,9 @@ export function ReceiptCreateModal({ onClose, onSaved }: Props) {
           </div>
 
           <div style={{ marginTop: 10, textAlign: 'right' }}>
-            <button type="button" className="btn btn--primary" onClick={addLine}>+ Thêm vào danh sách</button>
+            <button type="button" className="btn btn--primary" onClick={addLine}>
+              + Thêm vào danh sách
+            </button>
           </div>
         </fieldset>
 
@@ -154,8 +216,8 @@ export function ReceiptCreateModal({ onClose, onSaved }: Props) {
                 <tr>
                   <th>Sản phẩm & Biến thể</th>
                   <th>Mã SKU</th>
-                  <th className="num">SL nhập</th>
-                  <th className="num">Giá nhập</th>
+                  <th className="num" style={{ width: 130 }}>SL nhập</th>
+                  <th className="num" style={{ width: 160 }}>Giá nhập (VND)</th>
                   <th className="num">Thành tiền</th>
                   <th className="actions-col" />
                 </tr>
@@ -163,13 +225,52 @@ export function ReceiptCreateModal({ onClose, onSaved }: Props) {
               <tbody>
                 {lines.map((l, idx) => (
                   <tr key={l.variantId}>
-                    <td>{l.variantLabel}</td>
+                    <td><strong>{l.variantLabel}</strong></td>
                     <td><code>{l.sku}</code></td>
-                    <td className="num font-bold">{formatNumber(l.quantity)}</td>
-                    <td className="num">{formatVnd(l.importPrice)}</td>
-                    <td className="num font-bold">{formatVnd(l.quantity * l.importPrice)}</td>
+                    <td className="num">
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                        <button
+                          type="button"
+                          className="btn btn--ghost"
+                          style={{ padding: '2px 8px', minWidth: 'auto' }}
+                          onClick={() => updateLineQty(idx, l.quantity - 1)}
+                        >
+                          -
+                        </button>
+                        <input
+                          type="number"
+                          min={1}
+                          value={l.quantity}
+                          onChange={(e) => updateLineQty(idx, Math.max(1, Number(e.target.value) || 1))}
+                          style={{ width: 60, textAlign: 'center', padding: '2px 4px' }}
+                        />
+                        <button
+                          type="button"
+                          className="btn btn--ghost"
+                          style={{ padding: '2px 8px', minWidth: 'auto' }}
+                          onClick={() => updateLineQty(idx, l.quantity + 1)}
+                        >
+                          +
+                        </button>
+                      </div>
+                    </td>
+                    <td className="num">
+                      <input
+                        type="number"
+                        min={0}
+                        step={10000}
+                        value={l.importPrice}
+                        onChange={(e) => updateLinePrice(idx, Math.max(0, Number(e.target.value) || 0))}
+                        style={{ width: 120, textAlign: 'right', padding: '2px 6px' }}
+                      />
+                    </td>
+                    <td className="num font-bold" style={{ color: '#059669' }}>
+                      {formatVnd(l.quantity * l.importPrice)}
+                    </td>
                     <td className="actions">
-                      <button type="button" className="btn btn--danger" onClick={() => removeLine(idx)}>Xóa</button>
+                      <button type="button" className="btn btn--danger" onClick={() => removeLine(idx)}>
+                        Xóa
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -193,7 +294,9 @@ export function ReceiptCreateModal({ onClose, onSaved }: Props) {
 
         {error && <p className="form-error" role="alert">{error}</p>}
         <div className="form__actions">
-          <button type="button" className="btn btn--ghost" onClick={onClose}>Hủy</button>
+          <button type="button" className="btn btn--ghost" onClick={onClose}>
+            Hủy
+          </button>
           <button type="submit" className="btn btn--primary" disabled={saving || lines.length === 0}>
             {saving ? 'Đang lưu phiếu…' : 'Xác nhận nhập kho'}
           </button>

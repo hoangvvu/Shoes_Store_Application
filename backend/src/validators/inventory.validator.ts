@@ -45,9 +45,12 @@ export const receiptListQuery = paginationQuery.extend({
   from: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, 'from phải là YYYY-MM-DD').optional(),
   to: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, 'to phải là YYYY-MM-DD').optional(),
   supplierId: z.coerce.number().int().positive().optional(),
+  status: z.enum(['ALL', 'ACTIVE', 'DELETED']).default('ALL').optional(),
 });
 
-export const stockListQuery = paginationQuery.extend({
+export const stockListQuery = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  size: z.coerce.number().int().min(1).max(500).default(10),
   q: z.string().trim().optional(),
   lowStockOnly: z
     .string()

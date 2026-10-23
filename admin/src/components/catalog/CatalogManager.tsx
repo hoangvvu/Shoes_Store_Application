@@ -111,7 +111,6 @@ export function CatalogManager() {
     <>
       <PageHeader
         title="Thuộc tính sản phẩm & Danh mục"
-        subtitle="Quản lý danh mục, thương hiệu, kích thước (size) và bảng màu"
         actions={
           <button className="btn btn--primary" onClick={() => setModal({ kind: tab })}>
             + Thêm {tab === 'categories' ? 'danh mục' : tab === 'brands' ? 'thương hiệu' : tab === 'sizes' ? 'kích cỡ' : 'màu sắc'}
@@ -138,10 +137,10 @@ export function CatalogManager() {
               tab === 'categories'
                 ? 'Tìm kiếm danh mục theo tên hoặc mã…'
                 : tab === 'brands'
-                ? 'Tìm kiếm thương hiệu theo tên hoặc mã…'
-                : tab === 'sizes'
-                ? 'Tìm kiếm size/kích cỡ…'
-                : 'Tìm kiếm bảng màu theo tên hoặc mã hex…'
+                  ? 'Tìm kiếm thương hiệu theo tên hoặc mã…'
+                  : tab === 'sizes'
+                    ? 'Tìm kiếm size/kích cỡ…'
+                    : 'Tìm kiếm bảng màu theo tên hoặc mã hex…'
             }
             value={draft.q}
             onChange={set('q')}
@@ -343,9 +342,8 @@ function CatalogItemModal({ kind, item, onClose, onSaved }: ItemModalProps) {
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const title = `${isEdit ? 'Sửa' : 'Thêm'} ${
-    kind === 'categories' ? 'danh mục' : kind === 'brands' ? 'thương hiệu' : kind === 'sizes' ? 'kích cỡ (size)' : 'màu sắc'
-  }`;
+  const title = `${isEdit ? 'Sửa' : 'Thêm'} ${kind === 'categories' ? 'danh mục' : kind === 'brands' ? 'thương hiệu' : kind === 'sizes' ? 'kích cỡ (size)' : 'màu sắc'
+    }`;
 
   async function submit(e: FormEvent) {
     e.preventDefault();

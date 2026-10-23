@@ -35,23 +35,26 @@ const EMPLOYEE_NAME = `LTRIM(RTRIM(CONCAT(e.last_name, N' ', e.first_name)))`;
 
 export const receiptRepository = {
   async list(
-    p: { from?: string; to?: string; supplierId?: number; page: number; size: number },
+    p: { from?: string; to?: string; supplierId?: number; status?: 'ALL' | 'ACTIVE' | 'DELETED'; page: number; size: number },
     exec?: Executor,
   ): Promise<{ rows: ReceiptListItemRow[]; total: number }> {
     const offset = (p.page - 1) * p.size;
     const fromDate = p.from ? new Date(`${p.from}T00:00:00.000Z`) : null;
     const toDate = p.to ? new Date(`${p.to}T23:59:59.999Z`) : null;
+    const isDeleted = p.status === 'ACTIVE' ? 0 : p.status === 'DELETED' ? 1 : null;
 
     const countRes = await query<{ total: number }>(
       `SELECT COUNT(*) AS total
        FROM purchase_receipts r
        WHERE (@supId IS NULL OR r.supplier_id = @supId)
          AND (@from IS NULL OR r.receipt_date >= @from)
-         AND (@to IS NULL OR r.receipt_date <= @to)`,
+         AND (@to IS NULL OR r.receipt_date <= @to)
+         AND (@isDel IS NULL OR r.is_deleted = @isDel)`,
       {
         supId: [sql.Int, p.supplierId ?? null],
         from: [sql.DateTime2, fromDate],
         to: [sql.DateTime2, toDate],
+        isDel: [sql.Bit, isDeleted],
       },
       exec,
     );
@@ -71,6 +74,7 @@ export const receiptRepository = {
        WHERE (@supId IS NULL OR r.supplier_id = @supId)
          AND (@from IS NULL OR r.receipt_date >= @from)
          AND (@to IS NULL OR r.receipt_date <= @to)
+         AND (@isDel IS NULL OR r.is_deleted = @isDel)
        GROUP BY r.receipt_id, r.receipt_date, r.total_amount, r.supplier_id,
                 s.supplier_name, r.employee_id, e.last_name, e.first_name, r.is_deleted
        ORDER BY r.receipt_id DESC
@@ -79,6 +83,7 @@ export const receiptRepository = {
         supId: [sql.Int, p.supplierId ?? null],
         from: [sql.DateTime2, fromDate],
         to: [sql.DateTime2, toDate],
+        isDel: [sql.Bit, isDeleted],
         offset: [sql.Int, offset],
         size: [sql.Int, p.size],
       },
@@ -193,6 +198,24 @@ export const receiptRepository = {
       `UPDATE purchase_receipts SET is_deleted = 1, deleted_at = SYSUTCDATETIME()
        WHERE receipt_id = @id AND is_deleted = 0`,
       { id: [sql.Int, receiptId] },
+      exec,
+    );
+  },
+
+  async recordCancelAudit(
+    receiptId: number,
+    userId: number,
+    reason: string,
+    exec?: Executor,
+  ): Promise<void> {
+    await query(
+      `INSERT INTO audit_logs (actor_user_id, action_type, entity_type, entity_id, old_values, new_values, reason)
+       VALUES (@uid, 'RECEIPT_CANCEL', 'purchase_receipts', @id, '{\"is_deleted\":0}', '{\"is_deleted\":1}', @reason)`,
+      {
+        uid: [sql.Int, userId],
+        id: [sql.NVarChar(100), String(receiptId)],
+        reason: [sql.NVarChar(500), reason],
+      },
       exec,
     );
   },

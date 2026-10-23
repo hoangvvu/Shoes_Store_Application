@@ -50,6 +50,7 @@ export interface ReceiptListParams {
   from?: string;
   to?: string;
   supplierId?: number;
+  status?: 'ALL' | 'ACTIVE' | 'DELETED';
   page: number;
   size: number;
 }

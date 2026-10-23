@@ -74,7 +74,6 @@ export function ProductManager({ basePath, canEdit = true }: Props) {
     <>
       <PageHeader
         title="Sản phẩm & Biến thể"
-        subtitle="Danh mục giày, giá bán, tổng tồn kho và các biến thể kích thước / màu sắc"
         actions={canEdit ? (
           <button className="btn btn--primary" onClick={() => setModal({})}>+ Thêm sản phẩm</button>
         ) : undefined}

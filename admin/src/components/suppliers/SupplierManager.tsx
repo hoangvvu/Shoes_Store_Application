@@ -46,7 +46,6 @@ export function SupplierManager({ canDelete = true }: Props) {
     <>
       <PageHeader
         title="Nhà cung cấp"
-        subtitle="Danh bạ đối tác cung ứng giày và vật tư nhập kho"
         actions={<button className="btn btn--primary" onClick={() => setModal({})}>+ Thêm nhà cung cấp</button>}
       />
 

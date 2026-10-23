@@ -48,24 +48,24 @@ export function ReportsManager({ role }: Props) {
   const availableTabs: { key: ReportKey; label: string }[] =
     role === 'ADMIN'
       ? [
-          { key: 'revenue', label: 'Doanh thu thuần' },
-          { key: 'top-products', label: 'Sản phẩm bán chạy' },
-          { key: 'orders', label: 'Trạng thái đơn hàng' },
-          { key: 'inventory-movement', label: 'Nhập – Xuất – Tồn' },
-          { key: 'stock', label: 'Cảnh báo tồn kho' },
-          { key: 'top-customers', label: 'Khách hàng thân thiết' },
-          { key: 'employees', label: 'Doanh số nhân viên' },
-          { key: 'returns', label: 'Tỷ lệ đổi trả' },
-        ]
+        { key: 'revenue', label: 'Doanh thu thuần' },
+        { key: 'top-products', label: 'Sản phẩm bán chạy' },
+        { key: 'orders', label: 'Trạng thái đơn hàng' },
+        { key: 'inventory-movement', label: 'Nhập – Xuất – Tồn' },
+        { key: 'stock', label: 'Cảnh báo tồn kho' },
+        { key: 'top-customers', label: 'Khách hàng thân thiết' },
+        { key: 'employees', label: 'Doanh số nhân viên' },
+        { key: 'returns', label: 'Tỷ lệ đổi trả' },
+      ]
       : role === 'WAREHOUSE'
         ? [
-            { key: 'inventory-movement', label: 'Nhập – Xuất – Tồn' },
-            { key: 'stock', label: 'Cảnh báo tồn kho' },
-          ]
+          { key: 'inventory-movement', label: 'Nhập – Xuất – Tồn' },
+          { key: 'stock', label: 'Cảnh báo tồn kho' },
+        ]
         : [
-            { key: 'top-products', label: 'Sản phẩm bán chạy' },
-            { key: 'orders', label: 'Tình trạng đơn hàng' },
-          ];
+          { key: 'top-products', label: 'Sản phẩm bán chạy' },
+          { key: 'orders', label: 'Tình trạng đơn hàng' },
+        ];
 
   const range = useMemo(() => ({ from: applied.from, to: applied.to }), [applied.from, applied.to]);
 
@@ -220,7 +220,6 @@ export function ReportsManager({ role }: Props) {
     <>
       <PageHeader
         title="Báo cáo & Thống kê kinh doanh"
-        subtitle="Tổng hợp chỉ số doanh thu thuần, xuất kho, hàng tồn và hiệu suất vận hành hệ thống"
         actions={
           <button className="btn btn--primary" onClick={handleExportExcel} disabled={exporting}>
             {exporting ? 'Đang xuất tệp…' : '📥 Xuất báo cáo Excel'}
@@ -448,10 +447,10 @@ export function ReportsManager({ role }: Props) {
                           idx === 0
                             ? 'badge badge--ok'
                             : idx === 1
-                            ? 'badge badge--warning'
-                            : idx === 2
-                            ? 'badge badge--muted'
-                            : 'badge badge--muted';
+                              ? 'badge badge--warning'
+                              : idx === 2
+                                ? 'badge badge--muted'
+                                : 'badge badge--muted';
 
                         return (
                           <tr key={p.productId}>

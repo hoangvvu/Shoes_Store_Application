@@ -74,7 +74,6 @@ export function CustomerManager({ basePath, canDelete }: Props) {
     <>
       <PageHeader
         title="Khách hàng"
-        subtitle="Danh sách và thông tin khách hàng"
         actions={<button className="btn btn--primary" onClick={() => setModal({})}>+ Thêm khách tại quầy</button>}
       />
 

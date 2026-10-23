@@ -63,10 +63,9 @@ export function EmployeeManager({ basePath }: { basePath: string }) {
     <>
       <PageHeader
         title="Nhân viên & tài khoản"
-        subtitle="Hồ sơ, lương cơ bản, vai trò, hiệu suất và trạng thái tài khoản nhân viên"
         actions={
           <div style={{ display: 'flex', gap: 10 }}>
-            <Link to="/admin/reports" className="btn btn--ghost">📈 Báo cáo doanh số</Link>
+            <Link to="/admin/reports" className="btn btn--ghost">Báo cáo doanh số</Link>
             <button className="btn btn--primary" onClick={() => setModal({})}>+ Thêm nhân viên</button>
           </div>
         }

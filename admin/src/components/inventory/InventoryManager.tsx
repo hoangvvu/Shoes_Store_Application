@@ -57,7 +57,6 @@ export function InventoryManager({ canAdjust = true }: Props) {
     <>
       <PageHeader
         title="Tồn kho & Thẻ kho"
-        subtitle="Theo dõi số lượng thực tế theo từng biến thể kích cỡ / màu sắc và kiểm kê điều chỉnh"
         actions={
           lowStockItems && lowStockItems.length > 0 ? (
             <button
