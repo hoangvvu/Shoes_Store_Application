@@ -1,14 +1,10 @@
 import { query, sql, type Executor } from '../config/database';
+import type { PaymentMethodRow, PaymentRow, RefundRow } from '../types/payment.types';
+
+/** Giữ re-export để các file cũ import kiểu từ repository vẫn chạy; có thể bỏ sau khi đổi import. */
+export type { PaymentMethodRow, PaymentRow, RefundRow } from '../types/payment.types';
 
 // ─── Payment Methods ──────────────────────────────────────────────────────────
-
-export interface PaymentMethodRow {
-  methodId: number;
-  methodCode: string;
-  methodName: string;
-  isOnline: boolean;
-  isActive: boolean;
-}
 
 export const paymentMethodRepository = {
   async listActive(exec?: Executor): Promise<PaymentMethodRow[]> {
@@ -82,20 +78,6 @@ export const paymentMethodRepository = {
 };
 
 // ─── Payments ─────────────────────────────────────────────────────────────────
-
-export interface PaymentRow {
-  paymentId: number;
-  invoiceId: number;
-  methodCode: string;
-  methodName: string;
-  amount: number;
-  status: 'PENDING' | 'SUCCESS' | 'FAILED';
-  transactionCode: string | null;
-  proofUrl: string | null;
-  note: string | null;
-  paidAt: Date | null;
-  createdAt: Date;
-}
 
 export const paymentRepository = {
   /** Lấy tất cả giao dịch của một hóa đơn (dùng cho trang chi tiết đơn). */
@@ -235,18 +217,6 @@ export const paymentRepository = {
 };
 
 // ─── Refunds ──────────────────────────────────────────────────────────────────
-
-export interface RefundRow {
-  refundId: number;
-  paymentId: number;
-  amount: number;
-  reason: string;
-  status: 'PENDING' | 'SUCCESS' | 'REJECTED';
-  transactionCode: string | null;
-  processedAt: Date | null;
-  processedBy: number | null;
-  createdAt: Date;
-}
 
 export const refundRepository = {
   async listByPayment(paymentId: number, exec?: Executor): Promise<RefundRow[]> {

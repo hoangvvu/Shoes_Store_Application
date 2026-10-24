@@ -14,6 +14,9 @@ import AdminEmployeesPage from '../pages/admin/AdminEmployeesPage';
 import AdminHomePage from '../pages/admin/AdminHomePage';
 import AdminInventoryPage from '../pages/admin/AdminInventoryPage';
 import AdminReviewsPage from '../pages/admin/AdminReviewsPage';
+import AdminInvoiceDetailPage from '../pages/admin/AdminInvoiceDetailPage';
+import AdminInvoicesPage from '../pages/admin/AdminInvoicesPage';
+import AdminPosPage from '../pages/admin/AdminPosPage';
 import AdminOrderDetailPage from '../pages/admin/AdminOrderDetailPage';
 import AdminOrdersPage from '../pages/admin/AdminOrdersPage';
 import AdminProductDetailPage from '../pages/admin/AdminProductDetailPage';
@@ -26,6 +29,9 @@ import AdminSuppliersPage from '../pages/admin/AdminSuppliersPage';
 import SalesCustomerDetailPage from '../pages/sales/SalesCustomerDetailPage';
 import SalesCustomersPage from '../pages/sales/SalesCustomersPage';
 import SalesHomePage from '../pages/sales/SalesHomePage';
+import SalesInvoiceDetailPage from '../pages/sales/SalesInvoiceDetailPage';
+import SalesInvoicesPage from '../pages/sales/SalesInvoicesPage';
+import SalesPosPage from '../pages/sales/SalesPosPage';
 import SalesReviewsPage from '../pages/sales/SalesReviewsPage';
 import SalesOrderDetailPage from '../pages/sales/SalesOrderDetailPage';
 import SalesOrdersPage from '../pages/sales/SalesOrdersPage';
@@ -64,11 +70,14 @@ export function AppRoutes() {
           <Route path="employees/:id" element={<AdminEmployeeDetailPage />} />
           <Route path="customers" element={<AdminCustomersPage />} />
           <Route path="customers/:id" element={<AdminCustomerDetailPage />} />
+          <Route path="pos" element={<AdminPosPage />} />
           <Route path="orders" element={<AdminOrdersPage />} />
           <Route path="orders/:id" element={<AdminOrderDetailPage />} />
+          <Route path="invoices" element={<AdminInvoicesPage />} />
+          <Route path="invoices/:id" element={<AdminInvoiceDetailPage />} />
           <Route path="products" element={<AdminProductsPage />} />
           <Route path="products/:id" element={<AdminProductDetailPage />} />
-          <Route path="catalog" element={<AdminCatalogPage />} />
+          <Route path="catalog" element={<AdminCatalogPage />} /> {/* <-- Bổ sung dòng này */}
           <Route path="reviews" element={<AdminReviewsPage />} />
           <Route path="suppliers" element={<AdminSuppliersPage />} />
           <Route path="receipts" element={<AdminReceiptsPage />} />
@@ -85,10 +94,13 @@ export function AppRoutes() {
           <Route index element={<SalesHomePage />} />
           <Route path="customers" element={<SalesCustomersPage />} />
           <Route path="customers/:id" element={<SalesCustomerDetailPage />} />
+          <Route path="pos" element={<SalesPosPage />} />
           <Route path="orders" element={<SalesOrdersPage />} />
           <Route path="orders/:id" element={<SalesOrderDetailPage />} />
-          <Route path="products" element={<SalesProductsPage />} />
-          <Route path="products/:id" element={<SalesProductDetailPage />} />
+          <Route path="invoices" element={<SalesInvoicesPage />} />
+          <Route path="invoices/:id" element={<SalesInvoiceDetailPage />} />
+          <Route path="products" element={<SalesProductsPage />} />             {/* <-- Bổ sung dòng này */}
+          <Route path="products/:id" element={<SalesProductDetailPage />} />     {/* <-- Bổ sung dòng này */}
           <Route path="reviews" element={<SalesReviewsPage />} />
           <Route path="reports" element={<SalesReportsPage />} />
           <Route path="profile" element={<ProfilePage />} />

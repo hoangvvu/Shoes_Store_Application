@@ -1,20 +1,8 @@
 import { query, sql, type Executor } from '../config/database';
+import type { CartItemRow } from '../types/cart.types';
 
-export type Availability = 'OK' | 'OUT_OF_STOCK' | 'INSUFFICIENT_STOCK' | 'UNAVAILABLE';
-
-export interface CartItemRow {
-  variantId: number;
-  productId: number;
-  productName: string;
-  imageUrl: string | null;
-  sku: string;
-  sizeLabel: string;
-  colorName: string;
-  quantity: number;
-  unitPrice: number;
-  stockQuantity: number;
-  availability: Availability;
-}
+/** Giữ re-export để các file cũ import kiểu từ repository vẫn chạy; có thể bỏ sau khi đổi import. */
+export type { Availability, CartItemRow } from '../types/cart.types';
 
 export const cartRepository = {
   async findActiveCartId(customerId: number, exec?: Executor): Promise<number | null> {

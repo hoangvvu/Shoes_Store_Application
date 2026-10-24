@@ -4,7 +4,7 @@ interface Props {
   title: string;
   onClose: () => void;
   children: ReactNode;
-  /** Modal rộng hơn cho biểu mẫu 2 cột. */
+  /** Hộp thoại rộng (danh sách, hóa đơn…). */
   wide?: boolean;
 }
 
@@ -17,7 +17,7 @@ export function Modal({ title, onClose, children, wide }: Props) {
 
   return (
     <div className="modal-overlay" onMouseDown={onClose}>
-      <div className={`modal ${wide ? 'modal--wide' : ''}`} role="dialog" aria-modal="true" aria-label={title} onMouseDown={(e) => e.stopPropagation()}>
+      <div className={wide ? 'modal modal--wide' : 'modal'} role="dialog" aria-modal="true" aria-label={title} onMouseDown={(e) => e.stopPropagation()}>
         <h2 className="modal__title">{title}</h2>
         {children}
       </div>

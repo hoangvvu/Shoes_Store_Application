@@ -11,7 +11,7 @@ import type { AuthUser } from '../types/express';
 import { toPaged } from '../utils/pagination';
 import { setActor } from '../utils/session';
 import { isDuplicateKey } from '../utils/sqlError';
-import type { CreateOrderInput, LineInput, MyOrdersQuery, OrderListQuery, PosOrderInput } from '../validators/order.validator';
+import type { CreateOrderInput, LineInput, MyOrdersQuery, OrderListQuery, PosOrderInput, PosPreviewInput } from '../validators/order.validator';
 import { cartService } from './cart.service';
 import { renderOrderHtml } from './orderPrint.service';
 import { VOUCHER_MESSAGE, computeInvoiceDiscount, priceLines, type PricedLine } from './pricing.service';
@@ -191,10 +191,11 @@ export const orderService = {
     if (auth.role === ROLES.CUSTOMER && order.customerId !== auth.customerId) throw NOT_FOUND();
     if (auth.role !== ROLES.CUSTOMER && !isStaff(auth)) throw AppError.forbidden();
 
-    const [items, history, payments] = await Promise.all([
+    const [items, history, payments, refunds] = await Promise.all([
       orderRepository.listLines(invoiceId),
       orderRepository.listHistory(invoiceId),
       orderPaymentRepository.listByInvoice(invoiceId),
+      orderPaymentRepository.listRefundsByInvoice(invoiceId),
     ]);
     const isCustomer = auth.role === ROLES.CUSTOMER;
     return {
@@ -204,6 +205,7 @@ export const orderService = {
       items,
       history,
       payments,
+      refunds: isCustomer ? [] : refunds, // lý do/người xử lý hoàn tiền chỉ dành cho nhân viên
       canCancel: isCustomer ? order.orderStatus === 'PENDING' : CANCELLABLE.includes(order.orderStatus),
       canEdit: !isCustomer && order.orderStatus === 'PENDING',
     };
@@ -363,6 +365,38 @@ export const orderService = {
 
   /* ===================== POS ===================== */
 
+  /** Xem trước giỏ POS: giá, khuyến mãi sản phẩm, giảm giá hóa đơn/voucher, cảnh báo tồn kho; không ghi gì vào CSDL. */
+  async previewPos(input: PosPreviewInput) {
+    const { priced, unavailable } = await priceLines(input.items);
+    const total = priced.reduce((sum, l) => sum + l.lineTotal, 0);
+    const disc = await computeInvoiceDiscount(total, input.voucherCode);
+    const issues = [
+      ...unavailable.map((u) => ({ variantId: u.variantId, productName: null as string | null, availability: 'UNAVAILABLE', message: 'Sản phẩm không tồn tại hoặc đã ngừng kinh doanh' })),
+      ...priced
+        .filter((l) => l.stockQuantity < l.quantity)
+        .map((l) => ({
+          variantId: l.variantId, productName: l.productName,
+          availability: l.stockQuantity === 0 ? 'OUT_OF_STOCK' : 'INSUFFICIENT_STOCK',
+          message: l.stockQuantity === 0 ? 'Sản phẩm đã hết hàng' : `Kho chỉ còn ${l.stockQuantity} sản phẩm`,
+        })),
+    ];
+    return {
+      items: priced.map((l) => ({
+        variantId: l.variantId, productId: l.productId, productName: l.productName, imageUrl: l.imageUrl, sku: l.sku,
+        sizeLabel: l.sizeLabel, colorName: l.colorName, quantity: l.quantity, unitPrice: l.unitPrice,
+        discountPercent: l.discountPercent, lineDiscount: l.lineDiscount, lineTotal: l.lineTotal, stockQuantity: l.stockQuantity,
+      })),
+      totalAmount: total,
+      invoiceDiscountPercent: disc.percent,
+      invoiceDiscountSource: disc.source,
+      discountAmount: disc.amount,
+      amountPayable: total - disc.amount,
+      voucher: input.voucherCode ? { code: input.voucherCode, status: disc.voucherStatus, message: VOUCHER_MESSAGE[disc.voucherStatus] } : null,
+      issues,
+      canCheckout: priced.length > 0 && issues.length === 0 && !(input.voucherCode && (disc.voucherStatus === 'NOT_FOUND' || disc.voucherStatus === 'EXHAUSTED')),
+    };
+  },
+
   /** Bán tại quầy: tạo đơn POS, thu tiền, rồi PENDING → DELIVERED (trừ kho) trong 1 transaction. */
   async createPos(auth: AuthUser, input: PosOrderInput) {
     if (!auth.employeeId) throw AppError.forbidden();
@@ -392,11 +426,22 @@ export const orderService = {
       );
       const { payable } = await writeLinesAndDiscount(tx, invoiceId, priced, input.voucherCode, { strictVoucher: true });
 
-      if (input.amountReceived !== undefined) {
+      // Tiền thừa chỉ có nghĩa với tiền mặt; phương thức khác thu đúng số phải trả
+      if (method.methodCode === 'CASH' && input.amountReceived !== undefined) {
         if (input.amountReceived < payable) throw AppError.badRequest('Tiền khách đưa chưa đủ', 'AMOUNT_RECEIVED_TOO_LOW');
         change = input.amountReceived - payable;
       }
-      if (payable > 0) await orderPaymentRepository.createSuccess(invoiceId, method.methodId, payable, tx);
+      if (payable > 0) {
+        try {
+          const txnCode = method.methodCode === 'CASH' ? null : (input.transactionCode ?? null);
+          await orderPaymentRepository.createSuccess(invoiceId, method.methodId, payable, tx, txnCode);
+        } catch (err) {
+          if (isDuplicateKey(err, 'uq_payments_txn')) {
+            throw AppError.conflict('Mã giao dịch này đã được dùng cho một thanh toán khác', 'TRANSACTION_CODE_DUPLICATE');
+          }
+          throw err;
+        }
+      }
 
       // Chuyển thẳng PENDING → DELIVERED (chỉ kênh POS được phép); trigger trừ kho, thiếu hàng thì ROLLBACK cả đơn
       await orderRepository.changeStatus({ invoiceId, newStatus: 'DELIVERED', userId: auth.userId, note: 'Bán tại quầy' }, tx);

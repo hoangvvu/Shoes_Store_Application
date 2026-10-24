@@ -1,83 +1,10 @@
 import { query, sql, type Executor, type Param } from '../config/database';
 import type { Channel, OrderStatus } from '../constants/order.constant';
 import { searchPattern, unaccent } from '../utils/search';
+import type { OrderListRow, InvoiceSummary, OrderRow, OrderLineRow, HistoryRow, SaleVariantRow, ListFilter } from '../types/order.types';
 
-export interface OrderListRow {
-  invoiceId: number;
-  invoiceDate: Date;
-  channel: Channel;
-  orderStatus: OrderStatus;
-  customerId: number | null;
-  customerName: string | null;
-  employeeName: string | null;
-  totalAmount: number;
-  discountAmount: number;
-  amountPayable: number;
-  paymentStatus: string;
-}
-
-export interface OrderRow extends OrderListRow {
-  customerPhone: string | null;
-  employeeId: number | null;
-  receiverName: string | null;
-  receiverPhone: string | null;
-  shippingAddress: string | null;
-  promotionId: number | null;
-  promotionName: string | null;
-  voucherCode: string | null;
-  stockDeducted: boolean;
-  note: string | null;
-  paidAmount: number;
-  refundedAmount: number;
-}
-
-export interface OrderLineRow {
-  variantId: number;
-  productId: number;
-  productName: string;
-  imageUrl: string | null;
-  sku: string;
-  sizeLabel: string;
-  colorName: string;
-  quantity: number;
-  salePrice: number;
-  discountAmount: number;
-  lineTotal: number;
-}
-
-export interface HistoryRow {
-  historyId: number;
-  oldStatus: OrderStatus | null;
-  newStatus: OrderStatus;
-  changedAt: Date;
-  changedByName: string | null;
-  note: string | null;
-}
-
-export interface SaleVariantRow {
-  variantId: number;
-  productId: number;
-  productName: string;
-  imageUrl: string | null;
-  sku: string;
-  sizeLabel: string;
-  colorName: string;
-  unitPrice: number;
-  stockQuantity: number;
-  sellable: boolean;
-}
-
-export interface ListFilter {
-  status?: string;
-  channel?: string;
-  from?: Date;
-  to?: Date;
-  customerId?: number;
-  employeeId?: number;
-  q?: string;
-  page: number;
-  size: number;
-}
+/** Giữ re-export để các file cũ import kiểu từ repository vẫn chạy; có thể bỏ sau khi đổi import. */
+export type { OrderListRow, InvoiceSummary, OrderRow, OrderLineRow, HistoryRow, SaleVariantRow, ListFilter } from '../types/order.types';
 
 const VN_OFFSET_MS = 7 * 3600 * 1000; // ngày lọc theo giờ GMT+7, dữ liệu lưu UTC
 
@@ -92,7 +19,8 @@ const ORDER_COLS = `
   i.invoice_id AS invoiceId, i.invoice_date AS invoiceDate, i.channel, i.order_status AS orderStatus,
   i.customer_id AS customerId, COALESCE(${CUSTOMER_NAME}, i.receiver_name) AS customerName, ${EMPLOYEE_NAME} AS employeeName,
   i.total_amount AS totalAmount, i.discount_amount AS discountAmount, i.amount_payable AS amountPayable,
-  ISNULL(ps.payment_status, 'UNPAID') AS paymentStatus`;
+  ISNULL(ps.payment_status, 'UNPAID') AS paymentStatus,
+  ISNULL(ps.paid_amount, 0) AS paidAmount, ISNULL(ps.refunded_amount, 0) AS refundedAmount`;
 
 const ORDER_FROM = `
   FROM invoices i
@@ -255,13 +183,18 @@ export const orderRepository = {
   async findOrder(invoiceId: number, exec?: Executor): Promise<OrderRow | null> {
     const r = await query<OrderRow>(
       `SELECT ${ORDER_COLS},
-              c.phone AS customerPhone, i.employee_id AS employeeId, i.receiver_name AS receiverName,
+              c.phone AS customerPhone, ca.fullAddress AS customerAddress, i.employee_id AS employeeId, i.receiver_name AS receiverName,
               i.receiver_phone AS receiverPhone, i.shipping_address AS shippingAddress,
               i.promotion_id AS promotionId, pr.promotion_name AS promotionName, i.voucher_code AS voucherCode,
-              i.stock_deducted AS stockDeducted, i.note,
-              ISNULL(ps.paid_amount, 0) AS paidAmount, ISNULL(ps.refunded_amount, 0) AS refundedAmount
+              i.stock_deducted AS stockDeducted, i.note
        ${ORDER_FROM}
        LEFT JOIN promotions pr ON pr.promotion_id = i.promotion_id
+       OUTER APPLY (
+         SELECT TOP 1 CONCAT(a.street_detail, N', ', a.ward, N', ', a.district, N', ', a.province) AS fullAddress
+         FROM customer_addresses a
+         WHERE a.customer_id = i.customer_id AND a.is_deleted = 0
+         ORDER BY a.is_default DESC, a.address_id
+       ) ca
        WHERE i.invoice_id = @invoiceId AND i.is_deleted = 0`,
       { invoiceId: [sql.Int, invoiceId] },
       exec,
@@ -302,7 +235,10 @@ export const orderRepository = {
     return r.recordset;
   },
 
-  async list(f: ListFilter, exec?: Executor): Promise<{ rows: OrderListRow[]; total: number }> {
+  async list(
+    f: ListFilter,
+    exec?: Executor,
+  ): Promise<{ rows: OrderListRow[]; total: number; summary?: InvoiceSummary }> {
     const qNum = f.q && /^\d{1,9}$/.test(f.q) ? Number(f.q) : null;
     const params: Record<string, Param> = {
       status: [sql.VarChar(10), f.status ?? null],
@@ -313,7 +249,10 @@ export const orderRepository = {
       toUtc: [sql.DateTime2(3), f.to ? new Date(f.to.getTime() + 24 * 3600 * 1000 - VN_OFFSET_MS) : null],
       pattern: [sql.NVarChar(210), f.q ? searchPattern(f.q) : null],
       qId: [sql.Int, qNum],
+      inv: [sql.VarChar(20), f.invoice ?? null],
     };
+    // Hóa đơn = (đã giao + đã thanh toán đủ) HOẶC đã có hoàn tiền. Hoàn thành và hoàn tiền là hai trạng thái tách biệt.
+    const PAY = `ISNULL(ps.payment_status, 'UNPAID')`;
     const where = `i.is_deleted = 0
       AND (@status IS NULL OR i.order_status = @status)
       AND (@channel IS NULL OR i.channel = @channel)
@@ -321,16 +260,35 @@ export const orderRepository = {
       AND (@employeeId IS NULL OR i.employee_id = @employeeId)
       AND (@fromUtc IS NULL OR i.invoice_date >= @fromUtc)
       AND (@toUtc IS NULL OR i.invoice_date < @toUtc)
-      AND (@pattern IS NULL OR i.invoice_id = @qId OR ${unaccent(CUSTOMER_NAME)} LIKE @pattern ESCAPE '\\' OR ${unaccent('i.receiver_name')} LIKE @pattern ESCAPE '\\' OR ${unaccent('c.phone')} LIKE @pattern ESCAPE '\\')`;
+      AND (@pattern IS NULL OR i.invoice_id = @qId OR ${unaccent(CUSTOMER_NAME)} LIKE @pattern ESCAPE '\\' OR ${unaccent('i.receiver_name')} LIKE @pattern ESCAPE '\\' OR ${unaccent('c.phone')} LIKE @pattern ESCAPE '\\')
+      AND (@inv IS NULL
+           OR (@inv IN ('ANY', 'COMPLETED') AND i.order_status = 'DELIVERED' AND ${PAY} = 'PAID')
+           OR (@inv IN ('ANY', 'PARTIALLY_REFUNDED') AND ${PAY} = 'PARTIALLY_REFUNDED')
+           OR (@inv IN ('ANY', 'REFUNDED') AND ${PAY} = 'REFUNDED'))`;
 
-    const count = await query<{ total: number }>(`SELECT COUNT(*) AS total ${ORDER_FROM} WHERE ${where}`, params, exec);
+    const count = await query<{ total: number; paid: number; refunded: number }>(
+      `SELECT COUNT(*) AS total, ISNULL(SUM(ps.paid_amount), 0) AS paid, ISNULL(SUM(ps.refunded_amount), 0) AS refunded
+       ${ORDER_FROM} WHERE ${where}`,
+      params,
+      exec,
+    );
     const rows = await query<OrderListRow>(
       `SELECT ${ORDER_COLS} ${ORDER_FROM} WHERE ${where}
        ORDER BY i.invoice_id DESC OFFSET @offset ROWS FETCH NEXT @size ROWS ONLY`,
       { ...params, offset: [sql.Int, (f.page - 1) * f.size], size: [sql.Int, f.size] },
       exec,
     );
-    return { rows: rows.recordset, total: count.recordset[0].total };
+    const c = count.recordset[0];
+    const out: { rows: OrderListRow[]; total: number; summary?: InvoiceSummary } = {
+      rows: rows.recordset.map((r) => ({ ...r, paidAmount: Number(r.paidAmount), refundedAmount: Number(r.refundedAmount) })),
+      total: c.total,
+    };
+    if (f.invoice) {
+      const paidTotal = Number(c.paid);
+      const refundedTotal = Number(c.refunded);
+      out.summary = { count: c.total, paidTotal, refundedTotal, netTotal: paidTotal - refundedTotal };
+    }
+    return out;
   },
 
   /** Thông tin biến thể để bán: giá hiện hành, tồn kho, còn kinh doanh hay không. Giá luôn lấy từ products.current_price. */

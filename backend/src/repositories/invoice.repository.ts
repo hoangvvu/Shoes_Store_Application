@@ -1,12 +1,8 @@
 import { query, sql, type Executor } from '../config/database';
+import type { RecentOrderRow } from '../types/invoice.types';
 
-export interface RecentOrderRow {
-  invoiceId: number;
-  invoiceDate: Date;
-  channel: 'ONLINE' | 'POS';
-  orderStatus: string;
-  amountPayable: number;
-}
+/** Giữ re-export để các file cũ import kiểu từ repository vẫn chạy; có thể bỏ sau khi đổi import. */
+export type { RecentOrderRow } from '../types/invoice.types';
 
 /** Mới chứa phần M2 cần; M8 sẽ mở rộng repository này. */
 export const invoiceRepository = {

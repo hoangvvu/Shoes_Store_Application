@@ -1,35 +1,8 @@
 import { query, sql, type Executor } from '../config/database';
+import type { ReceiptListItemRow, ReceiptDetailRow, ReceiptLineRow } from '../types/receipt.types';
 
-export interface ReceiptListItemRow {
-  receiptId: number;
-  receiptDate: Date;
-  totalAmount: number;
-  supplierId: number;
-  supplierName: string;
-  employeeId: number;
-  employeeName: string;
-  itemCount: number;
-  totalQuantity: number;
-  isDeleted: boolean;
-}
-
-export interface ReceiptDetailRow extends ReceiptListItemRow {
-  supplierPhone: string | null;
-  supplierEmail: string | null;
-  supplierAddress: string | null;
-}
-
-export interface ReceiptLineRow {
-  variantId: number;
-  sku: string;
-  productName: string;
-  sizeLabel: string;
-  colorName: string;
-  unit: string;
-  quantity: number;
-  importPrice: number;
-  lineTotal: number;
-}
+/** Giữ re-export để các file cũ import kiểu từ repository vẫn chạy; có thể bỏ sau khi đổi import. */
+export type { ReceiptListItemRow, ReceiptDetailRow, ReceiptLineRow } from '../types/receipt.types';
 
 const EMPLOYEE_NAME = `LTRIM(RTRIM(CONCAT(e.last_name, N' ', e.first_name)))`;
 

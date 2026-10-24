@@ -1,4 +1,8 @@
 import { query, sql, type Executor } from '../config/database';
+import type { VoucherRow } from '../types/orderPromotion.types';
+
+/** Giữ re-export để các file cũ import kiểu từ repository vẫn chạy; có thể bỏ sau khi đổi import. */
+export type { VoucherRow } from '../types/orderPromotion.types';
 
 /**
  * Chỉ các truy vấn khuyến mãi mà luồng đặt hàng (M8) cần. Quản lý khuyến mãi là phần M11.
@@ -6,14 +10,6 @@ import { query, sql, type Executor } from '../config/database';
  */
 const TODAY = `CAST(SYSDATETIMEOFFSET() AT TIME ZONE 'SE Asia Standard Time' AS DATE)`;
 const ACTIVE = `p.is_active = 1 AND p.is_deleted = 0 AND ${TODAY} BETWEEN p.start_date AND p.end_date`;
-
-export interface VoucherRow {
-  voucherCode: string;
-  promotionId: number;
-  percent: number;
-  usageLimit: number | null;
-  usedCount: number;
-}
 
 export const orderPromotionRepository = {
   /** Mức giảm % cao nhất đang hiệu lực cho từng sản phẩm (nhiều KM trùng thì lấy MAX, không cộng dồn). */

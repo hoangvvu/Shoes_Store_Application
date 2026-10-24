@@ -1,0 +1,10 @@
+[Empty file]
+Directory structure:
+└── database/
+    ├── migrate.js
+    ├── package.json
+    ├── seed.js
+    ├── shoestore_schema.sql
+    ├── .env.example
+    └── migrations/
+        ├── 001_roles_sales_warehouse.sql

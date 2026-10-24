@@ -28,3 +28,4 @@ UNION ALL
 SELECT 'customers', name, TYPE_NAME(system_type_id), is_nullable FROM sys.columns
  WHERE object_id = OBJECT_ID('customers') AND name IN ('gender','date_of_birth','email');
 GO
+

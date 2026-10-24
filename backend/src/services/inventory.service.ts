@@ -30,10 +30,14 @@ export const inventoryService = {
     const variant = await inventoryRepository.findVariantStockItem(variantId);
     if (!variant) throw VARIANT_NOT_FOUND();
 
+    // Ép kiểu chuỗi từ query sang Date (hoặc giữ nguyên nếu đã là Date)
+    const fromDate = q.from ? new Date(q.from) : undefined;
+    const toDate = q.to ? new Date(q.to) : undefined;
+
     const { rows, total } = await inventoryRepository.listLedger({
       variantId,
-      from: q.from,
-      to: q.to,
+      from: fromDate,
+      to: toDate,
       page: q.page,
       size: q.size,
     });

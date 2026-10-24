@@ -6,10 +6,13 @@ import type { OrderDetail } from '../../types/order';
 import { getErrorMessage } from '../../utils/error';
 import { ORDER_STATUS_LABEL, formatDateTime, formatVnd } from '../../utils/format';
 import { PAYMENT_STATUS_LABEL, PAYMENT_TX_LABEL, openPrintWindow } from '../../utils/order';
+import { InfoGrid, InfoItem } from '../common/InfoGrid';
 import { PageHeader } from '../common/PageHeader';
+import { AmountSummary } from '../pos/AmountSummary';
 import { EditItemsModal } from './EditItemsModal';
 import { OrderActionModal } from './OrderActionModal';
 import { OrderStatusBadge } from './OrderStatusBadge';
+import { RecipientCard } from './RecipientCard';
 
 type Action = 'confirm' | 'ship' | 'deliver' | 'cancel' | 'edit' | null;
 
@@ -109,6 +112,13 @@ export function OrderDetailView({ basePath, canDelete }: Props) {
   if (!order) return <p className="muted">Đang tải…</p>;
 
   const s = order.orderStatus;
+  const methods = [...new Set(order.payments.filter((p) => p.status === 'SUCCESS').map((p) => p.methodName))].join(', ');
+  const gross = order.items.reduce((sum, i) => sum + i.salePrice * i.quantity, 0);
+  const productDiscount = order.items.reduce((sum, i) => sum + i.discountAmount, 0);
+  const invoicePct = order.totalAmount > 0 ? Math.round((order.discountAmount * 1000) / order.totalAmount) / 10 : 0;
+  const invoiceNote = order.discountAmount > 0
+    ? `${invoicePct}% trên tổng tiền hàng sau giảm sản phẩm${order.voucherCode ? ` · Voucher ${order.voucherCode}` : order.promotionName ? ` · ${order.promotionName}` : ''}`
+    : 'Không có giảm giá theo hóa đơn';
   return (
     <>
       <PageHeader
@@ -136,53 +146,55 @@ export function OrderDetailView({ basePath, canDelete }: Props) {
       <div className="grid-2">
         <section className="card">
           <h3>Thông tin đơn</h3>
-          <dl className="kv">
-            <dt>Trạng thái</dt><dd><OrderStatusBadge status={s} /></dd>
-            <dt>Thanh toán</dt><dd>{PAYMENT_STATUS_LABEL[order.paymentStatus] ?? order.paymentStatus}</dd>
-            <dt>Khách hàng</dt><dd>{order.customerName ?? 'Khách lẻ'}{order.customerPhone ? ` · ${order.customerPhone}` : ''}</dd>
-            <dt>Nhân viên</dt><dd>{order.employeeName ?? '—'}</dd>
-            {order.voucherCode && (<><dt>Voucher</dt><dd>{order.voucherCode}</dd></>)}
-            {order.promotionName && (<><dt>Khuyến mãi</dt><dd>{order.promotionName}</dd></>)}
-            {order.note && (<><dt>Ghi chú</dt><dd>{order.note}</dd></>)}
-          </dl>
+          <InfoGrid>
+            <InfoItem label="Trạng thái"><OrderStatusBadge status={s} /></InfoItem>
+            <InfoItem label="Thanh toán">{PAYMENT_STATUS_LABEL[order.paymentStatus] ?? order.paymentStatus}</InfoItem>
+            <InfoItem label="Phương thức">{methods || '—'}</InfoItem>
+            <InfoItem label="Khách hàng">{order.customerName ?? 'Khách lẻ'}{order.customerPhone ? ` · ${order.customerPhone}` : ''}</InfoItem>
+            <InfoItem label={order.channel === 'POS' ? 'Thu ngân' : 'Nhân viên'}>{order.employeeName ?? '—'}</InfoItem>
+            <InfoItem label="Kênh bán">{order.channel === 'POS' ? 'Tại quầy (POS)' : 'Online'}</InfoItem>
+            {order.voucherCode && <InfoItem label="Voucher">{order.voucherCode}</InfoItem>}
+            {order.promotionName && <InfoItem label="Khuyến mãi" wide>{order.promotionName}</InfoItem>}
+            {order.note && <InfoItem label="Ghi chú" wide>{order.note}</InfoItem>}
+          </InfoGrid>
         </section>
-        {order.channel === 'ONLINE' && (
-          <section className="card">
-            <h3>Giao hàng</h3>
-            <dl className="kv">
-              <dt>Người nhận</dt><dd>{order.receiverName}</dd>
-              <dt>Điện thoại</dt><dd>{order.receiverPhone}</dd>
-              <dt>Địa chỉ</dt><dd>{order.shippingAddress}</dd>
-            </dl>
-            <p className="muted">Địa chỉ được chụp lại lúc đặt hàng, không đổi khi khách sửa sổ địa chỉ.</p>
-          </section>
-        )}
+        <RecipientCard order={order} />
       </div>
 
       <section className="card">
         <h3>Sản phẩm</h3>
         <div className="table-wrap">
           <table className="table">
-            <thead><tr><th>Sản phẩm</th><th className="num">SL</th><th className="num">Đơn giá</th><th className="num">Giảm</th><th className="num">Thành tiền</th></tr></thead>
+            <thead><tr><th>Sản phẩm</th><th className="num">SL</th><th className="num">Đơn giá</th><th className="num" title="Khuyến mãi theo sản phẩm, tính cho cả dòng">Giảm giá SP (cả dòng)</th><th className="num">Thành tiền</th></tr></thead>
             <tbody>
               {order.items.map((i) => (
                 <tr key={i.variantId}>
                   <td>{i.productName}<br /><span className="muted">{i.sku} · Size {i.sizeLabel} · {i.colorName}</span></td>
                   <td className="num">{i.quantity}</td>
                   <td className="num">{formatVnd(i.salePrice)}</td>
-                  <td className="num">{formatVnd(i.discountAmount)}</td>
+                  <td className="num">{i.discountAmount > 0 ? `-${formatVnd(i.discountAmount)}` : '—'}</td>
                   <td className="num">{formatVnd(i.lineTotal)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-        <dl className="totals-box">
-          <dt>Tổng tiền hàng</dt><dd>{formatVnd(order.totalAmount)}</dd>
-          <dt>Giảm giá hóa đơn</dt><dd>-{formatVnd(order.discountAmount)}</dd>
-          <dt className="grand">Phải trả</dt><dd className="grand">{formatVnd(order.amountPayable)}</dd>
-          <dt>Đã thanh toán</dt><dd>{formatVnd(order.paidAmount)}</dd>
-        </dl>
+        <AmountSummary
+          gross={gross}
+          productDiscount={productDiscount}
+          invoiceDiscount={order.discountAmount}
+          invoiceDiscountNote={invoiceNote}
+          payable={order.amountPayable}
+          extra={[
+            { label: 'Đã thanh toán', value: formatVnd(order.paidAmount) },
+            ...(order.refundedAmount > 0
+              ? [
+                  { label: 'Đã hoàn tiền', value: `-${formatVnd(order.refundedAmount)}`, tone: 'refund' as const },
+                  { label: 'Thực thu', value: formatVnd(order.paidAmount - order.refundedAmount), tone: 'strong' as const },
+                ]
+              : []),
+          ]}
+        />
       </section>
 
       <div className="grid-2">

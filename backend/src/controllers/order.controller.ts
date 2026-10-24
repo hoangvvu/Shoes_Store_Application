@@ -1,6 +1,8 @@
 import type { Request, Response } from 'express';
 import { orderService } from '../services/order.service';
-import type { MyOrdersQuery, OrderListQuery } from '../validators/order.validator';
+import { posService } from '../services/pos.service';
+import { runOnce } from '../utils/idempotency';
+import type { MyOrdersQuery, OrderListQuery, PosProductQuery } from '../validators/order.validator';
 
 const id = (req: Request) => Number(req.params.id);
 
@@ -51,6 +53,18 @@ export const orderController = {
   },
   // POS
   async createPos(req: Request, res: Response) {
-    res.status(201).json(await orderService.createPos(req.user!, req.body));
+    // Idempotency-Key do giao diện sinh cho mỗi lần thanh toán: bấm đúp / gửi lại chỉ tạo 1 hóa đơn, 1 giao dịch thu
+    const key = req.header('Idempotency-Key')?.trim() || undefined;
+    const result = await runOnce(`pos:${req.user!.userId}`, key, req.body, () => orderService.createPos(req.user!, req.body));
+    res.status(201).json(result);
+  },
+  async previewPos(req: Request, res: Response) {
+    res.json(await orderService.previewPos(req.body));
+  },
+  async posProducts(req: Request, res: Response) {
+    res.json(await posService.searchProducts(req.query as unknown as PosProductQuery));
+  },
+  async posPaymentMethods(_req: Request, res: Response) {
+    res.json(await posService.paymentMethods());
   },
 };

@@ -110,10 +110,10 @@ export function CatalogManager() {
   return (
     <>
       <PageHeader
-        title="Thuộc tính sản phẩm & Danh mục"
+        title="Loại sản phẩm"
         actions={
           <button className="btn btn--primary" onClick={() => setModal({ kind: tab })}>
-            + Thêm {tab === 'categories' ? 'danh mục' : tab === 'brands' ? 'thương hiệu' : tab === 'sizes' ? 'kích cỡ' : 'màu sắc'}
+            + Thêm {tab === 'categories' ? 'Loại sản phẩm' : tab === 'brands' ? 'thương hiệu' : tab === 'sizes' ? 'kích cỡ' : 'màu sắc'}
           </button>
         }
       />
@@ -123,7 +123,7 @@ export function CatalogManager() {
           value={tab}
           onChange={handleTabChange}
           tabs={[
-            { key: 'categories', label: `Danh mục (${categories?.length ?? 0})` },
+            { key: 'categories', label: `Loại sản phẩm (${categories?.length ?? 0})` },
             { key: 'brands', label: `Thương hiệu (${brands?.length ?? 0})` },
             { key: 'sizes', label: `Kích thước / Size (${sizes?.length ?? 0})` },
             { key: 'colors', label: `Bảng màu (${colors?.length ?? 0})` },

@@ -1,26 +1,8 @@
 import { query, sql, type Executor } from '../config/database';
+import type { CategoryRow, BrandRow, SizeRow, ColorRow } from '../types/catalog.types';
 
-export interface CategoryRow {
-  categoryId: number;
-  categoryName: string;
-}
-
-export interface BrandRow {
-  brandId: number;
-  brandName: string;
-}
-
-export interface SizeRow {
-  sizeId: number;
-  sizeLabel: string;
-  sortOrder: number;
-}
-
-export interface ColorRow {
-  colorId: number;
-  colorName: string;
-  hexCode: string | null;
-}
+/** Giữ re-export để các file cũ import kiểu từ repository vẫn chạy; có thể bỏ sau khi đổi import. */
+export type { CategoryRow, BrandRow, SizeRow, ColorRow } from '../types/catalog.types';
 
 export const catalogRepository = {
   // Categories

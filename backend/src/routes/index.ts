@@ -6,7 +6,7 @@ import { brandsRouter, categoriesRouter, colorsRouter, sizesRouter } from './cat
 import customerRoutes from './customer.routes';
 import employeeRoutes from './employee.routes';
 import favoriteRoutes from './favorite.routes';
-import inventoryRoutes from './inventory.routes';
+import invoiceRoutes from './invoice.routes';
 import meRoutes from './me.routes';
 import orderRoutes, { myOrdersRouter, posRouter } from './order.routes';
 import {
@@ -22,6 +22,7 @@ import reviewRoutes, { productReviewsRouter, repliesRouter } from './review.rout
 import supplierRoutes from './supplier.routes';
 import uploadRoutes from './upload.routes';
 import userRoutes from './user.routes';
+import inventoryRoutes from './inventory.routes';
 
 const router = Router();
 router.use('/auth', authRoutes);
@@ -47,6 +48,7 @@ router.use('/inventory', inventoryRoutes);
 router.use('/reports', reportRoutes);
 router.use('/cart', cartRoutes);
 router.use('/orders', orderRoutes);
+router.use('/invoices', invoiceRoutes);
 router.use('/pos', posRouter);
 
 // M9 – Thanh toán & Hoàn tiền

@@ -62,7 +62,7 @@ export function EmployeeManager({ basePath }: { basePath: string }) {
   return (
     <>
       <PageHeader
-        title="Nhân viên & tài khoản"
+        title="Tài khoản nhân viên"
         actions={
           <div style={{ display: 'flex', gap: 10 }}>
             <Link to="/admin/reports" className="btn btn--ghost">Báo cáo doanh số</Link>

@@ -1,23 +1,9 @@
 import { query, sql, type Executor } from '../config/database';
-import type { RoleName, UserType } from '../constants/auth.constant';
+import type { UserType } from '../constants/auth.constant';
+import type { UserRow, RoleRow } from '../types/user.types';
 
-export interface UserRow {
-  userId: number;
-  username: string;
-  passwordHash: string;
-  roleId: number;
-  role: RoleName;
-  userType: UserType;
-  employeeId: number | null;
-  customerId: number | null;
-  isLocked: boolean;
-}
-
-export interface RoleRow {
-  roleId: number;
-  name: RoleName;
-  userType: UserType;
-}
+/** Giữ re-export để các file cũ import kiểu từ repository vẫn chạy; có thể bỏ sau khi đổi import. */
+export type { UserRow, RoleRow } from '../types/user.types';
 
 const SELECT_USER = `
   SELECT u.user_id AS userId, u.username, u.password_hash AS passwordHash,

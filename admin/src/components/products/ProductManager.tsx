@@ -73,7 +73,7 @@ export function ProductManager({ basePath, canEdit = true }: Props) {
   return (
     <>
       <PageHeader
-        title="Sản phẩm & Biến thể"
+        title="Sản phẩm"
         actions={canEdit ? (
           <button className="btn btn--primary" onClick={() => setModal({})}>+ Thêm sản phẩm</button>
         ) : undefined}
