@@ -673,6 +673,18 @@ export default function PaymentDetailScreen() {
         style={{ backgroundColor: colors.background }}
         contentContainerStyle={styles.container}
       >
+        <View style={styles.draftHeaderCard}>
+          <View style={styles.draftHeaderIconWrap}>
+            <Ionicons name="qr-code" size={24} color={colors.primary} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.draftHeaderTitle}>Quét mã thanh toán</Text>
+            <Text style={styles.draftHeaderSub}>
+              Mở app ngân hàng hoặc MoMo quét mã QR bên dưới để thanh toán
+            </Text>
+          </View>
+        </View>
+
         <QrPaymentCard
           key={draftCreatedAt}
           payment={draftPayment}
@@ -923,17 +935,19 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   qrContainer: {
-    width: 250,
-    height: 250,
+    width: '100%',
+    maxWidth: 240,
+    aspectRatio: 1,
     backgroundColor: colors.white,
     borderRadius: radius.md,
-    padding: 10,
+    padding: 8,
     borderWidth: 1,
     borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
     overflow: 'hidden',
+    alignSelf: 'center',
   },
   qrImage: {
     width: '100%',
@@ -1004,31 +1018,40 @@ const styles = StyleSheet.create({
   bankInfoRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    gap: 8,
   },
   infoLabel: {
     fontSize: 13,
     color: colors.textMuted,
+    flexShrink: 0,
   },
   infoVal: {
     fontSize: 13,
     color: colors.text,
+    flex: 1,
+    textAlign: 'right',
   },
   infoAmount: {
     fontSize: 17,
     fontWeight: '800',
     color: colors.primaryDark,
+    flex: 1,
+    textAlign: 'right',
   },
   contentPill: {
     backgroundColor: '#FFEAD4',
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 4,
+    maxWidth: '70%',
+    alignSelf: 'flex-end',
   },
   contentPillText: {
     fontSize: 13,
     fontWeight: '800',
     color: '#B26A00',
+    textAlign: 'right',
   },
   divider: {
     height: 1,
@@ -1332,5 +1355,36 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontSize: 15,
     fontWeight: '700',
+  },
+
+  // Draft mode header card
+  draftHeaderCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  draftHeaderIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#EDFDF5',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  draftHeaderTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: colors.text,
+  },
+  draftHeaderSub: {
+    fontSize: 12,
+    color: colors.textMuted,
+    marginTop: 2,
+    lineHeight: 16,
   },
 });

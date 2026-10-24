@@ -146,7 +146,7 @@ export function QrPaymentCard({
               channel === 'vietqr' && styles.channelTabTextActive,
             ]}
           >
-            Sacombank VietQR
+            Quét VietQR
           </Text>
         </TouchableOpacity>
 
@@ -327,8 +327,9 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   qrContainer: {
-    width: 240,
-    height: 240,
+    width: '100%',
+    maxWidth: 240,
+    aspectRatio: 1,
     backgroundColor: colors.white,
     borderRadius: radius.md,
     padding: 8,
@@ -338,6 +339,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     position: 'relative',
     overflow: 'hidden',
+    alignSelf: 'center',
   },
   qrImage: {
     width: '100%',
@@ -394,31 +396,40 @@ const styles = StyleSheet.create({
   bankInfoRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    gap: 8,
   },
   infoLabel: {
     fontSize: 13,
     color: colors.textMuted,
+    flexShrink: 0,
   },
   infoVal: {
     fontSize: 13,
     color: colors.text,
+    flex: 1,
+    textAlign: 'right',
   },
   infoAmount: {
     fontSize: 16,
     fontWeight: '800',
     color: colors.primaryDark,
+    flex: 1,
+    textAlign: 'right',
   },
   contentPill: {
     backgroundColor: '#FFEAD4',
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 4,
+    maxWidth: '70%',
+    alignSelf: 'flex-end',
   },
   contentPillText: {
     fontSize: 13,
     fontWeight: '800',
     color: '#B26A00',
+    textAlign: 'right',
   },
   divider: {
     height: 1,
