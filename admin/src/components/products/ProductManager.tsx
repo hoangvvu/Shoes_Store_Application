@@ -2,10 +2,12 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { catalogService, productService } from '../../services/product.service';
 import type { Brand, Category, ProductDetail, ProductListItem } from '../../types/product';
+import { useSearchFilters } from '../../hooks/useSearchFilters';
 import { getErrorMessage } from '../../utils/error';
 import { formatNumber, formatVnd } from '../../utils/format';
-import { useAsync, useDebounced } from '../../utils/useAsync';
+import { useAsync } from '../../utils/useAsync';
 import { PageHeader } from '../common/PageHeader';
+import { SearchBar } from '../common/SearchBar';
 import { LoadState, Thumb } from '../common/Widgets';
 import { Pagination } from '../tables/Pagination';
 import { BulkVariantModal } from './BulkVariantModal';
@@ -18,14 +20,18 @@ interface Props {
   canEdit?: boolean;
 }
 
+interface ProductFilters {
+  q: string;
+  categoryId: string;
+  brandId: string;
+  isActive: string;
+}
+
+const EMPTY_FILTERS: ProductFilters = { q: '', categoryId: '', brandId: '', isActive: '' };
+
 /** Quản lý danh sách sản phẩm, lọc theo danh mục/hãng/trạng thái, tìm kiếm, tạo biến thể, ẩn/hiện, xóa mềm. */
 export function ProductManager({ basePath, canEdit = true }: Props) {
-  const [q, setQ] = useState('');
-  const [categoryId, setCategoryId] = useState<number | ''>('');
-  const [brandId, setBrandId] = useState<number | ''>('');
-  const [isActive, setIsActive] = useState<string>('');
-  const [page, setPage] = useState(1);
-  const search = useDebounced(q.trim());
+  const { draft, applied, page, setPage, set, apply } = useSearchFilters<ProductFilters>(EMPTY_FILTERS);
   const [modal, setModal] = useState<{ product?: ProductDetail } | null>(null);
   const [bulkModal, setBulkModal] = useState<{ productId: number; productName: string } | null>(null);
 
@@ -35,14 +41,14 @@ export function ProductManager({ basePath, canEdit = true }: Props) {
   const { data, loading, error, reload } = useAsync(
     () =>
       productService.list({
-        q: search,
-        categoryId: categoryId === '' ? undefined : categoryId,
-        brandId: brandId === '' ? undefined : brandId,
-        isActive: isActive === '' ? undefined : isActive === 'true',
+        q: applied.q.trim() || undefined,
+        categoryId: applied.categoryId ? Number(applied.categoryId) : undefined,
+        brandId: applied.brandId ? Number(applied.brandId) : undefined,
+        isActive: applied.isActive === '' ? undefined : applied.isActive === 'true',
         page,
         size: SIZE,
       }),
-    [search, categoryId, brandId, isActive, page],
+    [applied, page],
   );
 
   async function toggleActive(p: ProductListItem) {
@@ -68,50 +74,54 @@ export function ProductManager({ basePath, canEdit = true }: Props) {
     <>
       <PageHeader
         title="Sản phẩm & Biến thể"
-        subtitle="Danh mục giày, giá bán, tổng tồn kho và các biến thể kích thước / màu sắc"
         actions={canEdit ? (
           <button className="btn btn--primary" onClick={() => setModal({})}>+ Thêm sản phẩm</button>
         ) : undefined}
       />
 
       <div className="card">
-        <div className="filters">
+        <SearchBar
+          onSearch={apply}
+        >
           <input
             className="search"
             placeholder="Tìm theo tên sản phẩm…"
-            value={q}
-            onChange={(e) => { setQ(e.target.value); setPage(1); }}
+            value={draft.q}
+            onChange={set('q')}
           />
           <select
             className="select"
-            value={categoryId}
-            onChange={(e) => { setCategoryId(e.target.value ? Number(e.target.value) : ''); setPage(1); }}
+            value={draft.categoryId}
+            onChange={set('categoryId')}
+            aria-label="Lọc danh mục"
           >
             <option value="">Tất cả danh mục</option>
             {categories?.map((c: Category) => (
-              <option key={c.categoryId} value={c.categoryId}>{c.categoryName}</option>
+              <option key={c.categoryId} value={String(c.categoryId)}>{c.categoryName}</option>
             ))}
           </select>
           <select
             className="select"
-            value={brandId}
-            onChange={(e) => { setBrandId(e.target.value ? Number(e.target.value) : ''); setPage(1); }}
+            value={draft.brandId}
+            onChange={set('brandId')}
+            aria-label="Lọc thương hiệu"
           >
             <option value="">Tất cả thương hiệu</option>
             {brands?.map((b: Brand) => (
-              <option key={b.brandId} value={b.brandId}>{b.brandName}</option>
+              <option key={b.brandId} value={String(b.brandId)}>{b.brandName}</option>
             ))}
           </select>
           <select
             className="select"
-            value={isActive}
-            onChange={(e) => { setIsActive(e.target.value); setPage(1); }}
+            value={draft.isActive}
+            onChange={set('isActive')}
+            aria-label="Lọc trạng thái"
           >
             <option value="">Tất cả trạng thái</option>
             <option value="true">Đang kinh doanh</option>
             <option value="false">Ngừng kinh doanh</option>
           </select>
-        </div>
+        </SearchBar>
 
         <LoadState loading={loading} error={error} empty={!loading && data?.items.length === 0} emptyText="Không tìm thấy sản phẩm nào" />
 
@@ -122,7 +132,7 @@ export function ProductManager({ basePath, canEdit = true }: Props) {
                 <tr>
                   <th style={{ width: 64 }}>Ảnh</th>
                   <th>Tên sản phẩm</th>
-                  <th>Danh mục / Hãng</th>
+                  <th>Loại sản phẩm</th>
                   <th className="num">Giá bán</th>
                   <th className="num">Biến thể</th>
                   <th className="num">Tổng tồn</th>

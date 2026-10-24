@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { supplierService } from '../../services/inventory.service';
 import type { Supplier } from '../../types/inventory';
+import { useSearchFilters } from '../../hooks/useSearchFilters';
 import { getErrorMessage } from '../../utils/error';
-import { useAsync, useDebounced } from '../../utils/useAsync';
+import { useAsync } from '../../utils/useAsync';
 import { PageHeader } from '../common/PageHeader';
+import { SearchBar } from '../common/SearchBar';
 import { LoadState } from '../common/Widgets';
 import { Pagination } from '../tables/Pagination';
 import { SupplierFormModal } from './SupplierFormModal';
@@ -14,16 +16,20 @@ interface Props {
   canDelete?: boolean;
 }
 
+interface SupplierFilters {
+  q: string;
+}
+
+const EMPTY_FILTERS: SupplierFilters = { q: '' };
+
 /** M5 #1 – Quản lý danh bạ nhà cung cấp hàng. */
 export function SupplierManager({ canDelete = true }: Props) {
-  const [q, setQ] = useState('');
-  const [page, setPage] = useState(1);
-  const search = useDebounced(q.trim());
+  const { draft, applied, page, setPage, set, apply } = useSearchFilters<SupplierFilters>(EMPTY_FILTERS);
   const [modal, setModal] = useState<{ supplier?: Supplier } | null>(null);
 
   const { data, loading, error, reload } = useAsync(
-    () => supplierService.list({ q: search, page, size: SIZE }),
-    [search, page],
+    () => supplierService.list({ q: applied.q.trim() || undefined, page, size: SIZE }),
+    [applied, page],
   );
 
   async function remove(s: Supplier) {
@@ -40,19 +46,18 @@ export function SupplierManager({ canDelete = true }: Props) {
     <>
       <PageHeader
         title="Nhà cung cấp"
-        subtitle="Danh bạ đối tác cung ứng giày và vật tư nhập kho"
         actions={<button className="btn btn--primary" onClick={() => setModal({})}>+ Thêm nhà cung cấp</button>}
       />
 
       <div className="card">
-        <div className="filters">
+        <SearchBar onSearch={apply}>
           <input
             className="search"
             placeholder="Tìm theo tên, SĐT hoặc email…"
-            value={q}
-            onChange={(e) => { setQ(e.target.value); setPage(1); }}
+            value={draft.q}
+            onChange={set('q')}
           />
-        </div>
+        </SearchBar>
 
         <LoadState loading={loading} error={error} empty={!loading && data?.items.length === 0} emptyText="Không có nhà cung cấp nào" />
 

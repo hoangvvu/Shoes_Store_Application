@@ -64,7 +64,7 @@ export function OrderManager({ basePath }: { basePath: string }) {
 
   return (
     <>
-      <PageHeader title="Đơn hàng" subtitle="Theo dõi và xử lý đơn hàng online và bán tại quầy" />
+      <PageHeader title="Đơn hàng" />
       <div className="card">
         <SearchBar
           onSearch={search}

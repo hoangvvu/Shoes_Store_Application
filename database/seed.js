@@ -21,14 +21,14 @@ const resetPasswords = process.argv.includes('--reset-passwords');
  * kind: 'EMPLOYEE' | 'CUSTOMER'
  */
 const ACCOUNTS = [
-  { username: 'admin',        password: 'Admin@12345',  role: 'ADMIN',     kind: 'EMPLOYEE', lastName: 'Quản Trị', firstName: 'Viên',       phone: '0901000001', salary: 20000000, note: 'Đăng nhập web → layout Admin; thấy baseSalary trong GET /me' },
-  { username: 'sales01',      password: 'Sales@12345',  role: 'SALES',     kind: 'EMPLOYEE', lastName: 'Nhân Viên', firstName: 'Bán Hàng',  phone: '0901000002', salary: 9000000,  note: 'Web → layout Bán hàng; KHÔNG thấy lương' },
-  { username: 'warehouse01',  password: 'Kho@12345',    role: 'WAREHOUSE', kind: 'EMPLOYEE', lastName: 'Nhân Viên', firstName: 'Kho',       phone: '0901000003', salary: 9000000,  note: 'Web → layout Kho; KHÔNG thấy lương' },
-  { username: 'sales_locked', password: 'Sales@12345',  role: 'SALES',     kind: 'EMPLOYEE', lastName: 'NV', firstName: 'Bị Khóa',          phone: '0901000004', salary: 0, locked: true, note: 'Đăng nhập phải báo "Sai tên đăng nhập hoặc mật khẩu" (tài khoản bị khóa)' },
-  { username: 'khach01',      password: 'Khach@12345',  role: 'CUSTOMER',  kind: 'CUSTOMER', lastName: 'Khách Hàng', firstName: 'Mẫu',      phone: '0900000001', note: 'Đăng nhập mobile; thử đổi hồ sơ/mật khẩu' },
-  { username: 'khach02',      password: 'Khach@12345',  role: 'CUSTOMER',  kind: 'CUSTOMER', lastName: 'Khách Hàng', firstName: 'Thứ Hai',  phone: '0900000002', note: 'Thử sửa SĐT thành 0900000001 → 409 PHONE_TAKEN' },
-  { username: 'khach_locked', password: 'Khach@12345',  role: 'CUSTOMER',  kind: 'CUSTOMER', lastName: 'Khách', firstName: 'Bị Khóa',       phone: '0900000003', locked: true, note: 'Đăng nhập mobile phải bị từ chối (tài khoản khóa)' },
-  { username: 'khach_cu',     password: 'Khach@12345',  role: 'CUSTOMER',  kind: 'CUSTOMER', lastName: 'Khách', firstName: 'Đã Xóa Mềm',    phone: '0900000004', deleted: true, note: 'Đã xóa mềm: không đăng nhập được; đăng ký lại username "khach_cu" + SĐT 0900000004 phải thành công' },
+  { username: 'admin', password: 'Admin@12345', role: 'ADMIN', kind: 'EMPLOYEE', lastName: 'Quản Trị', firstName: 'Viên', phone: '0901000001', salary: 20000000, note: 'Đăng nhập web → layout Admin; thấy baseSalary trong GET /me' },
+  { username: 'sales01', password: 'Sales@12345', role: 'SALES', kind: 'EMPLOYEE', lastName: 'Nhân Viên', firstName: 'Bán Hàng', phone: '0901000002', salary: 9000000, note: 'Web → layout Bán hàng; KHÔNG thấy lương' },
+  { username: 'warehouse01', password: 'Kho@12345', role: 'WAREHOUSE', kind: 'EMPLOYEE', lastName: 'Nhân Viên', firstName: 'Kho', phone: '0901000003', salary: 9000000, note: 'Web → layout Kho; KHÔNG thấy lương' },
+  { username: 'sales_locked', password: 'Sales@12345', role: 'SALES', kind: 'EMPLOYEE', lastName: 'NV', firstName: 'Bị Khóa', phone: '0901000004', salary: 0, locked: true, note: 'Đăng nhập phải báo "Sai tên đăng nhập hoặc mật khẩu" (tài khoản bị khóa)' },
+  { username: 'khach01', password: 'Khach@12345', role: 'CUSTOMER', kind: 'CUSTOMER', lastName: 'Khách Hàng', firstName: 'Mẫu', phone: '0900000001', note: 'Đăng nhập mobile; thử đổi hồ sơ/mật khẩu' },
+  { username: 'khach02', password: 'Khach@12345', role: 'CUSTOMER', kind: 'CUSTOMER', lastName: 'Khách Hàng', firstName: 'Thứ Hai', phone: '0900000002', note: 'Thử sửa SĐT thành 0900000001 → 409 PHONE_TAKEN' },
+  { username: 'khach_locked', password: 'Khach@12345', role: 'CUSTOMER', kind: 'CUSTOMER', lastName: 'Khách', firstName: 'Bị Khóa', phone: '0900000003', locked: true, note: 'Đăng nhập mobile phải bị từ chối (tài khoản khóa)' },
+  { username: 'khach_cu', password: 'Khach@12345', role: 'CUSTOMER', kind: 'CUSTOMER', lastName: 'Khách', firstName: 'Đã Xóa Mềm', phone: '0900000004', deleted: true, note: 'Đã xóa mềm: không đăng nhập được; đăng ký lại username "khach_cu" + SĐT 0900000004 phải thành công' },
 ];
 
 const config = {
@@ -167,16 +167,16 @@ async function seedAddresses(pool, username, list) {
 /* ---------------- M7: sản phẩm test (tạm, chờ M4) + giỏ hàng mẫu ---------------- */
 // Chỉ để thử giỏ hàng. Khi M4 có dữ liệu thật, bỏ các SKU bắt đầu bằng TEST- là được.
 const TEST_VARIANTS = [
-  { sku: 'TEST-OK-40',  product: 'Giày Test – Còn hàng',   price: 1250000, size: '40', color: 'Đen',   stock: 20, active: 1, cat: 'Giày Sneaker', brand: 'Nike' },
-  { sku: 'TEST-OK-41',  product: 'Giày Test – Còn hàng',   price: 1250000, size: '41', color: 'Đen',   stock: 20, active: 1, cat: 'Giày Sneaker', brand: 'Nike' },
-  { sku: 'TEST-LOW-39', product: 'Giày Test – Sắp hết',    price: 890000,  size: '39', color: 'Trắng', stock: 3,  active: 1, cat: 'Giày Chạy Bộ', brand: 'Adidas' },
-  { sku: 'TEST-OUT-42', product: 'Giày Test – Hết hàng',   price: 990000,  size: '42', color: 'Xám',   stock: 0,  active: 1, cat: 'Giày Thể Thao', brand: 'Puma' },
-  { sku: 'TEST-OFF-40', product: 'Giày Test – Ngừng bán',  price: 750000,  size: '40', color: 'Đỏ',    stock: 5,  active: 0, cat: 'Giày Sneaker', brand: 'Converse' },
+  { sku: 'TEST-OK-40', product: 'Giày Test – Còn hàng', price: 1250000, size: '40', color: 'Đen', stock: 20, active: 1, cat: 'Giày Sneaker', brand: 'Nike' },
+  { sku: 'TEST-OK-41', product: 'Giày Test – Còn hàng', price: 1250000, size: '41', color: 'Đen', stock: 20, active: 1, cat: 'Giày Sneaker', brand: 'Nike' },
+  { sku: 'TEST-LOW-39', product: 'Giày Test – Sắp hết', price: 890000, size: '39', color: 'Trắng', stock: 3, active: 1, cat: 'Giày Chạy Bộ', brand: 'Adidas' },
+  { sku: 'TEST-OUT-42', product: 'Giày Test – Hết hàng', price: 990000, size: '42', color: 'Xám', stock: 0, active: 1, cat: 'Giày Thể Thao', brand: 'Puma' },
+  { sku: 'TEST-OFF-40', product: 'Giày Test – Ngừng bán', price: 750000, size: '40', color: 'Đỏ', stock: 5, active: 0, cat: 'Giày Sneaker', brand: 'Converse' },
 ];
 
 // Giỏ của khach01: đủ 4 trạng thái để thấy cảnh báo trên màn hình giỏ
 const CART_KHACH01 = [
-  { sku: 'TEST-OK-40',  qty: 2 }, // OK
+  { sku: 'TEST-OK-40', qty: 2 }, // OK
   { sku: 'TEST-LOW-39', qty: 5 }, // INSUFFICIENT_STOCK (kho còn 3)
   { sku: 'TEST-OUT-42', qty: 1 }, // OUT_OF_STOCK
   { sku: 'TEST-OFF-40', qty: 1 }, // UNAVAILABLE (sản phẩm ngừng bán)
@@ -628,10 +628,10 @@ async function seedPromotions(pool, ids) {
 }
 
 const SEED_ORDERS = [
-  { tag: 'SEED-M8-PENDING',   steps: [],                                     lines: [['TEST-OK-41', 1]] },
-  { tag: 'SEED-M8-CONFIRMED', steps: ['CONFIRMED'],                          lines: [['TEST-OK-40', 1]] },
+  { tag: 'SEED-M8-PENDING', steps: [], lines: [['TEST-OK-41', 1]] },
+  { tag: 'SEED-M8-CONFIRMED', steps: ['CONFIRMED'], lines: [['TEST-OK-40', 1]] },
   { tag: 'SEED-M8-DELIVERED', steps: ['CONFIRMED', 'SHIPPING', 'DELIVERED'], lines: [['TEST-OK-41', 2]], paid: true },
-  { tag: 'SEED-M8-CANCELLED', steps: ['CANCELLED'],                          lines: [['TEST-LOW-39', 1]] },
+  { tag: 'SEED-M8-CANCELLED', steps: ['CANCELLED'], lines: [['TEST-LOW-39', 1]] },
 ];
 
 async function seedOrders(pool, ids) {
@@ -721,12 +721,12 @@ async function seedReviewsAndFavorites(pool, ids) {
   const salesEmployeeId = emp.recordset[0]?.id ?? null;
 
   const REVIEWS = [
-    { who: { username: 'khach01' },     product: okP,  rating: 5, status: 'APPROVED', invoice: deliveredInvoice, comment: 'Giày đi rất êm, đúng size, giao nhanh.' },
-    { who: { username: 'khach02' },     product: okP,  rating: 4, status: 'APPROVED', comment: 'Đẹp nhưng hơi chật, nên lấy lớn hơn 1 size.', reply: 'Cảm ơn bạn đã góp ý! Lần sau bạn có thể đổi size miễn phí trong 7 ngày nhé.' },
-    { who: { phone: '0910000001' },    product: okP,  rating: 5, status: 'APPROVED', comment: 'Đóng gói cẩn thận, chất liệu tốt.' },
-    { who: { phone: '0910000002' },    product: okP,  rating: 3, status: 'PENDING',  comment: 'Tạm ổn, đang chờ duyệt (để thử nút Duyệt).' },
-    { who: { phone: '0910000003' },    product: okP,  rating: 1, status: 'HIDDEN',   comment: 'Nội dung vi phạm (để thử ẩn / xóa, không tính vào điểm trung bình).' },
-    { who: { phone: '0910000004' },    product: lowP, rating: 4, status: 'APPROVED', comment: 'Mẫu này đẹp, tiếc là sắp hết hàng.' },
+    { who: { username: 'khach01' }, product: okP, rating: 5, status: 'APPROVED', invoice: deliveredInvoice, comment: 'Giày đi rất êm, đúng size, giao nhanh.' },
+    { who: { username: 'khach02' }, product: okP, rating: 4, status: 'APPROVED', comment: 'Đẹp nhưng hơi chật, nên lấy lớn hơn 1 size.', reply: 'Cảm ơn bạn đã góp ý! Lần sau bạn có thể đổi size miễn phí trong 7 ngày nhé.' },
+    { who: { phone: '0910000001' }, product: okP, rating: 5, status: 'APPROVED', comment: 'Đóng gói cẩn thận, chất liệu tốt.' },
+    { who: { phone: '0910000002' }, product: okP, rating: 3, status: 'PENDING', comment: 'Tạm ổn, đang chờ duyệt (để thử nút Duyệt).' },
+    { who: { phone: '0910000003' }, product: okP, rating: 1, status: 'HIDDEN', comment: 'Nội dung vi phạm (để thử ẩn / xóa, không tính vào điểm trung bình).' },
+    { who: { phone: '0910000004' }, product: lowP, rating: 4, status: 'APPROVED', comment: 'Mẫu này đẹp, tiếc là sắp hết hàng.' },
   ];
 
   let created = 0;
@@ -748,7 +748,7 @@ async function seedReviewsAndFavorites(pool, ids) {
   }
 
   // Yêu thích của khach01: 2 sản phẩm đang bán + 1 sản phẩm ngừng bán (phải bị ẩn khỏi danh sách)
-  
+
   // Yêu thích của khach01: 2 sản phẩm đang bán + 1 sản phẩm ngừng bán
   const k1 = await customerIdBy(pool, { username: 'khach01' });
   let favs = 0;
@@ -790,14 +790,14 @@ async function seedReviewsAndFavorites(pool, ids) {
 const d = (ymd) => (ymd ? new Date(`${ymd}T00:00:00.000Z`) : null);
 
 const EMPLOYEE_PROFILE = {
-  admin:       { gender: 'MALE',   email: 'admin@ouran.vn',       dob: '1990-04-12', hire: '2022-01-10' },
-  sales01:     { gender: 'FEMALE', email: 'sales01@ouran.vn',     dob: '1996-08-21', hire: '2023-03-01' },
-  warehouse01: { gender: 'MALE',   email: 'kho01@ouran.vn',       dob: '1993-11-05', hire: '2023-06-15' },
+  admin: { gender: 'MALE', email: 'admin@ouran.vn', dob: '1990-04-12', hire: '2022-01-10' },
+  sales01: { gender: 'FEMALE', email: 'sales01@ouran.vn', dob: '1996-08-21', hire: '2023-03-01' },
+  warehouse01: { gender: 'MALE', email: 'kho01@ouran.vn', dob: '1993-11-05', hire: '2023-06-15' },
   // sales_locked: để trống toàn bộ
 };
 
 const CUSTOMER_PROFILE_BY_USERNAME = {
-  khach01: { gender: 'MALE',   email: 'khach01@example.com', dob: '2000-05-20' },
+  khach01: { gender: 'MALE', email: 'khach01@example.com', dob: '2000-05-20' },
   khach02: { gender: 'FEMALE', email: 'khach02@example.com', dob: '1997-02-14' },
   // khach_locked: để trống toàn bộ
 };
@@ -805,16 +805,16 @@ const CUSTOMER_PROFILE_BY_USERNAME = {
 // Khách không có tài khoản (nhận diện bằng SĐT) – đa dạng giới tính / tuổi / mức mua để thử bộ lọc
 const CUSTOMER_PROFILE_BY_PHONE = {
   '0910000001': { gender: 'FEMALE', dob: '2003-03-10', email: 'a01@example.com', spent: 3200000 },
-  '0910000002': { gender: 'MALE',   dob: '1998-07-01', email: null,              spent: 12500000 },
+  '0910000002': { gender: 'MALE', dob: '1998-07-01', email: null, spent: 12500000 },
   '0910000003': { gender: 'FEMALE', dob: '1985-09-30', email: 'a03@example.com', spent: 25000000 },
-  '0910000004': { gender: 'MALE',   dob: '1979-01-15', email: 'a04@example.com', spent: 800000 },
-  '0910000005': { gender: 'OTHER',  dob: '2008-12-25', email: null,              spent: 0 },
+  '0910000004': { gender: 'MALE', dob: '1979-01-15', email: 'a04@example.com', spent: 800000 },
+  '0910000005': { gender: 'OTHER', dob: '2008-12-25', email: null, spent: 0 },
   '0910000006': { gender: 'FEMALE', dob: '1992-06-18', email: 'a06@example.com', spent: 7400000 },
-  '0910000007': { gender: 'MALE',   dob: '1969-10-02', email: null,              spent: 1900000 },
+  '0910000007': { gender: 'MALE', dob: '1969-10-02', email: null, spent: 1900000 },
   '0910000008': { gender: 'FEMALE', dob: '2001-04-04', email: 'a08@example.com', spent: 5000000 },
-  '0910000009': { gender: 'MALE',   dob: '1995-11-11', email: 'a09@example.com', spent: 0 },
+  '0910000009': { gender: 'MALE', dob: '1995-11-11', email: 'a09@example.com', spent: 0 },
   '0910000011': { gender: 'FEMALE', dob: '1988-02-29', email: 'a11@example.com', spent: 4300000 },
-  '0910000012': { gender: 'MALE',   dob: '2005-08-08', email: 'a12@example.com', spent: 21000000 },
+  '0910000012': { gender: 'MALE', dob: '2005-08-08', email: 'a12@example.com', spent: 21000000 },
   // 0900000005, 0910000010: để trống toàn bộ ("Chưa cung cấp")
 };
 

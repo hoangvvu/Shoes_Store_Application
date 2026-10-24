@@ -20,6 +20,7 @@ export const receiptService = {
       from: q.from,
       to: q.to,
       supplierId: q.supplierId,
+      status: q.status,
       page: q.page,
       size: q.size,
     });
@@ -106,7 +107,7 @@ export const receiptService = {
     return this.getDetail(receiptId);
   },
 
-  async remove(actor: AuthUser, id: number, _reason?: string) {
+  async remove(actor: AuthUser, id: number, reason?: string) {
     const receipt = await receiptRepository.findById(id);
     if (!receipt) throw NOT_FOUND();
     if (receipt.isDeleted) throw AppError.conflict('Phiếu nhập đã bị xóa trước đó', 'RECEIPT_ALREADY_DELETED');
@@ -115,6 +116,12 @@ export const receiptService = {
       await withTransaction(async (tx) => {
         await setActor(tx, actor.userId);
         await receiptRepository.softDelete(id, tx);
+        await receiptRepository.recordCancelAudit(
+          id,
+          actor.userId,
+          reason?.trim() || 'Hủy phiếu nhập kho',
+          tx,
+        );
       });
     } catch (err: unknown) {
       const e = err as { number?: number; message?: string };
