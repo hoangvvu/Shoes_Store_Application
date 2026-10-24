@@ -1,5 +1,5 @@
 /**
- * database/seed.js – dữ liệu mẫu để TEST M1 (xác thực & tài khoản), M2 (khách hàng & địa chỉ), M7 (giỏ hàng), M8 (đặt hàng) và M14 (đánh giá, yêu thích), kèm thông tin cá nhân (giới tính, email, ngày sinh…) để thử tìm kiếm nâng cao.
+ * database/seed.js – dữ liệu mẫu để TEST M1, M2, M4, M7, M8, M9 (thanh toán) và M14 (đánh giá, yêu thích).
  *
  * Cách chạy:   cd database && npm i && npm run seed
  * Tùy chọn:    npm run seed -- --reset-passwords   (đặt lại mật khẩu các tài khoản mẫu)
@@ -21,14 +21,14 @@ const resetPasswords = process.argv.includes('--reset-passwords');
  * kind: 'EMPLOYEE' | 'CUSTOMER'
  */
 const ACCOUNTS = [
-  { username: 'admin',        password: 'Admin@12345',  role: 'ADMIN',     kind: 'EMPLOYEE', lastName: 'Quản Trị', firstName: 'Viên',       phone: '0901000001', salary: 20000000, note: 'Đăng nhập web → layout Admin; thấy baseSalary trong GET /me' },
-  { username: 'sales01',      password: 'Sales@12345',  role: 'SALES',     kind: 'EMPLOYEE', lastName: 'Nhân Viên', firstName: 'Bán Hàng',  phone: '0901000002', salary: 9000000,  note: 'Web → layout Bán hàng; KHÔNG thấy lương' },
-  { username: 'warehouse01',  password: 'Kho@12345',    role: 'WAREHOUSE', kind: 'EMPLOYEE', lastName: 'Nhân Viên', firstName: 'Kho',       phone: '0901000003', salary: 9000000,  note: 'Web → layout Kho; KHÔNG thấy lương' },
-  { username: 'sales_locked', password: 'Sales@12345',  role: 'SALES',     kind: 'EMPLOYEE', lastName: 'NV', firstName: 'Bị Khóa',          phone: '0901000004', salary: 0, locked: true, note: 'Đăng nhập phải báo "Sai tên đăng nhập hoặc mật khẩu" (tài khoản bị khóa)' },
-  { username: 'khach01',      password: 'Khach@12345',  role: 'CUSTOMER',  kind: 'CUSTOMER', lastName: 'Khách Hàng', firstName: 'Mẫu',      phone: '0900000001', note: 'Đăng nhập mobile; thử đổi hồ sơ/mật khẩu' },
-  { username: 'khach02',      password: 'Khach@12345',  role: 'CUSTOMER',  kind: 'CUSTOMER', lastName: 'Khách Hàng', firstName: 'Thứ Hai',  phone: '0900000002', note: 'Thử sửa SĐT thành 0900000001 → 409 PHONE_TAKEN' },
-  { username: 'khach_locked', password: 'Khach@12345',  role: 'CUSTOMER',  kind: 'CUSTOMER', lastName: 'Khách', firstName: 'Bị Khóa',       phone: '0900000003', locked: true, note: 'Đăng nhập mobile phải bị từ chối (tài khoản khóa)' },
-  { username: 'khach_cu',     password: 'Khach@12345',  role: 'CUSTOMER',  kind: 'CUSTOMER', lastName: 'Khách', firstName: 'Đã Xóa Mềm',    phone: '0900000004', deleted: true, note: 'Đã xóa mềm: không đăng nhập được; đăng ký lại username "khach_cu" + SĐT 0900000004 phải thành công' },
+  { username: 'admin', password: 'Admin@12345', role: 'ADMIN', kind: 'EMPLOYEE', lastName: 'Quản Trị', firstName: 'Viên', phone: '0901000001', salary: 20000000, note: 'Đăng nhập web → layout Admin; thấy baseSalary trong GET /me' },
+  { username: 'sales01', password: 'Sales@12345', role: 'SALES', kind: 'EMPLOYEE', lastName: 'Nhân Viên', firstName: 'Bán Hàng', phone: '0901000002', salary: 9000000, note: 'Web → layout Bán hàng; KHÔNG thấy lương' },
+  { username: 'warehouse01', password: 'Kho@12345', role: 'WAREHOUSE', kind: 'EMPLOYEE', lastName: 'Nhân Viên', firstName: 'Kho', phone: '0901000003', salary: 9000000, note: 'Web → layout Kho; KHÔNG thấy lương' },
+  { username: 'sales_locked', password: 'Sales@12345', role: 'SALES', kind: 'EMPLOYEE', lastName: 'NV', firstName: 'Bị Khóa', phone: '0901000004', salary: 0, locked: true, note: 'Đăng nhập phải báo "Sai tên đăng nhập hoặc mật khẩu" (tài khoản bị khóa)' },
+  { username: 'khach01', password: 'Khach@12345', role: 'CUSTOMER', kind: 'CUSTOMER', lastName: 'Khách Hàng', firstName: 'Mẫu', phone: '0900000001', note: 'Đăng nhập mobile; thử đổi hồ sơ/mật khẩu' },
+  { username: 'khach02', password: 'Khach@12345', role: 'CUSTOMER', kind: 'CUSTOMER', lastName: 'Khách Hàng', firstName: 'Thứ Hai', phone: '0900000002', note: 'Thử sửa SĐT thành 0900000001 → 409 PHONE_TAKEN' },
+  { username: 'khach_locked', password: 'Khach@12345', role: 'CUSTOMER', kind: 'CUSTOMER', lastName: 'Khách', firstName: 'Bị Khóa', phone: '0900000003', locked: true, note: 'Đăng nhập mobile phải bị từ chối (tài khoản khóa)' },
+  { username: 'khach_cu', password: 'Khach@12345', role: 'CUSTOMER', kind: 'CUSTOMER', lastName: 'Khách', firstName: 'Đã Xóa Mềm', phone: '0900000004', deleted: true, note: 'Đã xóa mềm: không đăng nhập được; đăng ký lại username "khach_cu" + SĐT 0900000004 phải thành công' },
 ];
 
 const config = {
@@ -43,8 +43,8 @@ const config = {
   },
 };
 
-async function getRoleId(pool, name) {
-  const r = await pool.request().input('n', sql.VarChar(30), name)
+async function getRoleId(executor, name) {
+  const r = await new sql.Request(executor).input('n', sql.VarChar(30), name)
     .query('SELECT role_id FROM roles WHERE role_name = @n');
   if (!r.recordset.length) {
     throw new Error(`Thiếu role ${name}. Hãy chạy database/migrations/001_roles_sales_warehouse.sql trước.`);
@@ -72,7 +72,7 @@ async function seedAccount(pool, a) {
       return 'đã có';
     }
 
-    const roleId = await getRoleId(pool, a.role);
+    const roleId = await getRoleId(tx, a.role);
     const hash = await bcrypt.hash(a.password, BCRYPT_COST);
     let employeeId = null;
     let customerId = null;
@@ -167,22 +167,99 @@ async function seedAddresses(pool, username, list) {
 /* ---------------- M7: sản phẩm test (tạm, chờ M4) + giỏ hàng mẫu ---------------- */
 // Chỉ để thử giỏ hàng. Khi M4 có dữ liệu thật, bỏ các SKU bắt đầu bằng TEST- là được.
 const TEST_VARIANTS = [
-  { sku: 'TEST-OK-40',  product: 'Giày Test – Còn hàng',   price: 1250000, size: '40', color: 'Đen',   stock: 20, active: 1 },
-  { sku: 'TEST-OK-41',  product: 'Giày Test – Còn hàng',   price: 1250000, size: '41', color: 'Đen',   stock: 20, active: 1 },
-  { sku: 'TEST-LOW-39', product: 'Giày Test – Sắp hết',    price: 890000,  size: '39', color: 'Trắng', stock: 3,  active: 1 },
-  { sku: 'TEST-OUT-42', product: 'Giày Test – Hết hàng',   price: 990000,  size: '42', color: 'Xám',   stock: 0,  active: 1 },
-  { sku: 'TEST-OFF-40', product: 'Giày Test – Ngừng bán',  price: 750000,  size: '40', color: 'Đỏ',    stock: 5,  active: 0 },
+  { sku: 'TEST-OK-40', product: 'Giày Test – Còn hàng', price: 1250000, size: '40', color: 'Đen', stock: 20, active: 1, cat: 'Giày Sneaker', brand: 'Nike' },
+  { sku: 'TEST-OK-41', product: 'Giày Test – Còn hàng', price: 1250000, size: '41', color: 'Đen', stock: 20, active: 1, cat: 'Giày Sneaker', brand: 'Nike' },
+  { sku: 'TEST-LOW-39', product: 'Giày Test – Sắp hết', price: 890000, size: '39', color: 'Trắng', stock: 3, active: 1, cat: 'Giày Chạy Bộ', brand: 'Adidas' },
+  { sku: 'TEST-OUT-42', product: 'Giày Test – Hết hàng', price: 990000, size: '42', color: 'Xám', stock: 0, active: 1, cat: 'Giày Thể Thao', brand: 'Puma' },
+  { sku: 'TEST-OFF-40', product: 'Giày Test – Ngừng bán', price: 750000, size: '40', color: 'Đỏ', stock: 5, active: 0, cat: 'Giày Sneaker', brand: 'Converse' },
 ];
 
 // Giỏ của khach01: đủ 4 trạng thái để thấy cảnh báo trên màn hình giỏ
 const CART_KHACH01 = [
-  { sku: 'TEST-OK-40',  qty: 2 }, // OK
+  { sku: 'TEST-OK-40', qty: 2 }, // OK
   { sku: 'TEST-LOW-39', qty: 5 }, // INSUFFICIENT_STOCK (kho còn 3)
   { sku: 'TEST-OUT-42', qty: 1 }, // OUT_OF_STOCK
   { sku: 'TEST-OFF-40', qty: 1 }, // UNAVAILABLE (sản phẩm ngừng bán)
 ];
 
+async function ensureCatalogAndSuppliers(pool) {
+  // Sizes
+  const sizes = [
+    { label: '38', order: 38 },
+    { label: '39', order: 39 },
+    { label: '40', order: 40 },
+    { label: '41', order: 41 },
+    { label: '42', order: 42 },
+    { label: '43', order: 43 },
+    { label: '44', order: 44 },
+  ];
+  for (const s of sizes) {
+    const ex = await pool.request().input('l', sql.VarChar(10), s.label)
+      .query('SELECT 1 FROM sizes WHERE size_label = @l AND is_deleted = 0');
+    if (!ex.recordset.length) {
+      await pool.request().input('l', sql.VarChar(10), s.label).input('o', sql.Int, s.order)
+        .query('INSERT INTO sizes (size_label, sort_order) VALUES (@l, @o)');
+    }
+  }
+
+  // Colors
+  const colors = [
+    { name: 'Đen', hex: '#000000' },
+    { name: 'Trắng', hex: '#FFFFFF' },
+    { name: 'Xám', hex: '#808080' },
+    { name: 'Đỏ', hex: '#FF0000' },
+    { name: 'Xanh', hex: '#0000FF' },
+  ];
+  for (const c of colors) {
+    const ex = await pool.request().input('n', sql.NVarChar(30), c.name)
+      .query('SELECT 1 FROM colors WHERE color_name = @n AND is_deleted = 0');
+    if (!ex.recordset.length) {
+      await pool.request().input('n', sql.NVarChar(30), c.name).input('h', sql.VarChar(7), c.hex)
+        .query('INSERT INTO colors (color_name, hex_code) VALUES (@n, @h)');
+    }
+  }
+
+  // Categories
+  const cats = ['Giày Thể Thao', 'Giày Chạy Bộ', 'Giày Sneaker', 'Giày Sandal'];
+  for (const name of cats) {
+    const ex = await pool.request().input('n', sql.NVarChar(100), name)
+      .query('SELECT 1 FROM categories WHERE category_name = @n AND is_deleted = 0');
+    if (!ex.recordset.length) {
+      await pool.request().input('n', sql.NVarChar(100), name)
+        .query('INSERT INTO categories (category_name) VALUES (@n)');
+    }
+  }
+
+  // Brands
+  const brands = ['Nike', 'Adidas', 'Puma', 'Converse', 'Vans'];
+  for (const name of brands) {
+    const ex = await pool.request().input('n', sql.NVarChar(100), name)
+      .query('SELECT 1 FROM brands WHERE brand_name = @n AND is_deleted = 0');
+    if (!ex.recordset.length) {
+      await pool.request().input('n', sql.NVarChar(100), name)
+        .query('INSERT INTO brands (brand_name) VALUES (@n)');
+    }
+  }
+
+  // Suppliers
+  const suppliers = [
+    { name: 'Công Ty TNHH Nike Việt Nam', phone: '0283800001', email: 'contact@nike.vn', address: 'Quận 1, TP. HCM' },
+    { name: 'Nhà Phân Phối Thể Thao An Hưng', phone: '0243800002', email: 'sales@anhung.vn', address: 'Cầu Giấy, Hà Nội' },
+    { name: 'Tổng Kho Giày Miền Nam', phone: '0283800003', email: 'kho@giaymiennam.com', address: 'Bình Tân, TP. HCM' },
+  ];
+  for (const s of suppliers) {
+    const ex = await pool.request().input('n', sql.NVarChar(150), s.name)
+      .query('SELECT 1 FROM suppliers WHERE supplier_name = @n AND is_deleted = 0');
+    if (!ex.recordset.length) {
+      await pool.request().input('n', sql.NVarChar(150), s.name).input('p', sql.VarChar(20), s.phone)
+        .input('e', sql.VarChar(100), s.email).input('a', sql.NVarChar(255), s.address)
+        .query('INSERT INTO suppliers (supplier_name, phone, email, address) VALUES (@n, @p, @e, @a)');
+    }
+  }
+}
+
 async function seedTestCatalog(pool) {
+  await ensureCatalogAndSuppliers(pool);
   const admin = await pool.request().query(`SELECT user_id FROM users WHERE username = 'admin' AND is_deleted = 0`);
   if (!admin.recordset.length) throw new Error('Cần tài khoản admin (seed ở phần M1) để ghi sổ kho.');
   const adminId = admin.recordset[0].user_id;
@@ -200,8 +277,17 @@ async function seedTestCatalog(pool) {
     let p = await pool.request().input('n', sql.NVarChar(200), v.product)
       .query('SELECT product_id FROM products WHERE product_name = @n AND is_deleted = 0');
     if (!p.recordset.length) {
-      p = await pool.request().input('n', sql.NVarChar(200), v.product).input('pr', sql.Decimal(18, 2), v.price).input('a', sql.Bit, v.active)
-        .query('INSERT INTO products (product_name, current_price, is_active) VALUES (@n, @pr, @a); SELECT SCOPE_IDENTITY() AS product_id;');
+      const catRes = v.cat ? await pool.request().input('cn', sql.NVarChar(100), v.cat).query('SELECT category_id FROM categories WHERE category_name = @cn') : { recordset: [] };
+      const brandRes = v.brand ? await pool.request().input('bn', sql.NVarChar(100), v.brand).query('SELECT brand_id FROM brands WHERE brand_name = @bn') : { recordset: [] };
+      const catId = catRes.recordset[0]?.category_id || null;
+      const brandId = brandRes.recordset[0]?.brand_id || null;
+      p = await pool.request()
+        .input('n', sql.NVarChar(200), v.product)
+        .input('cat', sql.Int, catId)
+        .input('brand', sql.Int, brandId)
+        .input('pr', sql.Decimal(18, 2), v.price)
+        .input('a', sql.Bit, v.active)
+        .query('INSERT INTO products (product_name, category_id, brand_id, current_price, is_active) VALUES (@n, @cat, @brand, @pr, @a); SELECT SCOPE_IDENTITY() AS product_id;');
     }
     const vr = await pool.request().input('p', sql.Int, p.recordset[0].product_id).input('sz', sql.Int, size.recordset[0].size_id)
       .input('c', sql.Int, color.recordset[0].color_id).input('s', sql.VarChar(50), v.sku)
@@ -234,6 +320,271 @@ async function seedCart(pool, username, lines, ids) {
       .query('INSERT INTO cart_items (cart_id, variant_id, quantity) VALUES (@cart, @v, @q)');
   }
   return `đã tạo giỏ ${lines.length} dòng`;
+}
+
+/* ---------------- M4/M9: sản phẩm thật để test đặt hàng & thanh toán ---------------- */
+/**
+ * Mỗi mục: product (tên), brand (hãng), category (danh mục), basePrice (giá gốc),
+ * description (mô tả ngắn), variants: [{ sku, size, color, stock, salePrice?, active? }]
+ * active mặc định là 1 (đang bán). Chỉ cần 1 product entry per thương hiệu.
+ */
+const REAL_PRODUCTS = [
+  {
+    product: 'Nike Air Force 1 Low',
+    brand: 'Nike',
+    category: 'Sneaker',
+    basePrice: 2990000,
+    description: 'Giày sneaker cổ điển Nike Air Force 1 Low – đế Air êm ái, da cao cấp.',
+    variants: [
+      { sku: 'NK-AF1-WHT-39', size: '39', color: 'Trắng', stock: 15 },
+      { sku: 'NK-AF1-WHT-40', size: '40', color: 'Trắng', stock: 20 },
+      { sku: 'NK-AF1-WHT-41', size: '41', color: 'Trắng', stock: 18 },
+      { sku: 'NK-AF1-WHT-42', size: '42', color: 'Trắng', stock: 10 },
+      { sku: 'NK-AF1-BLK-40', size: '40', color: 'Đen',   stock: 12 },
+      { sku: 'NK-AF1-BLK-41', size: '41', color: 'Đen',   stock: 8  },
+      { sku: 'NK-AF1-BLK-42', size: '42', color: 'Đen',   stock: 5  },
+    ],
+  },
+  {
+    product: 'Nike Air Max 270',
+    brand: 'Nike',
+    category: 'Sneaker',
+    basePrice: 3590000,
+    description: 'Đệm Air Max 270 lớn nhất từ trước đến nay – êm, nhẹ, phong cách.',
+    variants: [
+      { sku: 'NK-AM270-GRY-39', size: '39', color: 'Xám',   stock: 10 },
+      { sku: 'NK-AM270-GRY-40', size: '40', color: 'Xám',   stock: 14 },
+      { sku: 'NK-AM270-GRY-41', size: '41', color: 'Xám',   stock: 9  },
+      { sku: 'NK-AM270-BLK-40', size: '40', color: 'Đen',   stock: 7  },
+      { sku: 'NK-AM270-BLK-41', size: '41', color: 'Đen',   stock: 3  }, // sắp hết
+      { sku: 'NK-AM270-RED-42', size: '42', color: 'Đỏ',    stock: 0,  active: 0 }, // hết hàng + ngừng bán
+    ],
+  },
+  {
+    product: 'Adidas Superstar',
+    brand: 'Adidas',
+    category: 'Sneaker',
+    basePrice: 2490000,
+    description: 'Huyền thoại 3 sọc – Adidas Superstar với mũi giày hình vỏ sò iconic.',
+    variants: [
+      { sku: 'AD-SS-WHT-38', size: '38', color: 'Trắng', stock: 8  },
+      { sku: 'AD-SS-WHT-39', size: '39', color: 'Trắng', stock: 16 },
+      { sku: 'AD-SS-WHT-40', size: '40', color: 'Trắng', stock: 20 },
+      { sku: 'AD-SS-WHT-41', size: '41', color: 'Trắng', stock: 12 },
+      { sku: 'AD-SS-BLK-39', size: '39', color: 'Đen',   stock: 10 },
+      { sku: 'AD-SS-BLK-40', size: '40', color: 'Đen',   stock: 6  },
+    ],
+  },
+  {
+    product: 'Adidas Ultra Boost 22',
+    brand: 'Adidas',
+    category: 'Chạy bộ',
+    basePrice: 4290000,
+    description: 'Công nghệ Boost đỉnh cao – trả lại năng lượng từng bước chạy.',
+    variants: [
+      { sku: 'AD-UB22-WHT-40', size: '40', color: 'Trắng', stock: 5  },
+      { sku: 'AD-UB22-WHT-41', size: '41', color: 'Trắng', stock: 9  },
+      { sku: 'AD-UB22-WHT-42', size: '42', color: 'Trắng', stock: 11 },
+      { sku: 'AD-UB22-GRY-41', size: '41', color: 'Xám',   stock: 7  },
+      { sku: 'AD-UB22-GRY-42', size: '42', color: 'Xám',   stock: 4  },
+      { sku: 'AD-UB22-BLK-43', size: '43', color: 'Đen',   stock: 6  },
+    ],
+  },
+  {
+    product: 'Vans Old Skool',
+    brand: 'Vans',
+    category: 'Sneaker',
+    basePrice: 1890000,
+    description: 'Giày skate huyền thoại Vans Old Skool – sọc sườn nổi bật, đế waffle bền bỉ.',
+    variants: [
+      { sku: 'VN-OS-BW-38',  size: '38', color: 'Trắng', stock: 12 },
+      { sku: 'VN-OS-BW-39',  size: '39', color: 'Trắng', stock: 18 },
+      { sku: 'VN-OS-BW-40',  size: '40', color: 'Trắng', stock: 22 },
+      { sku: 'VN-OS-BW-41',  size: '41', color: 'Trắng', stock: 15 },
+      { sku: 'VN-OS-BLK-39', size: '39', color: 'Đen',   stock: 9  },
+      { sku: 'VN-OS-BLK-40', size: '40', color: 'Đen',   stock: 14 },
+      { sku: 'VN-OS-NVY-40', size: '40', color: 'Xanh dương', stock: 7 },
+      { sku: 'VN-OS-NVY-41', size: '41', color: 'Xanh dương', stock: 5 },
+    ],
+  },
+  {
+    product: 'Converse Chuck Taylor All Star',
+    brand: 'Converse',
+    category: 'Sneaker',
+    basePrice: 1490000,
+    description: 'Sneaker canvas cổ điển Converse Chuck Taylor – không bao giờ lỗi mốt.',
+    variants: [
+      { sku: 'CV-CT-WHT-37', size: '37', color: 'Trắng', stock: 10 },
+      { sku: 'CV-CT-WHT-38', size: '38', color: 'Trắng', stock: 15 },
+      { sku: 'CV-CT-WHT-39', size: '39', color: 'Trắng', stock: 20 },
+      { sku: 'CV-CT-WHT-40', size: '40', color: 'Trắng', stock: 18 },
+      { sku: 'CV-CT-BLK-38', size: '38', color: 'Đen',   stock: 12 },
+      { sku: 'CV-CT-BLK-39', size: '39', color: 'Đen',   stock: 14 },
+      { sku: 'CV-CT-RED-39', size: '39', color: 'Đỏ',    stock: 6  },
+      { sku: 'CV-CT-RED-40', size: '40', color: 'Đỏ',    stock: 4  },
+    ],
+  },
+  {
+    product: 'New Balance 574',
+    brand: 'New Balance',
+    category: 'Sneaker',
+    basePrice: 2290000,
+    description: 'Biểu tượng retro New Balance 574 – thoải mái cả ngày, phối đồ đa phong cách.',
+    variants: [
+      { sku: 'NB-574-GRY-39', size: '39', color: 'Xám',   stock: 8  },
+      { sku: 'NB-574-GRY-40', size: '40', color: 'Xám',   stock: 13 },
+      { sku: 'NB-574-GRY-41', size: '41', color: 'Xám',   stock: 10 },
+      { sku: 'NB-574-NVY-40', size: '40', color: 'Xanh dương', stock: 6 },
+      { sku: 'NB-574-NVY-41', size: '41', color: 'Xanh dương', stock: 9 },
+      { sku: 'NB-574-GRN-40', size: '40', color: 'Xanh lá', stock: 4 },
+    ],
+  },
+  {
+    product: 'Puma RS-X',
+    brand: 'Puma',
+    category: 'Sneaker',
+    basePrice: 2190000,
+    description: 'Thiết kế chunky bold, đế RS dày dặn – Puma RS-X nổi bật trên đường phố.',
+    variants: [
+      { sku: 'PM-RSX-WHT-40', size: '40', color: 'Trắng', stock: 10 },
+      { sku: 'PM-RSX-WHT-41', size: '41', color: 'Trắng', stock: 8  },
+      { sku: 'PM-RSX-BLU-40', size: '40', color: 'Xanh dương', stock: 6 },
+      { sku: 'PM-RSX-BLU-41', size: '41', color: 'Xanh dương', stock: 5 },
+      { sku: 'PM-RSX-RED-42', size: '42', color: 'Đỏ',    stock: 3  },
+    ],
+  },
+];
+
+// Biến thể được dùng trong giỏ hàng mở rộng của khach02
+const CART_KHACH02 = [
+  { sku: 'NK-AF1-WHT-40', qty: 1 },
+  { sku: 'AD-SS-WHT-39',  qty: 2 },
+  { sku: 'VN-OS-BLK-40',  qty: 1 },
+];
+
+async function ensureBrand(pool, name) {
+  const ex = await pool.request().input('n', sql.NVarChar(100), name)
+    .query('SELECT brand_id FROM brands WHERE brand_name = @n AND is_deleted = 0');
+  if (ex.recordset.length) return ex.recordset[0].brand_id;
+  const r = await pool.request().input('n', sql.NVarChar(100), name)
+    .query('INSERT INTO brands (brand_name) VALUES (@n); SELECT CAST(SCOPE_IDENTITY() AS INT) AS id;');
+  return r.recordset[0].id;
+}
+
+async function ensureCategory(pool, name) {
+  const ex = await pool.request().input('n', sql.NVarChar(100), name)
+    .query('SELECT category_id FROM categories WHERE category_name = @n AND is_deleted = 0');
+  if (ex.recordset.length) return ex.recordset[0].category_id;
+  const r = await pool.request().input('n', sql.NVarChar(100), name)
+    .query('INSERT INTO categories (category_name) VALUES (@n); SELECT CAST(SCOPE_IDENTITY() AS INT) AS id;');
+  return r.recordset[0].id;
+}
+
+async function ensureColor(pool, name) {
+  const ex = await pool.request().input('n', sql.NVarChar(30), name)
+    .query('SELECT color_id FROM colors WHERE color_name = @n AND is_deleted = 0');
+  if (ex.recordset.length) return ex.recordset[0].color_id;
+  const hexMap = {
+    'Xanh dương': '#1E88E5',
+    'Xanh lá': '#43A047',
+    'Xanh navy': '#1F2A44',
+  };
+  const hex = hexMap[name] || '#808080';
+  const r = await pool.request().input('n', sql.NVarChar(30), name).input('h', sql.Char(7), hex)
+    .query('INSERT INTO colors (color_name, hex_code) VALUES (@n, @h); SELECT CAST(SCOPE_IDENTITY() AS INT) AS id;');
+  return r.recordset[0].id;
+}
+
+async function seedRealProducts(pool) {
+  const admin = await pool.request().query(`SELECT user_id FROM users WHERE username = 'admin' AND is_deleted = 0`);
+  if (!admin.recordset.length) throw new Error('Cần tài khoản admin để ghi sổ kho.');
+  const adminId = admin.recordset[0].user_id;
+
+  const allIds = {}; // sku → variant_id
+  let newProducts = 0;
+  let newVariants = 0;
+
+  for (const prod of REAL_PRODUCTS) {
+    // Đảm bảo brand & category tồn tại (bỏ qua nếu bảng chưa có)
+    let brandId = null;
+    let categoryId = null;
+    try { brandId = await ensureBrand(pool, prod.brand); } catch { /* bảng brands chưa có → bỏ qua */ }
+    try { categoryId = await ensureCategory(pool, prod.category); } catch { /* bảng categories chưa có → bỏ qua */ }
+
+    // Tìm hoặc tạo product
+    let productId;
+    const exProd = await pool.request().input('n', sql.NVarChar(200), prod.product)
+      .query('SELECT product_id FROM products WHERE product_name = @n AND is_deleted = 0');
+    if (exProd.recordset.length) {
+      productId = exProd.recordset[0].product_id;
+    } else {
+      // Thử INSERT với brand_id / category_id nếu cột tồn tại
+      try {
+        const ins = await pool.request()
+          .input('n',  sql.NVarChar(200),  prod.product)
+          .input('pr', sql.Decimal(18, 2), prod.basePrice)
+          .input('b',  sql.Int,            brandId)
+          .input('c',  sql.Int,            categoryId)
+          .input('d',  sql.NVarChar(500),  prod.description)
+          .query(`INSERT INTO products (product_name, current_price, brand_id, category_id, description, is_active)
+                  VALUES (@n, @pr, @b, @c, @d, 1);
+                  SELECT CAST(SCOPE_IDENTITY() AS INT) AS id;`);
+        productId = ins.recordset[0].id;
+      } catch {
+        // Fallback: chỉ các cột cơ bản (nếu schema chưa có brand_id/category_id/description)
+        const ins = await pool.request()
+          .input('n',  sql.NVarChar(200),  prod.product)
+          .input('pr', sql.Decimal(18, 2), prod.basePrice)
+          .query(`INSERT INTO products (product_name, current_price, is_active) VALUES (@n, @pr, 1);
+                  SELECT CAST(SCOPE_IDENTITY() AS INT) AS id;`);
+        productId = ins.recordset[0].id;
+      }
+      newProducts++;
+    }
+
+    // Tạo từng variant
+    for (const v of prod.variants) {
+      const exV = await pool.request().input('s', sql.VarChar(50), v.sku)
+        .query('SELECT variant_id FROM product_variants WHERE sku = @s AND is_deleted = 0');
+      if (exV.recordset.length) {
+        allIds[v.sku] = exV.recordset[0].variant_id;
+        continue;
+      }
+
+      const size = await pool.request().input('l', sql.VarChar(10), v.size)
+        .query('SELECT size_id FROM sizes WHERE size_label = @l AND is_deleted = 0');
+      if (!size.recordset.length) {
+        console.warn(`    [bỏ qua] Size ${v.size} chưa có trong bảng sizes → ${v.sku}`);
+        continue;
+      }
+      const colorId = await ensureColor(pool, v.color);
+
+      const isDel = v.active === 0 ? 1 : 0;
+
+      const vr = await pool.request()
+        .input('p',  sql.Int,           productId)
+        .input('sz', sql.Int,           size.recordset[0].size_id)
+        .input('c',  sql.Int,           colorId)
+        .input('s',  sql.VarChar(50),   v.sku)
+        .input('d',  sql.Bit,           isDel)
+        .query(`INSERT INTO product_variants (product_id, size_id, color_id, sku, is_deleted)
+                VALUES (@p, @sz, @c, @s, @d);
+                SELECT CAST(SCOPE_IDENTITY() AS INT) AS variant_id;`);
+      const variantId = Number(vr.recordset[0].variant_id);
+      allIds[v.sku] = variantId;
+      newVariants++;
+
+      if (v.stock > 0) {
+        await pool.request()
+          .input('v', sql.Int,  variantId)
+          .input('q', sql.Int,  v.stock)
+          .input('u', sql.Int,  adminId)
+          .query(`INSERT INTO inventory_transactions (variant_id, transaction_type, quantity_change, reason, created_by)
+                  VALUES (@v, 'ADJUST_IN', @q, N'Seed sản phẩm thật', @u)`);
+      }
+    }
+  }
+  return { newProducts, newVariants, allIds };
 }
 
 /* ---------------- M8: khuyến mãi / voucher test + đơn hàng mẫu ---------------- */
@@ -277,10 +628,10 @@ async function seedPromotions(pool, ids) {
 }
 
 const SEED_ORDERS = [
-  { tag: 'SEED-M8-PENDING',   steps: [],                                     lines: [['TEST-OK-41', 1]] },
-  { tag: 'SEED-M8-CONFIRMED', steps: ['CONFIRMED'],                          lines: [['TEST-OK-40', 1]] },
+  { tag: 'SEED-M8-PENDING', steps: [], lines: [['TEST-OK-41', 1]] },
+  { tag: 'SEED-M8-CONFIRMED', steps: ['CONFIRMED'], lines: [['TEST-OK-40', 1]] },
   { tag: 'SEED-M8-DELIVERED', steps: ['CONFIRMED', 'SHIPPING', 'DELIVERED'], lines: [['TEST-OK-41', 2]], paid: true },
-  { tag: 'SEED-M8-CANCELLED', steps: ['CANCELLED'],                          lines: [['TEST-LOW-39', 1]] },
+  { tag: 'SEED-M8-CANCELLED', steps: ['CANCELLED'], lines: [['TEST-LOW-39', 1]] },
 ];
 
 async function seedOrders(pool, ids) {
@@ -370,12 +721,12 @@ async function seedReviewsAndFavorites(pool, ids) {
   const salesEmployeeId = emp.recordset[0]?.id ?? null;
 
   const REVIEWS = [
-    { who: { username: 'khach01' },     product: okP,  rating: 5, status: 'APPROVED', invoice: deliveredInvoice, comment: 'Giày đi rất êm, đúng size, giao nhanh.' },
-    { who: { username: 'khach02' },     product: okP,  rating: 4, status: 'APPROVED', comment: 'Đẹp nhưng hơi chật, nên lấy lớn hơn 1 size.', reply: 'Cảm ơn bạn đã góp ý! Lần sau bạn có thể đổi size miễn phí trong 7 ngày nhé.' },
-    { who: { phone: '0910000001' },    product: okP,  rating: 5, status: 'APPROVED', comment: 'Đóng gói cẩn thận, chất liệu tốt.' },
-    { who: { phone: '0910000002' },    product: okP,  rating: 3, status: 'PENDING',  comment: 'Tạm ổn, đang chờ duyệt (để thử nút Duyệt).' },
-    { who: { phone: '0910000003' },    product: okP,  rating: 1, status: 'HIDDEN',   comment: 'Nội dung vi phạm (để thử ẩn / xóa, không tính vào điểm trung bình).' },
-    { who: { phone: '0910000004' },    product: lowP, rating: 4, status: 'APPROVED', comment: 'Mẫu này đẹp, tiếc là sắp hết hàng.' },
+    { who: { username: 'khach01' }, product: okP, rating: 5, status: 'APPROVED', invoice: deliveredInvoice, comment: 'Giày đi rất êm, đúng size, giao nhanh.' },
+    { who: { username: 'khach02' }, product: okP, rating: 4, status: 'APPROVED', comment: 'Đẹp nhưng hơi chật, nên lấy lớn hơn 1 size.', reply: 'Cảm ơn bạn đã góp ý! Lần sau bạn có thể đổi size miễn phí trong 7 ngày nhé.' },
+    { who: { phone: '0910000001' }, product: okP, rating: 5, status: 'APPROVED', comment: 'Đóng gói cẩn thận, chất liệu tốt.' },
+    { who: { phone: '0910000002' }, product: okP, rating: 3, status: 'PENDING', comment: 'Tạm ổn, đang chờ duyệt (để thử nút Duyệt).' },
+    { who: { phone: '0910000003' }, product: okP, rating: 1, status: 'HIDDEN', comment: 'Nội dung vi phạm (để thử ẩn / xóa, không tính vào điểm trung bình).' },
+    { who: { phone: '0910000004' }, product: lowP, rating: 4, status: 'APPROVED', comment: 'Mẫu này đẹp, tiếc là sắp hết hàng.' },
   ];
 
   let created = 0;
@@ -397,7 +748,7 @@ async function seedReviewsAndFavorites(pool, ids) {
   }
 
   // Yêu thích của khach01: 2 sản phẩm đang bán + 1 sản phẩm ngừng bán (phải bị ẩn khỏi danh sách)
-  
+
   // Yêu thích của khach01: 2 sản phẩm đang bán + 1 sản phẩm ngừng bán
   const k1 = await customerIdBy(pool, { username: 'khach01' });
   let favs = 0;
@@ -439,14 +790,14 @@ async function seedReviewsAndFavorites(pool, ids) {
 const d = (ymd) => (ymd ? new Date(`${ymd}T00:00:00.000Z`) : null);
 
 const EMPLOYEE_PROFILE = {
-  admin:       { gender: 'MALE',   email: 'admin@ouran.vn',       dob: '1990-04-12', hire: '2022-01-10' },
-  sales01:     { gender: 'FEMALE', email: 'sales01@ouran.vn',     dob: '1996-08-21', hire: '2023-03-01' },
-  warehouse01: { gender: 'MALE',   email: 'kho01@ouran.vn',       dob: '1993-11-05', hire: '2023-06-15' },
+  admin: { gender: 'MALE', email: 'admin@ouran.vn', dob: '1990-04-12', hire: '2022-01-10' },
+  sales01: { gender: 'FEMALE', email: 'sales01@ouran.vn', dob: '1996-08-21', hire: '2023-03-01' },
+  warehouse01: { gender: 'MALE', email: 'kho01@ouran.vn', dob: '1993-11-05', hire: '2023-06-15' },
   // sales_locked: để trống toàn bộ
 };
 
 const CUSTOMER_PROFILE_BY_USERNAME = {
-  khach01: { gender: 'MALE',   email: 'khach01@example.com', dob: '2000-05-20' },
+  khach01: { gender: 'MALE', email: 'khach01@example.com', dob: '2000-05-20' },
   khach02: { gender: 'FEMALE', email: 'khach02@example.com', dob: '1997-02-14' },
   // khach_locked: để trống toàn bộ
 };
@@ -454,16 +805,16 @@ const CUSTOMER_PROFILE_BY_USERNAME = {
 // Khách không có tài khoản (nhận diện bằng SĐT) – đa dạng giới tính / tuổi / mức mua để thử bộ lọc
 const CUSTOMER_PROFILE_BY_PHONE = {
   '0910000001': { gender: 'FEMALE', dob: '2003-03-10', email: 'a01@example.com', spent: 3200000 },
-  '0910000002': { gender: 'MALE',   dob: '1998-07-01', email: null,              spent: 12500000 },
+  '0910000002': { gender: 'MALE', dob: '1998-07-01', email: null, spent: 12500000 },
   '0910000003': { gender: 'FEMALE', dob: '1985-09-30', email: 'a03@example.com', spent: 25000000 },
-  '0910000004': { gender: 'MALE',   dob: '1979-01-15', email: 'a04@example.com', spent: 800000 },
-  '0910000005': { gender: 'OTHER',  dob: '2008-12-25', email: null,              spent: 0 },
+  '0910000004': { gender: 'MALE', dob: '1979-01-15', email: 'a04@example.com', spent: 800000 },
+  '0910000005': { gender: 'OTHER', dob: '2008-12-25', email: null, spent: 0 },
   '0910000006': { gender: 'FEMALE', dob: '1992-06-18', email: 'a06@example.com', spent: 7400000 },
-  '0910000007': { gender: 'MALE',   dob: '1969-10-02', email: null,              spent: 1900000 },
+  '0910000007': { gender: 'MALE', dob: '1969-10-02', email: null, spent: 1900000 },
   '0910000008': { gender: 'FEMALE', dob: '2001-04-04', email: 'a08@example.com', spent: 5000000 },
-  '0910000009': { gender: 'MALE',   dob: '1995-11-11', email: 'a09@example.com', spent: 0 },
+  '0910000009': { gender: 'MALE', dob: '1995-11-11', email: 'a09@example.com', spent: 0 },
   '0910000011': { gender: 'FEMALE', dob: '1988-02-29', email: 'a11@example.com', spent: 4300000 },
-  '0910000012': { gender: 'MALE',   dob: '2005-08-08', email: 'a12@example.com', spent: 21000000 },
+  '0910000012': { gender: 'MALE', dob: '2005-08-08', email: 'a12@example.com', spent: 21000000 },
   // 0900000005, 0910000010: để trống toàn bộ ("Chưa cung cấp")
 };
 
@@ -521,21 +872,30 @@ async function main() {
     console.log(`  [địa chỉ ${username.padEnd(8)}] ${await seedAddresses(pool, username, list)}`);
   }
 
-  console.log(`  [thông tin cá nhân] đã điền ${await seedProfileFields(pool)} bản ghi (giới tính, email, ngày sinh, ngày vào làm; một số để trống để thử NULL)`);
+  console.log(`  [thông tin cá nhân] đã điền ${await seedProfileFields(pool)} bản ghi (giới tính, email, ngày sinh, ngày vào làm)`);
 
   console.log('\nM7 – giỏ hàng:');
   const ids = await seedTestCatalog(pool);
-  for (const [sku, id] of Object.entries(ids)) console.log(`  [sản phẩm test] ${sku.padEnd(12)} → variantId ${id}`);
-  console.log(`  [giỏ khach01] ${await seedCart(pool, 'khach01', CART_KHACH01, ids)}   (khach02: giỏ trống để thử thêm mới)`);
+  for (const [sku, id] of Object.entries(ids)) console.log(`  [sản phẩm test] ${sku.padEnd(14)} → variantId ${id}`);
+  console.log(`  [giỏ khach01] ${await seedCart(pool, 'khach01', CART_KHACH01, ids)}   (4 trạng thái: OK / SẮP HẾT / HẾT / NGỪNG BÁN)`);
+
+  console.log('\nM4/M9 – sản phẩm thật (Nike, Adidas, Vans, Converse, NB, Puma):');
+  const real = await seedRealProducts(pool);
+  console.log(`  [sản phẩm thật] tạo mới ${real.newProducts} sản phẩm, ${real.newVariants} biến thể (tổng ${REAL_PRODUCTS.reduce((s, p) => s + p.variants.length, 0)} variants định nghĩa)`);
+  const allIds = { ...ids, ...real.allIds };
+  console.log(`  [giỏ khach02]  ${await seedCart(pool, 'khach02', CART_KHACH02, allIds)}   (Nike AF1, Adidas SS, Vans OS – test M9 thanh toán)`);
 
   console.log('\nM8 – khuyến mãi & đơn hàng:');
   console.log(`  [khuyến mãi test] tạo mới ${await seedPromotions(pool, ids)}/3 (giảm 10% giày test · hóa đơn ≥ 2 triệu giảm 5% · voucher TEST10, TESTFULL hết lượt)`);
-  console.log(`  [đơn mẫu khach01] ${await seedOrders(pool, ids)}`);
+  console.log(`  [đơn mẫu khach01] ${await seedOrders(pool, allIds)}`);
 
   console.log('\nM14 – đánh giá & yêu thích:');
   console.log(`  [mẫu] ${await seedReviewsAndFavorites(pool, ids)}`);
 
-  console.log('\nXong. Web: admin / sales01 / warehouse01 · Mobile: khach01.');
+  console.log('\n=== Xong ===');
+  console.log('Web : admin / sales01 / warehouse01');
+  console.log('Mobile: khach01 (giỏ test), khach02 (giỏ sản phẩm thật)');
+  console.log('Sản phẩm thật sẵn sàng test M9: Nike Air Force 1, Adidas Superstar, Vans Old Skool, Converse Chuck Taylor, New Balance 574, Puma RS-X, Adidas Ultra Boost');
   await pool.close();
 }
 

@@ -1,7 +1,9 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { PrimaryButton } from '@/components/PrimaryButton';
+import { QrPaymentCard } from '@/components/QrPaymentCard';
 import { StatusBadge } from '@/components/StatusBadge';
 import { PAYMENT_STATUS_LABEL, STATUS_LABEL } from '@/constants/order';
 import { orderService } from '@/services/order.service';
@@ -129,9 +131,38 @@ export default function OrderDetailScreen() {
             {order.payments.map((p) => (
               <View key={p.paymentId} style={styles.row}>
                 <Text style={styles.bold}>{p.methodName}</Text>
-                <Text style={styles.muted}>{formatVnd(p.amount)} · {PAY_TX[p.status]}</Text>
+                <Text style={styles.muted}>
+                  {formatVnd(p.amount)} · {p.methodCode === 'CASH' && p.status === 'PENDING' ? 'Thu tiền khi giao hàng' : (PAY_TX[p.status] ?? p.status)}
+                </Text>
               </View>
             ))}
+
+            {/* CHỈ HIỆN MÃ QR TRỰC TIẾP TRÊN TRANG CHI TIẾT NẾU LÀ ĐƠN ONLINE (KHÔNG PHẢI TIỀN MẶT) */}
+            {(() => {
+              const pendingOnline = order.payments.find(
+                (p) => p.status === 'PENDING' && p.methodCode !== 'CASH' && p.methodCode !== 'COD',
+              );
+              if (!pendingOnline) return null;
+              return (
+                <QrPaymentCard
+                  orderId={orderId}
+                  paymentId={pendingOnline.paymentId}
+                  amount={pendingOnline.amount}
+                  createdAt={order.invoiceDate}
+                  onSuccess={() => void load()}
+                />
+              );
+            })()}
+
+            {/* M9: nút xem chi tiết thanh toán cho đơn online */}
+            {order.payments.some((p) => p.methodCode !== 'CASH' && p.methodCode !== 'COD') && (
+              <TouchableOpacity
+                style={styles.paymentLink}
+                onPress={() => router.push(`/orders/payment/${orderId}`)}
+              >
+                <Text style={styles.paymentLinkText}>Xem lịch sử & đối soát thanh toán →</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </>
       )}
@@ -173,4 +204,35 @@ const styles = StyleSheet.create({
   total: { color: colors.primaryDark, fontSize: 18, fontWeight: '800' },
   timelineItem: { flexDirection: 'row', gap: 10 },
   dot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.primary, marginTop: 5 },
+  paymentLink: { paddingTop: 6, borderTopWidth: 1, borderTopColor: colors.border, marginTop: 4 },
+  paymentLinkText: { color: colors.primary, fontWeight: '700', fontSize: 14, textAlign: 'center' },
+  payNowBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#EDFDF5',
+    borderWidth: 1.5,
+    borderColor: '#168A4F',
+    borderRadius: radius.md,
+    padding: 14,
+    marginVertical: 4,
+  },
+  payNowIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#168A4F',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  payNowTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#168A4F',
+  },
+  payNowSub: {
+    fontSize: 12,
+    color: colors.textMuted,
+    marginTop: 2,
+  },
 });

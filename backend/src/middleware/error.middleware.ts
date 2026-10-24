@@ -21,6 +21,9 @@ export function errorHandler(err: unknown, _req: Request, res: Response, _next: 
   if (err instanceof jwt.JsonWebTokenError) {
     return res.status(401).json({ code: 'TOKEN_INVALID', message: 'Token không hợp lệ', details: null });
   }
+  if (err instanceof SyntaxError && 'status' in err && (err as { status: number }).status === 400 && 'body' in err) {
+    return res.status(400).json({ code: 'INVALID_JSON', message: 'Dữ liệu JSON không hợp lệ', details: null });
+  }
   if (isDuplicateKey(err)) {
     return res.status(409).json({ code: 'DUPLICATE', message: 'Dữ liệu đã tồn tại', details: null });
   }

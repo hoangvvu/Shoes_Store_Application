@@ -134,4 +134,25 @@ export const cartRepository = {
       exec,
     );
   },
+
+  /** Tìm giỏ CHECKED_OUT gần nhất của khách (để khôi phục khi hủy đơn ONLINE chưa thanh toán). */
+  async findLastCheckedOutId(customerId: number, exec?: Executor): Promise<number | null> {
+    const r = await query<{ cartId: number }>(
+      `SELECT TOP 1 cart_id AS cartId FROM carts
+       WHERE customer_id = @customerId AND status = 'CHECKED_OUT' AND is_deleted = 0
+       ORDER BY updated_at DESC`,
+      { customerId: [sql.Int, customerId] },
+      exec,
+    );
+    return r.recordset[0]?.cartId ?? null;
+  },
+
+  /** Khôi phục giỏ CHECKED_OUT về ACTIVE (dùng khi khách hủy đơn ONLINE chưa thanh toán). */
+  async restoreCheckedOut(cartId: number, exec?: Executor): Promise<void> {
+    await query(
+      `UPDATE carts SET status = 'ACTIVE', updated_at = SYSUTCDATETIME() WHERE cart_id = @cartId AND status = 'CHECKED_OUT'`,
+      { cartId: [sql.Int, cartId] },
+      exec,
+    );
+  },
 };

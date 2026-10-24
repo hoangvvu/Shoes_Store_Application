@@ -103,6 +103,19 @@ export default function CartScreen() {
             <View style={styles.empty}>
               <Ionicons name="cart-outline" size={64} color={colors.border} />
               <Text style={styles.emptyText}>Giỏ hàng của bạn đang trống</Text>
+              <Pressable
+                style={{ marginTop: 16, backgroundColor: colors.primary, paddingHorizontal: 20, paddingVertical: 12, borderRadius: 12 }}
+                onPress={async () => {
+                  try {
+                    await cartService.addItem(56, 1);
+                    await refresh();
+                  } catch (e) {
+                    await refresh().catch(() => undefined);
+                  }
+                }}
+              >
+                <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>+ Nạp sản phẩm mẫu vào giỏ</Text>
+              </Pressable>
             </View>
           )
         }

@@ -216,7 +216,7 @@ export const orderService = {
     const customer = auth.role === ROLES.CUSTOMER;
     if (!customer && !reason?.trim()) throw AppError.badRequest('Bắt buộc nhập lý do hủy đơn', 'REASON_REQUIRED');
 
-    const { paidAmount } = await withTransaction(async (tx) => {
+    const { paidAmount, shouldRestoreCart, customerId: cancelledCustomerId } = await withTransaction(async (tx) => {
       await setActor(tx, auth.userId);
       const row = await orderRepository.lock(invoiceId, tx);
       if (!row || (customer && row.customerId !== auth.customerId)) throw NOT_FOUND();
@@ -234,8 +234,20 @@ export const orderService = {
       await setActor(tx, auth.userId);
       if (row.voucherCode) await orderPromotionRepository.releaseVoucher(row.voucherCode, tx); // hoàn lượt voucher
       await orderPaymentRepository.failPending(invoiceId, 'Đơn hàng đã bị hủy', tx);
-      return { paidAmount: await orderRepository.paidAmount(invoiceId, tx) };
+      const paid = await orderRepository.paidAmount(invoiceId, tx);
+
+      // Khôi phục giỏ hàng nếu: khách tự hủy, đơn ONLINE, chưa có thanh toán thành công
+      const shouldRestore = customer && row.channel === 'ONLINE' && paid === 0 && !!row.customerId;
+      return { paidAmount: paid, shouldRestoreCart: shouldRestore, customerId: row.customerId };
     });
+
+    // Khôi phục giỏ CHECKED_OUT → ACTIVE (ngoài transaction chính để không làm nặng lock)
+    if (shouldRestoreCart && cancelledCustomerId) {
+      const checkedOutCartId = await cartRepository.findLastCheckedOutId(cancelledCustomerId);
+      if (checkedOutCartId) {
+        await cartRepository.restoreCheckedOut(checkedOutCartId);
+      }
+    }
 
     // Đã thu tiền: việc tạo yêu cầu hoàn tiền thuộc M9, ở đây chỉ báo để giao diện nhắc nhân viên.
     return { ...(await this.getOrder(auth, invoiceId)), refundRequired: paidAmount > 0, paidAmount };

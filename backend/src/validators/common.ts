@@ -107,7 +107,12 @@ export const firstNameField = z
   .string({ required_error: 'Vui lòng nhập tên' })
   .trim()
   .min(1, 'Vui lòng nhập tên')
-  .max(50, 'Tên tối đa 50 ký tự');
+/** Họ và tên (dùng khi form nhập họ tên gộp thay vì tách riêng). */
+export const fullNameField = z
+  .string({ required_error: 'Vui lòng nhập họ và tên' })
+  .trim()
+  .min(2, 'Họ và tên tối thiểu 2 ký tự')
+  .max(100, 'Họ và tên tối đa 100 ký tự');
 
 export const idParam = z.object({
   id: z.coerce.number({ invalid_type_error: 'Mã không hợp lệ' }).int().positive('Mã không hợp lệ'),

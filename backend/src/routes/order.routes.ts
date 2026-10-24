@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { ROLES } from '../constants/auth.constant';
 import { orderController as c } from '../controllers/order.controller';
+import { paymentController as pc } from '../controllers/payment.controller';
 import { authenticate } from '../middleware/auth.middleware';
 import { requireRole } from '../middleware/role.middleware';
 import { validate } from '../middleware/validate.middleware';
@@ -10,6 +11,7 @@ import {
   cancelSchema, createOrderSchema, editItemsSchema, myOrdersQuery, noteSchema,
   orderListQuery, posOrderSchema, posPreviewSchema, posProductQuery, previewOrderSchema, printQuery,
 } from '../validators/order.validator';
+import { retryPaySchema } from '../validators/payment.validator';
 
 const { ADMIN, SALES, CUSTOMER } = ROLES;
 const id = validate(idParam, 'params');
@@ -29,6 +31,9 @@ orders.post('/:id/ship', requireRole(ADMIN, SALES), id, validate(noteSchema), h(
 orders.post('/:id/deliver', requireRole(ADMIN, SALES), id, validate(noteSchema), h(c.deliver));
 orders.put('/:id/items', requireRole(ADMIN, SALES), id, validate(editItemsSchema), h(c.editItems));
 orders.delete('/:id', requireRole(ADMIN), id, h(c.remove));
+// M9 – thanh toán
+orders.get('/:id/payment', requireRole(CUSTOMER, SALES, ADMIN), id, h(pc.getPaymentStatus));
+orders.post('/:id/pay', requireRole(CUSTOMER), id, validate(retryPaySchema), h(pc.retryPay));
 
 /** /api/v1/me/orders */
 export const myOrdersRouter = Router();
