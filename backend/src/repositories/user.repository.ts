@@ -131,4 +131,13 @@ export const userRepository = {
       exec,
     );
   },
+
+  /** Xóa mềm tài khoản gắn với nhân viên (khi xóa mềm nhân viên). */
+  async softDeleteByEmployeeId(employeeId: number, exec?: Executor): Promise<void> {
+    await query(
+      `UPDATE users SET is_deleted = 1, deleted_at = SYSUTCDATETIME() WHERE employee_id = @employeeId AND is_deleted = 0`,
+      { employeeId: [sql.Int, employeeId] },
+      exec,
+    );
+  },
 };

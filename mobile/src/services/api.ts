@@ -5,6 +5,7 @@ import { useAuthStore } from '@/store/useAuthStore';
 export const api = axios.create({ baseURL: API_URL, timeout: 15000 });
 
 api.interceptors.request.use((config) => {
+  config.headers['ngrok-skip-browser-warning'] = 'true';
   const token = useAuthStore.getState().accessToken;
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;

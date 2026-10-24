@@ -16,3 +16,16 @@ export function authenticate(req: Request, _res: Response, next: NextFunction) {
     next(AppError.unauthorized('Token không hợp lệ', 'TOKEN_INVALID'));
   }
 }
+
+export function optionalAuth(req: Request, _res: Response, next: NextFunction) {
+  const header = req.headers.authorization;
+  if (header?.startsWith('Bearer ')) {
+    try {
+      req.user = verifyAccessToken(header.slice(7));
+    } catch {
+      // Bỏ qua lỗi token ở route public/optional
+    }
+  }
+  next();
+}
+
