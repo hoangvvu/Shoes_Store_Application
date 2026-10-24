@@ -66,7 +66,7 @@ export interface OrderDetail extends OrderListItem {
   paidAmount: number;
   items: OrderLine[];
   history: { historyId: number; oldStatus: OrderStatus | null; newStatus: OrderStatus; changedAt: string; changedByName: string | null; note: string | null }[];
-  payments: { paymentId: number; methodName: string; amount: number; status: 'PENDING' | 'SUCCESS' | 'FAILED' }[];
+  payments: { paymentId: number; methodCode: string; methodName: string; amount: number; status: 'PENDING' | 'SUCCESS' | 'FAILED'; proofUrl?: string | null }[];
   canCancel: boolean;
 }
 

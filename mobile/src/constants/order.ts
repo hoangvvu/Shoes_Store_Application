@@ -28,9 +28,7 @@ export const STATUS_FILTERS: { value: OrderStatus | undefined; text: string }[] 
 /** Mã trùng bảng payment_methods trong CSDL. Hướng dẫn thanh toán online thuộc module Thanh toán. */
 export const PAYMENT_METHODS = [
   { code: 'CASH', text: 'Tiền mặt khi nhận hàng', icon: 'cash-outline' },
-  { code: 'BANK_TRANSFER', text: 'Chuyển khoản ngân hàng', icon: 'business-outline' },
-  { code: 'BANK_QR', text: 'Quét mã QR ngân hàng', icon: 'qr-code-outline' },
-  { code: 'MOMO', text: 'Ví MoMo', icon: 'wallet-outline' },
+  { code: 'BANK_QR', text: 'Quét mã QR (Ngân hàng / MoMo)', icon: 'qr-code-outline' },
 ] as const;
 
 export const PAYMENT_STATUS_LABEL: Record<string, string> = {
