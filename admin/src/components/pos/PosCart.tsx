@@ -58,8 +58,10 @@ export function PosCart({ lines, preview, previewing, onQty, onRemove }: Props) 
               {p ? (
                 <>
                   <strong>{formatVnd(p.lineTotal)}</strong>
-                  <span className="muted">{formatVnd(p.unitPrice)} × {p.quantity}</span>
-                  {p.lineDiscount > 0 && <span className="amount-refund">KM -{p.discountPercent}%: -{formatVnd(p.lineDiscount)}</span>}
+                  <span className="muted">
+                    {p.lineDiscount > 0 && <s>{formatVnd(p.unitPrice)}</s>} {formatVnd(Math.round(p.lineTotal / p.quantity))} × {p.quantity}
+                  </span>
+                  {p.lineDiscount > 0 && <span className="amount-refund">Giảm giá SP {p.discountPercent}%: -{formatVnd(p.lineDiscount)} (cả dòng)</span>}
                 </>
               ) : (
                 <span className="muted">{previewing ? 'Đang tính…' : '—'}</span>

@@ -31,6 +31,8 @@ export interface InvoiceSummary {
 
 export interface OrderRow extends OrderListRow {
   customerPhone: string | null;
+  /** Địa chỉ mặc định đã lưu của khách (dùng hiển thị đơn POS của khách có tài khoản). */
+  customerAddress: string | null;
   employeeId: number | null;
   receiverName: string | null;
   receiverPhone: string | null;
@@ -269,12 +271,18 @@ export const orderRepository = {
   async findOrder(invoiceId: number, exec?: Executor): Promise<OrderRow | null> {
     const r = await query<OrderRow>(
       `SELECT ${ORDER_COLS},
-              c.phone AS customerPhone, i.employee_id AS employeeId, i.receiver_name AS receiverName,
+              c.phone AS customerPhone, ca.fullAddress AS customerAddress, i.employee_id AS employeeId, i.receiver_name AS receiverName,
               i.receiver_phone AS receiverPhone, i.shipping_address AS shippingAddress,
               i.promotion_id AS promotionId, pr.promotion_name AS promotionName, i.voucher_code AS voucherCode,
               i.stock_deducted AS stockDeducted, i.note
        ${ORDER_FROM}
        LEFT JOIN promotions pr ON pr.promotion_id = i.promotion_id
+       OUTER APPLY (
+         SELECT TOP 1 CONCAT(a.street_detail, N', ', a.ward, N', ', a.district, N', ', a.province) AS fullAddress
+         FROM customer_addresses a
+         WHERE a.customer_id = i.customer_id AND a.is_deleted = 0
+         ORDER BY a.is_default DESC, a.address_id
+       ) ca
        WHERE i.invoice_id = @invoiceId AND i.is_deleted = 0`,
       { invoiceId: [sql.Int, invoiceId] },
       exec,

@@ -1,10 +1,12 @@
-import { useRef, useState } from 'react';
+import { type ReactNode, useRef, useState } from 'react';
 import { posService } from '../../services/pos.service';
+import { useAuthStore } from '../../store/useAuthStore';
 import type { PaymentMethodOption, PosOrderPayload, PosOrderResult, PosPreview } from '../../types/order';
 import { getErrorMessage } from '../../utils/error';
 import { formatVnd } from '../../utils/format';
 import { PAYMENT_METHOD_HINT, cashSuggestions, newIdempotencyKey, parseMoney } from '../../utils/pos';
 import { Modal } from '../common/Modal';
+import { AmountSummary } from './AmountSummary';
 
 interface Props {
   preview: PosPreview;
@@ -12,6 +14,9 @@ interface Props {
   customerId?: number;
   customerName: string;
   voucherCode?: string;
+  gross: number;
+  productDiscount: number;
+  invoiceNote?: ReactNode;
   onClose: () => void;
   /** Bán thành công: giỏ được xóa ngay ở màn POS, không thể gửi lần 2. */
   onSuccess: (result: PosOrderResult) => void;
@@ -20,8 +25,9 @@ interface Props {
 }
 
 /** Thanh toán tại quầy: chọn phương thức, tiền mặt tính tiền thừa, chuyển khoản/QR/MoMo nhập mã giao dịch (không bắt buộc). */
-export function PosCheckoutModal({ preview, methods, customerId, customerName, voucherCode, onClose, onSuccess, onStale }: Props) {
+export function PosCheckoutModal({ preview, methods, customerId, customerName, voucherCode, gross, productDiscount, invoiceNote, onClose, onSuccess, onStale }: Props) {
   const payable = preview.amountPayable;
+  const cashier = useAuthStore((st) => st.user?.fullName) ?? '—';
   const [methodCode, setMethodCode] = useState(methods.find((m) => m.methodCode === 'CASH')?.methodCode ?? methods[0]?.methodCode ?? 'CASH');
   const [received, setReceived] = useState(String(payable));
   const [txn, setTxn] = useState('');
@@ -66,14 +72,9 @@ export function PosCheckoutModal({ preview, methods, customerId, customerName, v
 
   return (
     <Modal title="Thanh toán tại quầy" onClose={submitting ? () => undefined : onClose} wide>
-      <dl className="totals-box pos-pay__totals">
-        <dt>Khách hàng</dt><dd>{customerName}</dd>
-        <dt>Tổng tiền hàng</dt><dd>{formatVnd(preview.totalAmount)}</dd>
-        <dt>Giảm giá hóa đơn{preview.invoiceDiscountPercent > 0 ? ` (${preview.invoiceDiscountPercent}%)` : ''}</dt><dd>-{formatVnd(preview.discountAmount)}</dd>
-        <dt className="grand">Khách phải trả</dt><dd className="grand">{formatVnd(payable)}</dd>
-      </dl>
-
-      <div className="form">
+      <div className="pos-pay">
+        {/* ===== Cột trái: phương thức thanh toán / mã giao dịch / ghi chú / thu ngân ===== */}
+        <div className="form pos-pay__left">
         <div className="field">
           <span>Phương thức thanh toán</span>
           <div className="pos-methods">
@@ -112,10 +113,31 @@ export function PosCheckoutModal({ preview, methods, customerId, customerName, v
         )}
 
         <div className="field">
+          <span>Thu ngân tạo đơn</span>
+          <strong>{cashier}</strong>
+        </div>
+
+        <div className="field">
           <label htmlFor="pos-note">Ghi chú hóa đơn (không bắt buộc)</label>
           <input id="pos-note" value={note} maxLength={500} onChange={(e) => setNote(e.target.value)} disabled={submitting} />
         </div>
 
+        </div>
+
+        {/* ===== Cột phải: tóm tắt chi phí ===== */}
+        <div className="pos-pay__right">
+          <p className="muted" style={{ margin: '0 0 8px' }}>Khách hàng: <strong style={{ color: '#1d2433' }}>{customerName}</strong></p>
+          <AmountSummary
+            gross={gross}
+            productDiscount={productDiscount}
+            invoiceDiscount={preview.discountAmount}
+            invoiceDiscountNote={invoiceNote}
+            payable={payable}
+            payableLabel="Khách phải trả"
+          />
+        </div>
+      </div>
+      <div className="form pos-pay__foot">
         {error && <p className="form-error" role="alert">{error}</p>}
         <div className="form__actions">
           <button type="button" className="btn btn--ghost" onClick={onClose} disabled={submitting}>Quay lại giỏ hàng</button>

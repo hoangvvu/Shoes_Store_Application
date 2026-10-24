@@ -5,7 +5,10 @@ import type { OrderDetail } from '../../types/order';
 import { getErrorMessage } from '../../utils/error';
 import { ORDER_STATUS_LABEL, formatDateTime, formatVnd } from '../../utils/format';
 import { PAYMENT_TX_LABEL, REFUND_STATUS_LABEL, openPrintWindow } from '../../utils/order';
+import { InfoGrid, InfoItem } from '../common/InfoGrid';
 import { PageHeader } from '../common/PageHeader';
+import { RecipientCard } from '../orders/RecipientCard';
+import { AmountSummary } from '../pos/AmountSummary';
 import { CompletionBadge, PaymentBadge } from './InvoiceBadges';
 
 /** Chi tiết hóa đơn: thông tin chung, sản phẩm, thanh toán, hoàn tiền và lịch sử trạng thái. */
@@ -41,6 +44,13 @@ export function InvoiceDetailView({ basePath, ordersPath }: { basePath: string; 
 
   const refunded = inv.refundedAmount;
   const net = inv.paidAmount - refunded;
+  const methods = [...new Set(inv.payments.filter((p) => p.status === 'SUCCESS').map((p) => p.methodName))].join(', ');
+  const gross = inv.items.reduce((sum, i) => sum + i.salePrice * i.quantity, 0);
+  const productDiscount = inv.items.reduce((sum, i) => sum + i.discountAmount, 0);
+  const invoicePct = inv.totalAmount > 0 ? Math.round((inv.discountAmount * 1000) / inv.totalAmount) / 10 : 0;
+  const invoiceNote = inv.discountAmount > 0
+    ? `${invoicePct}% trên tổng tiền hàng sau giảm sản phẩm${inv.voucherCode ? ` · Voucher ${inv.voucherCode}` : inv.promotionName ? ` · ${inv.promotionName}` : ''}`
+    : 'Không có giảm giá theo hóa đơn';
   return (
     <>
       <PageHeader
@@ -64,36 +74,28 @@ export function InvoiceDetailView({ basePath, ordersPath }: { basePath: string; 
       <div className="grid-2">
         <section className="card">
           <h3>Thông tin hóa đơn</h3>
-          <dl className="kv">
-            <dt>Mã hóa đơn</dt><dd>#{inv.invoiceId}</dd>
-            <dt>Ngày lập</dt><dd>{formatDateTime(inv.invoiceDate)}</dd>
-            <dt>Kênh bán</dt><dd>{inv.channel === 'POS' ? 'Tại quầy (POS)' : 'Online'}</dd>
-            <dt>Tình trạng đơn</dt><dd><CompletionBadge status={inv.orderStatus} /></dd>
-            <dt>Thanh toán</dt><dd><PaymentBadge status={inv.paymentStatus} /></dd>
-            <dt>Khách hàng</dt><dd>{inv.customerName ?? 'Khách lẻ'}{inv.customerPhone ? ` · ${inv.customerPhone}` : ''}</dd>
-            <dt>Nhân viên lập</dt><dd>{inv.employeeName ?? '—'}</dd>
-            {inv.voucherCode && (<><dt>Voucher</dt><dd>{inv.voucherCode}</dd></>)}
-            {inv.promotionName && (<><dt>Khuyến mãi</dt><dd>{inv.promotionName}</dd></>)}
-            {inv.note && (<><dt>Ghi chú</dt><dd>{inv.note}</dd></>)}
-          </dl>
+          <InfoGrid>
+            <InfoItem label="Mã hóa đơn">#{inv.invoiceId}</InfoItem>
+            <InfoItem label="Ngày lập">{formatDateTime(inv.invoiceDate)}</InfoItem>
+            <InfoItem label="Kênh bán">{inv.channel === 'POS' ? 'Tại quầy (POS)' : 'Online'}</InfoItem>
+            <InfoItem label="Tình trạng đơn"><CompletionBadge status={inv.orderStatus} /></InfoItem>
+            <InfoItem label="Thanh toán"><PaymentBadge status={inv.paymentStatus} /></InfoItem>
+            <InfoItem label="Phương thức">{methods || '—'}</InfoItem>
+            <InfoItem label="Khách hàng">{inv.customerName ?? 'Khách lẻ'}{inv.customerPhone ? ` · ${inv.customerPhone}` : ''}</InfoItem>
+            <InfoItem label={inv.channel === 'POS' ? 'Thu ngân' : 'Nhân viên lập'}>{inv.employeeName ?? '—'}</InfoItem>
+            {inv.voucherCode && <InfoItem label="Voucher">{inv.voucherCode}</InfoItem>}
+            {inv.promotionName && <InfoItem label="Khuyến mãi" wide>{inv.promotionName}</InfoItem>}
+            {inv.note && <InfoItem label="Ghi chú" wide>{inv.note}</InfoItem>}
+          </InfoGrid>
         </section>
-        {inv.channel === 'ONLINE' && (
-          <section className="card">
-            <h3>Giao hàng</h3>
-            <dl className="kv">
-              <dt>Người nhận</dt><dd>{inv.receiverName}</dd>
-              <dt>Điện thoại</dt><dd>{inv.receiverPhone}</dd>
-              <dt>Địa chỉ</dt><dd>{inv.shippingAddress}</dd>
-            </dl>
-          </section>
-        )}
+        <RecipientCard order={inv} />
       </div>
 
       <section className="card">
         <h3>Chi tiết hóa đơn</h3>
         <div className="table-wrap">
           <table className="table">
-            <thead><tr><th>#</th><th>Sản phẩm</th><th className="num">SL</th><th className="num">Đơn giá</th><th className="num">Giảm</th><th className="num">Thành tiền</th></tr></thead>
+            <thead><tr><th>#</th><th>Sản phẩm</th><th className="num">SL</th><th className="num">Đơn giá</th><th className="num" title="Khuyến mãi theo sản phẩm, tính cho cả dòng">Giảm giá SP (cả dòng)</th><th className="num">Thành tiền</th></tr></thead>
             <tbody>
               {inv.items.map((i, idx) => (
                 <tr key={i.variantId}>
@@ -101,21 +103,25 @@ export function InvoiceDetailView({ basePath, ordersPath }: { basePath: string; 
                   <td>{i.productName}<br /><span className="muted">{i.sku} · Size {i.sizeLabel} · {i.colorName}</span></td>
                   <td className="num">{i.quantity}</td>
                   <td className="num">{formatVnd(i.salePrice)}</td>
-                  <td className="num">{formatVnd(i.discountAmount)}</td>
+                  <td className="num">{i.discountAmount > 0 ? `-${formatVnd(i.discountAmount)}` : '—'}</td>
                   <td className="num">{formatVnd(i.lineTotal)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-        <dl className="totals-box">
-          <dt>Tổng tiền hàng</dt><dd>{formatVnd(inv.totalAmount)}</dd>
-          <dt>Giảm giá hóa đơn</dt><dd>-{formatVnd(inv.discountAmount)}</dd>
-          <dt className="grand">Phải trả</dt><dd className="grand">{formatVnd(inv.amountPayable)}</dd>
-          <dt>Đã thanh toán</dt><dd>{formatVnd(inv.paidAmount)}</dd>
-          <dt>Đã hoàn tiền</dt><dd className={refunded > 0 ? 'amount-refund' : undefined}>{refunded > 0 ? `-${formatVnd(refunded)}` : formatVnd(0)}</dd>
-          <dt><strong>Thực thu</strong></dt><dd><strong>{formatVnd(net)}</strong></dd>
-        </dl>
+        <AmountSummary
+          gross={gross}
+          productDiscount={productDiscount}
+          invoiceDiscount={inv.discountAmount}
+          invoiceDiscountNote={invoiceNote}
+          payable={inv.amountPayable}
+          extra={[
+            { label: 'Đã thanh toán', value: formatVnd(inv.paidAmount) },
+            { label: 'Đã hoàn tiền', value: refunded > 0 ? `-${formatVnd(refunded)}` : formatVnd(0), tone: refunded > 0 ? 'refund' : undefined },
+            { label: 'Thực thu', value: formatVnd(net), tone: 'strong' },
+          ]}
+        />
       </section>
 
       <div className="grid-2">

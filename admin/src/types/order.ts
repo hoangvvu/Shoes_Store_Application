@@ -67,6 +67,7 @@ export interface OrderRefund {
 
 export interface OrderDetail extends OrderListItem {
   customerPhone: string | null;
+  customerAddress: string | null;
   receiverName: string | null;
   receiverPhone: string | null;
   shippingAddress: string | null;
