@@ -1,38 +1,9 @@
 import { query, sql, type Executor } from '../config/database';
 import { likePattern } from '../utils/pagination';
+import type { ProductListItemRow, ProductDetailRow, VariantRow } from '../types/product.types';
 
-export interface ProductListItemRow {
-  productId: number;
-  productName: string;
-  categoryId: number | null;
-  categoryName: string | null;
-  brandId: number | null;
-  brandName: string | null;
-  currentPrice: number;
-  unit: string;
-  imageUrl: string | null;
-  isActive: boolean;
-  totalStock: number;
-  variantCount: number;
-}
-
-export interface ProductDetailRow extends ProductListItemRow {
-  description: string | null;
-  avgRating: number | null;
-  reviewCount: number;
-}
-
-export interface VariantRow {
-  variantId: number;
-  productId: number;
-  sku: string;
-  stockQuantity: number;
-  sizeId: number;
-  sizeLabel: string;
-  colorId: number;
-  colorName: string;
-  hexCode: string | null;
-}
+/** Giữ re-export để các file cũ import kiểu từ repository vẫn chạy; có thể bỏ sau khi đổi import. */
+export type { ProductListItemRow, ProductDetailRow, VariantRow } from '../types/product.types';
 
 export const productRepository = {
   async list(

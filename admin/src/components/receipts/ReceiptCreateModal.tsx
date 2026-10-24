@@ -214,7 +214,7 @@ export function ReceiptCreateModal({ onClose, onSaved }: Props) {
             <table className="table">
               <thead>
                 <tr>
-                  <th>Sản phẩm & Biến thể</th>
+                  <th>Sản phẩm</th>
                   <th>Mã SKU</th>
                   <th className="num" style={{ width: 130 }}>SL nhập</th>
                   <th className="num" style={{ width: 160 }}>Giá nhập (VND)</th>

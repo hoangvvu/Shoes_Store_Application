@@ -1,42 +1,10 @@
 import { query, sql, type Executor, type Param } from '../config/database';
 import type { ReviewStatus } from '../constants/review.constant';
 import { searchPattern, unaccent } from '../utils/search';
+import type { ReviewRow, ReplyRow, RatingSummary } from '../types/review.types';
 
-export interface ReviewRow {
-  reviewId: number;
-  customerId: number;
-  productId: number;
-  customerName: string;
-  productName?: string;
-  rating: number;
-  comment: string | null;
-  imageUrl: string | null;
-  invoiceId: number | null;
-  verifiedPurchase: boolean;
-  status: ReviewStatus;
-  createdAt: Date;
-  updatedAt: Date | null;
-}
-
-export interface ReplyRow {
-  replyId: number;
-  reviewId: number;
-  employeeId: number;
-  employeeName: string;
-  content: string;
-  createdAt: Date;
-  updatedAt: Date | null;
-}
-
-export interface RatingSummary {
-  total: number;
-  avgRating: number;
-  star1: number;
-  star2: number;
-  star3: number;
-  star4: number;
-  star5: number;
-}
+/** Giữ re-export để các file cũ import kiểu từ repository vẫn chạy; có thể bỏ sau khi đổi import. */
+export type { ReviewRow, ReplyRow, RatingSummary } from '../types/review.types';
 
 /** Họ tên khách / nhân viên (Họ + Tên) ghép từ hai cột last_name, first_name. */
 const CUSTOMER_NAME = `LTRIM(RTRIM(CONCAT(c.last_name, N' ', c.first_name)))`;

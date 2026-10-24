@@ -1,13 +1,9 @@
 import { query, sql, type Executor } from '../config/database';
 import { likePattern } from '../utils/pagination';
+import type { SupplierRow } from '../types/supplier.types';
 
-export interface SupplierRow {
-  supplierId: number;
-  supplierName: string;
-  phone: string | null;
-  email: string | null;
-  address: string | null;
-}
+/** Giữ re-export để các file cũ import kiểu từ repository vẫn chạy; có thể bỏ sau khi đổi import. */
+export type { SupplierRow } from '../types/supplier.types';
 
 export const supplierRepository = {
   async list(

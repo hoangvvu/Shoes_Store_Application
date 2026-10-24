@@ -1,16 +1,8 @@
 import { query, sql, type Executor } from '../config/database';
+import type { AddressRow } from '../types/address.types';
 
-export interface AddressRow {
-  addressId: number;
-  label: 'HOME' | 'OFFICE' | 'OTHER';
-  receiverName: string;
-  receiverPhone: string;
-  province: string;
-  district: string;
-  ward: string;
-  streetDetail: string;
-  isDefault: boolean;
-}
+/** Giữ re-export để các file cũ import kiểu từ repository vẫn chạy; có thể bỏ sau khi đổi import. */
+export type { AddressRow } from '../types/address.types';
 
 const COLS = `address_id AS addressId, label, receiver_name AS receiverName, receiver_phone AS receiverPhone,
   province, district, ward, street_detail AS streetDetail, is_default AS isDefault`;

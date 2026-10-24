@@ -1,29 +1,9 @@
 import { query, sql, type Executor, type Param } from '../config/database';
 import { searchPattern, unaccent } from '../utils/search';
+import type { PosVariantRow, PosProductRow, PaymentMethodOption } from '../types/pos.types';
 
-export interface PosVariantRow {
-  variantId: number;
-  sku: string;
-  sizeLabel: string;
-  colorName: string;
-  hexCode: string | null;
-  stockQuantity: number;
-}
-
-export interface PosProductRow {
-  productId: number;
-  productName: string;
-  imageUrl: string | null;
-  unitPrice: number;
-  categoryName: string | null;
-  brandName: string | null;
-}
-
-export interface PaymentMethodOption {
-  methodCode: string;
-  methodName: string;
-  isOnline: boolean;
-}
+/** Giữ re-export để các file cũ import kiểu từ repository vẫn chạy; có thể bỏ sau khi đổi import. */
+export type { PosVariantRow, PosProductRow, PaymentMethodOption } from '../types/pos.types';
 
 /** Truy vấn riêng cho màn Bán tại quầy (POS): tìm sản phẩm + biến thể còn kinh doanh, danh sách phương thức thu tiền. */
 export const posRepository = {

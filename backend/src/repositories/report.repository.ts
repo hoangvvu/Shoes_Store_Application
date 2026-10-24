@@ -1,74 +1,11 @@
 import { query, sql, type Executor } from '../config/database';
+import type { RevenuePointRow, TopProductRow, OrdersReportRow, StockAlertRow, InventoryMovementRow, TopCustomerRow, EmployeeSalesRow, ReturnRateRow } from '../types/report.types';
+
+/** Giữ re-export để các file cũ import kiểu từ repository vẫn chạy; có thể bỏ sau khi đổi import. */
+export type { RevenuePointRow, TopProductRow, OrdersReportRow, StockAlertRow, InventoryMovementRow, TopCustomerRow, EmployeeSalesRow, ReturnRateRow } from '../types/report.types';
 
 const CUSTOMER_NAME = `LTRIM(RTRIM(CONCAT(c.last_name, N' ', c.first_name)))`;
 const EMPLOYEE_NAME = `LTRIM(RTRIM(CONCAT(e.last_name, N' ', e.first_name)))`;
-
-export interface RevenuePointRow {
-  period: string;
-  orders: number;
-  grossRevenue: number;
-  refunded: number;
-  netRevenue: number;
-}
-
-export interface TopProductRow {
-  productId: number;
-  productName: string;
-  imageUrl: string | null;
-  quantity: number;
-  revenue: number;
-}
-
-export interface OrdersReportRow {
-  byStatus: { status: string; count: number }[];
-  overduePending: number;
-}
-
-export interface StockAlertRow {
-  variantId: number;
-  sku: string;
-  productName: string;
-  sizeLabel: string;
-  colorName: string;
-  stockQuantity: number;
-  lastMovementAt: Date | null;
-}
-
-export interface InventoryMovementRow {
-  variantId: number;
-  sku: string;
-  productName: string;
-  sizeLabel: string;
-  colorName: string;
-  openingStock: number;
-  imported: number;
-  exported: number;
-  closingStock: number;
-}
-
-export interface TopCustomerRow {
-  customerId: number;
-  fullName: string;
-  phone: string | null;
-  orders: number;
-  totalPurchased: number;
-}
-
-export interface EmployeeSalesRow {
-  employeeId: number;
-  fullName: string;
-  orders: number;
-  revenue: number;
-}
-
-export interface ReturnRateRow {
-  productId: number;
-  productName: string;
-  soldQuantity: number;
-  returnedQuantity: number;
-  returnedValue: number;
-  ratePercent: number;
-}
 
 export const reportRepository = {
   async getRevenue(

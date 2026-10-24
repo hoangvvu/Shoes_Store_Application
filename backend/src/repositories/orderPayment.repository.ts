@@ -1,11 +1,8 @@
 import { query, sql, type Executor } from '../config/database';
+import type { PaymentMethodRow } from '../types/orderPayment.types';
 
-export interface PaymentMethodRow {
-  methodId: number;
-  methodCode: string;
-  methodName: string;
-  isOnline: boolean;
-}
+/** Giữ re-export để các file cũ import kiểu từ repository vẫn chạy; có thể bỏ sau khi đổi import. */
+export type { PaymentMethodRow } from '../types/orderPayment.types';
 
 /** Phần thanh toán mà luồng đơn hàng cần (tạo PENDING / ghi SUCCESS khi POS). Xác nhận, hoàn tiền thuộc M9. */
 export const orderPaymentRepository = {

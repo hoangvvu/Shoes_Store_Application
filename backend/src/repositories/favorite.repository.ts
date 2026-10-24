@@ -1,12 +1,8 @@
 import { query, sql, type Executor } from '../config/database';
+import type { FavoriteRow } from '../types/favorite.types';
 
-export interface FavoriteRow {
-  productId: number;
-  productName: string;
-  imageUrl: string | null;
-  currentPrice: number;
-  favoritedAt: Date;
-}
+/** Giữ re-export để các file cũ import kiểu từ repository vẫn chạy; có thể bỏ sau khi đổi import. */
+export type { FavoriteRow } from '../types/favorite.types';
 
 export const favoriteRepository = {
   async productExists(productId: number, exec?: Executor): Promise<boolean> {

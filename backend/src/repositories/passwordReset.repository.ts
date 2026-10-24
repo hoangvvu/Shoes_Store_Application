@@ -1,9 +1,8 @@
 import { query, sql, type Executor } from '../config/database';
+import type { ResetTokenRow } from '../types/passwordReset.types';
 
-export interface ResetTokenRow {
-  tokenId: number;
-  tokenHash: string;
-}
+/** Giữ re-export để các file cũ import kiểu từ repository vẫn chạy; có thể bỏ sau khi đổi import. */
+export type { ResetTokenRow } from '../types/passwordReset.types';
 
 /** Bảng password_reset_tokens nằm sẵn trong database/shoestore_schema.sql (mục 5). */
 export const passwordResetRepository = {
