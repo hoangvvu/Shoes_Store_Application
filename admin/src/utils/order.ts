@@ -30,3 +30,13 @@ export function openPrintWindow(html: string): void {
   w.focus();
   setTimeout(() => w.print(), 300);
 }
+
+export const REFUND_STATUS_LABEL: Record<string, string> = { PENDING: 'Chờ hoàn', SUCCESS: 'Đã hoàn', FAILED: 'Hoàn thất bại' };
+
+export const INVOICE_TYPE_OPTIONS = [
+  { value: '', label: 'Tất cả hóa đơn' },
+  { value: 'COMPLETED', label: 'Hoàn thành' },
+  { value: 'PARTIALLY_REFUNDED', label: 'Hoàn tiền một phần' },
+  { value: 'REFUNDED', label: 'Đã hoàn tiền' },
+];
+

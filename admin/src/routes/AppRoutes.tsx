@@ -8,6 +8,9 @@ import AdminCustomerDetailPage from '../pages/admin/AdminCustomerDetailPage';
 import AdminCustomersPage from '../pages/admin/AdminCustomersPage';
 import AdminHomePage from '../pages/admin/AdminHomePage';
 import AdminReviewsPage from '../pages/admin/AdminReviewsPage';
+import AdminInvoiceDetailPage from '../pages/admin/AdminInvoiceDetailPage';
+import AdminInvoicesPage from '../pages/admin/AdminInvoicesPage';
+import AdminPosPage from '../pages/admin/AdminPosPage';
 import AdminOrderDetailPage from '../pages/admin/AdminOrderDetailPage';
 import AdminOrdersPage from '../pages/admin/AdminOrdersPage';
 import LoginPage from '../pages/LoginPage';
@@ -15,6 +18,9 @@ import ProfilePage from '../pages/ProfilePage';
 import SalesCustomerDetailPage from '../pages/sales/SalesCustomerDetailPage';
 import SalesCustomersPage from '../pages/sales/SalesCustomersPage';
 import SalesHomePage from '../pages/sales/SalesHomePage';
+import SalesInvoiceDetailPage from '../pages/sales/SalesInvoiceDetailPage';
+import SalesInvoicesPage from '../pages/sales/SalesInvoicesPage';
+import SalesPosPage from '../pages/sales/SalesPosPage';
 import SalesReviewsPage from '../pages/sales/SalesReviewsPage';
 import SalesOrderDetailPage from '../pages/sales/SalesOrderDetailPage';
 import SalesOrdersPage from '../pages/sales/SalesOrdersPage';
@@ -35,8 +41,11 @@ export function AppRoutes() {
           <Route index element={<AdminHomePage />} />
           <Route path="customers" element={<AdminCustomersPage />} />
           <Route path="customers/:id" element={<AdminCustomerDetailPage />} />
+          <Route path="pos" element={<AdminPosPage />} />
           <Route path="orders" element={<AdminOrdersPage />} />
           <Route path="orders/:id" element={<AdminOrderDetailPage />} />
+          <Route path="invoices" element={<AdminInvoicesPage />} />
+          <Route path="invoices/:id" element={<AdminInvoiceDetailPage />} />
           <Route path="reviews" element={<AdminReviewsPage />} />
           <Route path="profile" element={<ProfilePage />} />
           <Route path="*" element={<PlaceholderPage role="ADMIN" />} />
@@ -48,8 +57,11 @@ export function AppRoutes() {
           <Route index element={<SalesHomePage />} />
           <Route path="customers" element={<SalesCustomersPage />} />
           <Route path="customers/:id" element={<SalesCustomerDetailPage />} />
+          <Route path="pos" element={<SalesPosPage />} />
           <Route path="orders" element={<SalesOrdersPage />} />
           <Route path="orders/:id" element={<SalesOrderDetailPage />} />
+          <Route path="invoices" element={<SalesInvoicesPage />} />
+          <Route path="invoices/:id" element={<SalesInvoiceDetailPage />} />
           <Route path="reviews" element={<SalesReviewsPage />} />
           <Route path="profile" element={<ProfilePage />} />
           <Route path="*" element={<PlaceholderPage role="SALES" />} />

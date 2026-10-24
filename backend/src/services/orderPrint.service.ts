@@ -16,6 +16,7 @@ interface PrintOrder {
   discountAmount: number;
   amountPayable: number;
   paidAmount: number;
+  refundedAmount?: number;
   paymentStatus: string;
   note: string | null;
   items: { productName: string; sku: string; sizeLabel: string; colorName: string; quantity: number; salePrice: number; discountAmount: number; lineTotal: number }[];
@@ -54,6 +55,7 @@ export function renderOrderHtml(o: PrintOrder, type: 'invoice' | 'delivery'): st
   const receiver = o.receiverName ?? o.customerName ?? 'Khách lẻ';
   const phone = o.receiverPhone ?? o.customerPhone ?? '';
   const due = Math.max(0, o.amountPayable - o.paidAmount);
+  const refunded = o.refundedAmount ?? 0;
 
   const rows = o.items
     .map((it, i) =>
@@ -74,6 +76,7 @@ export function renderOrderHtml(o: PrintOrder, type: 'invoice' | 'delivery'): st
          <tr><td>Giảm giá hóa đơn${o.voucherCode ? ` (${esc(o.voucherCode)})` : ''}</td><td class="r">-${vnd(o.discountAmount)}</td></tr>
          <tr class="grand"><td>Phải trả</td><td class="r">${vnd(o.amountPayable)}</td></tr>
          <tr><td>Đã thanh toán</td><td class="r">${vnd(o.paidAmount)}</td></tr>
+         ${refunded > 0 ? `<tr><td>Đã hoàn tiền</td><td class="r">-${vnd(refunded)}</td></tr><tr><td>Thực thu</td><td class="r">${vnd(o.paidAmount - refunded)}</td></tr>` : ''}
        </table>`;
 
   return `<!doctype html><html lang="vi"><head><meta charset="utf-8"><title>${title} #${o.invoiceId}</title><style>${CSS}</style></head><body>

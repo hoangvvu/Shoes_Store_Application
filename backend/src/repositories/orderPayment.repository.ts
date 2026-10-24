@@ -28,11 +28,22 @@ export const orderPaymentRepository = {
   },
 
   /** Bán tại quầy: thu đủ tiền ngay. */
-  async createSuccess(invoiceId: number, methodId: number, amount: number, exec?: Executor): Promise<void> {
+  async createSuccess(
+    invoiceId: number,
+    methodId: number,
+    amount: number,
+    exec?: Executor,
+    transactionCode?: string | null,
+  ): Promise<void> {
     await query(
-      `INSERT INTO payments (invoice_id, method_id, amount, status, paid_at)
-       VALUES (@invoiceId, @methodId, @amount, 'SUCCESS', SYSUTCDATETIME())`,
-      { invoiceId: [sql.Int, invoiceId], methodId: [sql.Int, methodId], amount: [sql.Decimal(18, 2), amount] },
+      `INSERT INTO payments (invoice_id, method_id, amount, status, paid_at, transaction_code)
+       VALUES (@invoiceId, @methodId, @amount, 'SUCCESS', SYSUTCDATETIME(), @txn)`,
+      {
+        invoiceId: [sql.Int, invoiceId],
+        methodId: [sql.Int, methodId],
+        amount: [sql.Decimal(18, 2), amount],
+        txn: [sql.VarChar(100), transactionCode ?? null],
+      },
       exec,
     );
   },
@@ -70,15 +81,37 @@ export const orderPaymentRepository = {
   async listByInvoice(invoiceId: number, exec?: Executor) {
     const r = await query<{
       paymentId: number; methodCode: string; methodName: string; amount: number;
-      status: string; paidAt: Date | null; createdAt: Date;
+      status: string; paidAt: Date | null; createdAt: Date; transactionCode: string | null;
     }>(
       `SELECT p.payment_id AS paymentId, m.method_code AS methodCode, m.method_name AS methodName,
-              p.amount, p.status, p.paid_at AS paidAt, p.created_at AS createdAt
+              p.amount, p.status, p.paid_at AS paidAt, p.created_at AS createdAt, p.transaction_code AS transactionCode
        FROM payments p JOIN payment_methods m ON m.method_id = p.method_id
        WHERE p.invoice_id = @invoiceId AND p.is_deleted = 0 ORDER BY p.payment_id`,
       { invoiceId: [sql.Int, invoiceId] },
       exec,
     );
     return r.recordset;
+  },
+
+  /** Các lần hoàn tiền của đơn (M9 ghi vào bảng refunds); hiển thị trong chi tiết hóa đơn. */
+  async listRefundsByInvoice(invoiceId: number, exec?: Executor) {
+    const r = await query<{
+      refundId: number; paymentId: number; methodName: string; amount: number; status: string;
+      reason: string; transactionCode: string | null; requestedAt: Date; completedAt: Date | null;
+      processedByName: string | null;
+    }>(
+      `SELECT rf.refund_id AS refundId, rf.payment_id AS paymentId, m.method_name AS methodName, rf.amount, rf.status,
+              rf.reason, rf.transaction_code AS transactionCode, rf.requested_at AS requestedAt, rf.completed_at AS completedAt,
+              NULLIF(LTRIM(RTRIM(CONCAT(e.last_name, N' ', e.first_name))), N'') AS processedByName
+       FROM refunds rf
+       JOIN payments p ON p.payment_id = rf.payment_id
+       JOIN payment_methods m ON m.method_id = rf.method_id
+       LEFT JOIN employees e ON e.employee_id = rf.processed_by
+       WHERE p.invoice_id = @invoiceId AND rf.is_deleted = 0
+       ORDER BY rf.refund_id`,
+      { invoiceId: [sql.Int, invoiceId] },
+      exec,
+    );
+    return r.recordset.map((x) => ({ ...x, amount: Number(x.amount) }));
   },
 };

@@ -8,7 +8,7 @@ import { asyncHandler as h } from '../utils/asyncHandler';
 import { idParam } from '../validators/common';
 import {
   cancelSchema, createOrderSchema, editItemsSchema, myOrdersQuery, noteSchema,
-  orderListQuery, posOrderSchema, previewOrderSchema, printQuery,
+  orderListQuery, posOrderSchema, posPreviewSchema, posProductQuery, previewOrderSchema, printQuery,
 } from '../validators/order.validator';
 
 const { ADMIN, SALES, CUSTOMER } = ROLES;
@@ -36,6 +36,11 @@ myOrdersRouter.get('/', authenticate, requireRole(CUSTOMER), validate(myOrdersQu
 
 /** /api/v1/pos */
 export const posRouter = Router();
-posRouter.post('/orders', authenticate, requireRole(ADMIN, SALES), validate(posOrderSchema), h(c.createPos));
+// POS dùng chung cho Admin và Bán hàng (WAREHOUSE và CUSTOMER không có quyền)
+posRouter.use(authenticate, requireRole(ADMIN, SALES));
+posRouter.get('/products', validate(posProductQuery, 'query'), h(c.posProducts));
+posRouter.get('/payment-methods', h(c.posPaymentMethods));
+posRouter.post('/preview', validate(posPreviewSchema), h(c.previewPos));
+posRouter.post('/orders', validate(posOrderSchema), h(c.createPos));
 
 export default orders;

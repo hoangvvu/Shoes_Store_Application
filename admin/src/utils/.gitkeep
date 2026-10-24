@@ -1,0 +1,101 @@
+[Empty file]
+
+Directory structure:
+└── backend/
+    ├── package.json
+    ├── tsconfig.json
+    ├── .env.example
+    ├── src/
+    │   ├── app.js
+    │   ├── app.ts
+    │   ├── server.js
+    │   ├── server.ts
+    │   ├── config/
+    │   │   ├── database.ts
+    │   │   └── env.ts
+    │   ├── constants/
+    │   │   ├── auth.constant.ts
+    │   │   ├── order.constant.ts
+    │   │   └── review.constant.ts
+    │   ├── controllers/
+    │   │   ├── address.controller.ts
+    │   │   ├── auth.controller.ts
+    │   │   ├── cart.controller.ts
+    │   │   ├── customer.controller.ts
+    │   │   ├── favorite.controller.ts
+    │   │   ├── me.controller.ts
+    │   │   ├── order.controller.ts
+    │   │   ├── review.controller.ts
+    │   │   └── user.controller.ts
+    │   ├── errors/
+    │   │   └── AppError.ts
+    │   ├── middleware/
+    │   │   ├── auth.middleware.ts
+    │   │   ├── error.middleware.ts
+    │   │   ├── role.middleware.ts
+    │   │   └── validate.middleware.ts
+    │   ├── repositories/
+    │   │   ├── address.repository.ts
+    │   │   ├── cart.repository.ts
+    │   │   ├── customer.repository.ts
+    │   │   ├── employee.repository.ts
+    │   │   ├── favorite.repository.ts
+    │   │   ├── invoice.repository.ts
+    │   │   ├── order.repository.ts
+    │   │   ├── orderPayment.repository.ts
+    │   │   ├── orderPromotion.repository.ts
+    │   │   ├── passwordReset.repository.ts
+    │   │   ├── review.repository.ts
+    │   │   ├── reviewNotification.repository.ts
+    │   │   ├── user.repository.ts
+    │   │   └── .gitkeep
+    │   ├── routes/
+    │   │   ├── address.routes.ts
+    │   │   ├── auth.routes.ts
+    │   │   ├── cart.routes.ts
+    │   │   ├── customer.routes.ts
+    │   │   ├── favorite.routes.ts
+    │   │   ├── index.ts
+    │   │   ├── me.routes.ts
+    │   │   ├── order.routes.ts
+    │   │   ├── review.routes.ts
+    │   │   └── user.routes.ts
+    │   ├── services/
+    │   │   ├── address.service.ts
+    │   │   ├── auth.service.ts
+    │   │   ├── cart.service.ts
+    │   │   ├── customer.service.ts
+    │   │   ├── favorite.service.ts
+    │   │   ├── me.service.ts
+    │   │   ├── order.service.ts
+    │   │   ├── orderPrint.service.ts
+    │   │   ├── pricing.service.ts
+    │   │   ├── profile.helper.ts
+    │   │   ├── review.service.ts
+    │   │   └── user.service.ts
+    │   ├── types/
+    │   │   └── express.d.ts
+    │   ├── utils/
+    │   │   ├── age.ts
+    │   │   ├── asyncHandler.ts
+    │   │   ├── jwt.ts
+    │   │   ├── loginLimiter.ts
+    │   │   ├── name.ts
+    │   │   ├── otp.ts
+    │   │   ├── pagination.ts
+    │   │   ├── password.ts
+    │   │   ├── phone.ts
+    │   │   ├── search.ts
+    │   │   ├── session.ts
+    │   │   ├── sqlError.ts
+    │   │   └── .gitkeep
+    │   └── validators/
+    │       ├── address.validator.ts
+    │       ├── auth.validator.ts
+    │       ├── cart.validator.ts
+    │       ├── common.ts
+    │       ├── customer.validator.ts
+    │       ├── order.validator.ts
+    │       ├── review.validator.ts
+    │       └── user.validator.ts
+    └── test/

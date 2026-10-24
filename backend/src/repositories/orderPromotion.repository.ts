@@ -23,7 +23,7 @@ export const orderPromotionRepository = {
     // productIds là số nguyên đã kiểm soát nên an toàn khi ghép vào IN (...)
     const list = productIds.map((n) => Math.trunc(Number(n))).join(',');
     const r = await query<{ productId: number; percent: number }>(
-      `SELECT pp.product_id AS productId, MAX(pp.discount_percent) AS percent
+      `SELECT pp.product_id AS productId, MAX(pp.discount_percent) AS [percent]
        FROM promotion_products pp JOIN promotions p ON p.promotion_id = pp.promotion_id
        WHERE p.promo_type = 'PRODUCT' AND ${ACTIVE} AND pp.product_id IN (${list})
        GROUP BY pp.product_id`,
@@ -37,7 +37,7 @@ export const orderPromotionRepository = {
   /** Mức giảm theo tổng tiền hóa đơn: bậc cao nhất mà tổng tiền đạt được. */
   async bestInvoiceTier(totalAmount: number, exec?: Executor): Promise<{ promotionId: number; percent: number } | null> {
     const r = await query<{ promotionId: number; percent: number }>(
-      `SELECT TOP 1 pit.promotion_id AS promotionId, pit.discount_percent AS percent
+      `SELECT TOP 1 pit.promotion_id AS promotionId, pit.discount_percent AS [percent]
        FROM promotion_invoice_tiers pit JOIN promotions p ON p.promotion_id = pit.promotion_id
        WHERE p.promo_type = 'INVOICE' AND ${ACTIVE} AND pit.min_invoice_amount <= @total
        ORDER BY pit.discount_percent DESC`,
@@ -51,7 +51,7 @@ export const orderPromotionRepository = {
   /** Voucher còn hiệu lực (KM đang chạy, chưa xóa). Chưa kiểm tra hết lượt. */
   async findVoucher(code: string, exec?: Executor): Promise<VoucherRow | null> {
     const r = await query<VoucherRow>(
-      `SELECT pv.voucher_code AS voucherCode, pv.promotion_id AS promotionId, pv.discount_percent AS percent,
+      `SELECT pv.voucher_code AS voucherCode, pv.promotion_id AS promotionId, pv.discount_percent AS [percent],
               pv.usage_limit AS usageLimit, pv.used_count AS usedCount
        FROM promotion_vouchers pv JOIN promotions p ON p.promotion_id = pv.promotion_id
        WHERE pv.voucher_code = @code AND pv.is_deleted = 0 AND p.promo_type = 'VOUCHER' AND ${ACTIVE}`,
@@ -65,7 +65,7 @@ export const orderPromotionRepository = {
   /** Voucher của đơn đã tạo (giữ nguyên khi sửa đơn, kể cả KM đã hết hạn). */
   async findVoucherPercentAny(code: string, exec?: Executor): Promise<{ promotionId: number; percent: number } | null> {
     const r = await query<{ promotionId: number; percent: number }>(
-      `SELECT promotion_id AS promotionId, discount_percent AS percent FROM promotion_vouchers WHERE voucher_code = @code`,
+      `SELECT promotion_id AS promotionId, discount_percent AS [percent] FROM promotion_vouchers WHERE voucher_code = @code`,
       { code: [sql.VarChar(30), code] },
       exec,
     );

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { CHANNELS, ORDER_STATUSES } from '../constants/order.constant';
+import { CHANNELS, INVOICE_TYPES, ORDER_STATUSES } from '../constants/order.constant';
 import { paginationQuery } from '../utils/pagination';
 
 const id = (label: string) => z.coerce.number({ invalid_type_error: `${label} không hợp lệ` }).int().positive(`${label} không hợp lệ`);
@@ -43,14 +43,33 @@ export const noteSchema = z.object({ note: note.optional() });
 export const cancelSchema = z.object({ reason: note.optional() });
 export const editItemsSchema = z.object({ items });
 
+/** Danh sách hóa đơn: chỉ đơn hoàn thành + đã thanh toán, và đơn đã hoàn tiền. */
+export const invoiceListQuery = paginationQuery.extend({
+  type: z.enum(INVOICE_TYPES).optional(),
+  channel: z.enum(CHANNELS).optional(),
+  from: z.coerce.date().optional(),
+  to: z.coerce.date().optional(),
+  q: z.string().trim().max(100).optional(),
+});
+
 export const posOrderSchema = z.object({
   items,
   customerId: id('Mã khách hàng').optional(),
   methodCode: z.string().trim().min(1).max(20).default('CASH'),
   voucherCode: voucher.optional(),
   note: note.optional(),
-  /** Tiền khách đưa (chỉ để tính tiền thừa, không lưu). */
+  /** Tiền khách đưa (chỉ để tính tiền thừa khi trả tiền mặt, không lưu). */
   amountReceived: z.coerce.number().min(0).optional(),
+  /** Mã giao dịch ngân hàng/ví (không bắt buộc, không áp dụng cho tiền mặt). */
+  transactionCode: z.string().trim().min(1).max(100).optional(),
+});
+
+export const posPreviewSchema = z.object({ items, voucherCode: voucher.optional() });
+
+export const posProductQuery = paginationQuery.extend({
+  size: z.coerce.number().int().min(1).max(50).default(12),
+  q: z.string().trim().max(100).optional(),
+  inStock: z.enum(['true', 'false']).optional(),
 });
 
 export const printQuery = z.object({ type: z.enum(['invoice', 'delivery']).default('invoice') });
@@ -58,5 +77,8 @@ export const printQuery = z.object({ type: z.enum(['invoice', 'delivery']).defau
 export type CreateOrderInput = z.infer<typeof createOrderSchema>;
 export type OrderListQuery = z.infer<typeof orderListQuery>;
 export type MyOrdersQuery = z.infer<typeof myOrdersQuery>;
+export type InvoiceListQuery = z.infer<typeof invoiceListQuery>;
+export type PosPreviewInput = z.infer<typeof posPreviewSchema>;
+export type PosProductQuery = z.infer<typeof posProductQuery>;
 export type PosOrderInput = z.infer<typeof posOrderSchema>;
 export type LineInput = z.infer<typeof lineItem>;
