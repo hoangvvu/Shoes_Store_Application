@@ -65,7 +65,7 @@ export default function FavoritesScreen() {
             </View>
           )
         }
-        ListFooterComponent={loadingMore ? <ActivityIndicator color={colors.primary} /> : null}
+        ListFooterComponent={loadingMore ? <ActivityIndicator color={colors.primary} /> : undefined}
         renderItem={({ item }) => (
           <View style={styles.card}>
             {item.imageUrl ? (

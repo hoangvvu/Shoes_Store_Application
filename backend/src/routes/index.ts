@@ -23,13 +23,16 @@ import supplierRoutes from './supplier.routes';
 import uploadRoutes from './upload.routes';
 import userRoutes from './user.routes';
 import inventoryRoutes from './inventory.routes';
+import { adminNotificationRouter, customerNotificationRouter } from './notification.routes';
 
 const router = Router();
 router.use('/auth', authRoutes);
+router.use('/me/notifications', customerNotificationRouter); // phải đứng trước /me
 router.use('/me/addresses', addressRoutes); // phải đứng trước /me
 router.use('/me/orders', myOrdersRouter);   // phải đứng trước /me
 router.use('/me/favorites', favoriteRoutes); // phải đứng trước /me
 router.use('/me', meRoutes);
+router.use('/notifications', adminNotificationRouter);
 router.use('/users', userRoutes);
 router.use('/customers', customerRoutes);
 router.use('/employees', employeeRoutes);

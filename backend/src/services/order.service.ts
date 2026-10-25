@@ -4,6 +4,7 @@ import { CANCELLABLE, ORDER_STATUS_LABEL, type OrderStatus } from '../constants/
 import { AppError } from '../errors/AppError';
 import { addressRepository } from '../repositories/address.repository';
 import { cartRepository } from '../repositories/cart.repository';
+import { notificationRepository } from '../repositories/notification.repository';
 import { orderRepository } from '../repositories/order.repository';
 import { orderPaymentRepository } from '../repositories/orderPayment.repository';
 import { orderPromotionRepository } from '../repositories/orderPromotion.repository';
@@ -231,6 +232,25 @@ export const orderService = {
         { invoiceId, newStatus: 'CANCELLED', userId: auth.userId, note: reason?.trim() || 'Khách tự hủy đơn' },
         tx,
       );
+
+      // ============================================================
+      // TÍCH HỢP M13: NẾU ADMIN/NHÂN VIÊN HỦY ĐƠN -> TỰ ĐỘNG GỬI THÔNG BÁO CHO KHÁCH
+      // ============================================================
+      if (!customer && row.customerId && auth.employeeId) {
+        const cancelReason = reason?.trim() || 'Không có lý do cụ thể';
+        await notificationRepository.createForCustomer(
+          {
+            title: `Đơn hàng #${invoiceId} đã bị hủy`,
+            content: `Đơn hàng #${invoiceId} của bạn đã bị hủy bởi cửa hàng.\nLý do: ${cancelReason}`,
+            notificationType: 'ORDER',
+            linkUrl: `/orders/${invoiceId}`,
+            customerId: row.customerId,
+            createdByEmployeeId: auth.employeeId,
+          },
+          tx,
+        );
+      }
+
       await setActor(tx, auth.userId);
       if (row.voucherCode) await orderPromotionRepository.releaseVoucher(row.voucherCode, tx); // hoàn lượt voucher
       await orderPaymentRepository.failPending(invoiceId, 'Đơn hàng đã bị hủy', tx);
@@ -281,6 +301,37 @@ export const orderService = {
       await orderRepository.changeStatus({ invoiceId: id, newStatus: to, userId: auth.userId, note: note ?? null }, tx);
       if (addPurchased && row.customerId) {
         await orderRepository.addTotalPurchased(row.customerId, row.amountPayable, tx); // cộng total_purchased
+      }
+
+      // ============================================================
+      // TÍCH HỢP M13: THÔNG BÁO TỰ ĐỘNG KHI ĐƠN ĐỔI TRẠNG THÁI
+      // ============================================================
+      if (row.customerId && auth.employeeId) {
+        let statusTitle = '';
+        let statusMsg = '';
+        if (to === 'CONFIRMED') {
+          statusTitle = `Đơn hàng #${id} đã được xác nhận`;
+          statusMsg = `Đơn hàng #${id} đã được cửa hàng xác nhận và đang được chuẩn bị đóng gói.`;
+        } else if (to === 'SHIPPING') {
+          statusTitle = `Đơn hàng #${id} đang được giao`;
+          statusMsg = `Đơn hàng #${id} đã được bàn giao cho đơn vị vận chuyển và đang trên đường giao đến bạn.`;
+        } else if (to === 'DELIVERED') {
+          statusTitle = `Đơn hàng #${id} đã giao thành công`;
+          statusMsg = `Đơn hàng #${id} đã được giao thành công. Cảm ơn bạn đã tin tưởng mua sắm tại cửa hàng!`;
+        }
+        if (statusTitle) {
+          await notificationRepository.createForCustomer(
+            {
+              title: statusTitle,
+              content: statusMsg,
+              notificationType: 'ORDER',
+              linkUrl: `/orders/${id}`,
+              customerId: row.customerId,
+              createdByEmployeeId: auth.employeeId,
+            },
+            tx,
+          );
+        }
       }
     });
     return this.getOrder(auth, id);

@@ -129,6 +129,12 @@ export default function ProfileScreen() {
         <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
       </Pressable>
 
+      <Pressable style={styles.linkRow} onPress={() => router.push('/notifications')}>
+        <Ionicons name="notifications-outline" size={22} color={colors.primary} />
+        <Text style={styles.linkText}>Thông báo của tôi</Text>
+        <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+      </Pressable>
+
       <Pressable style={styles.linkRow} onPress={() => router.push('/addresses')}>
         <Ionicons name="location-outline" size={22} color={colors.primary} />
         <Text style={styles.linkText}>Địa chỉ giao hàng</Text>
