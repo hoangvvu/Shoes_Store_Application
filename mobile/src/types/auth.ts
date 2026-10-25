@@ -3,13 +3,14 @@ export type RoleName = 'ADMIN' | 'SALES' | 'WAREHOUSE' | 'CUSTOMER';
 export interface AuthUser {
   userId: number;
   username: string;
-  role: RoleName;
-  userType: 'EMPLOYEE' | 'CUSTOMER';
-  /** Họ (kèm tên đệm) và Tên; phiên cũ lưu trước khi tách tên có thể chưa có. */
-  lastName?: string | null;
-  firstName?: string | null;
-  /** Họ + Tên do backend ghép sẵn, dùng để hiển thị. */
-  fullName: string;
+  userType?: 'EMPLOYEE' | 'CUSTOMER';
+  roleName?: string;
+  lastName?: string;  
+  firstName?: string; 
+  email?: string;
+  phone?: string;
+  employeeId?: number | null;
+  customerId?: number | null;
 }
 
 export interface LoginPayload { username: string; password: string }

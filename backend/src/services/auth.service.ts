@@ -80,8 +80,7 @@ export const authService = {
     loginLimiter.reset(key);
 
     const wrongPortal =
-      (input.portal === 'staff' && user.userType !== USER_TYPES.EMPLOYEE) ||
-      (input.portal === 'customer' && user.userType !== USER_TYPES.CUSTOMER);
+      input.portal === 'staff' && user.userType !== USER_TYPES.EMPLOYEE;
     if (wrongPortal) {
       throw AppError.forbidden('Tài khoản không có quyền truy cập ứng dụng này', 'WRONG_PORTAL');
     }

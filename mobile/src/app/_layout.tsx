@@ -12,13 +12,23 @@ function AuthGate() {
   const segments = useSegments();
   const router = useRouter();
   const navReady = !!useRootNavigationState()?.key;
+  const user = useAuthStore((s) => s.user);
 
   useEffect(() => {
     if (status === 'loading' || !navReady) return;
     const inAuth = segments[0] === '(auth)';
-    if (status === 'signedOut' && !inAuth) router.replace('/(auth)/welcome');
-    else if (status === 'signedIn' && inAuth) router.replace('/(tabs)');
-  }, [status, segments, navReady, router]);
+
+    if (status === 'signedOut' && !inAuth) {
+      router.replace('/(auth)/welcome');
+    } else if (status === 'signedIn' && inAuth) {
+      // Phân luồng điều hướng dựa theo vai trò tài khoản:
+      if (user?.userType === 'EMPLOYEE') {
+        router.replace('/delivery'); // Tài khoản Sales / Nhân viên -> Trang giao hàng
+      } else {
+        router.replace('/(tabs)');   // Tài khoản Khách hàng -> Trang mua sắm
+      }
+    }
+  }, [status, segments, navReady, router, user]);
 
   if (status === 'loading') {
     return (
