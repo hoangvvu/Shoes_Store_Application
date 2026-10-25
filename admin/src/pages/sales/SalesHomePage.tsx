@@ -91,16 +91,6 @@ export default function SalesHomePage() {
           </div>
         )}
       </div>
-
-      <div className="card">
-        <h3>Lối tắt chức năng Bán hàng</h3>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginTop: 14 }}>
-          <Link to="/sales/orders" className="btn btn--ghost">🛍️ Quản lý đơn hàng</Link>
-          <Link to="/sales/customers" className="btn btn--ghost">👥 Danh sách khách hàng</Link>
-          <Link to="/sales/products" className="btn btn--ghost">👟 Tra cứu sản phẩm & tồn khả dụng</Link>
-          <Link to="/sales/reports" className="btn btn--ghost">📊 Báo cáo bán hàng</Link>
-        </div>
-      </div>
     </>
   );
 }

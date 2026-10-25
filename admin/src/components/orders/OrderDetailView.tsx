@@ -189,9 +189,9 @@ export function OrderDetailView({ basePath, canDelete }: Props) {
             { label: 'Đã thanh toán', value: formatVnd(order.paidAmount) },
             ...(order.refundedAmount > 0
               ? [
-                  { label: 'Đã hoàn tiền', value: `-${formatVnd(order.refundedAmount)}`, tone: 'refund' as const },
-                  { label: 'Thực thu', value: formatVnd(order.paidAmount - order.refundedAmount), tone: 'strong' as const },
-                ]
+                { label: 'Đã hoàn tiền', value: `-${formatVnd(order.refundedAmount)}`, tone: 'refund' as const },
+                { label: 'Thực thu', value: formatVnd(order.paidAmount - order.refundedAmount), tone: 'strong' as const },
+              ]
               : []),
           ]}
         />
