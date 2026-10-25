@@ -135,146 +135,161 @@ export function OrderDetailView({ basePath, canDelete }: Props) {
         <p className="notice">Đơn đã thu {formatVnd(order.paidAmount)} trước khi hủy. Cần tạo yêu cầu hoàn tiền ở module Thanh toán.</p>
       )}
 
-      {/* Grid 2x2 Cân Bằng Đều Đặn */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px', marginBottom: '20px' }}>
-        <section className="card" style={{ marginBottom: 0 }}>
-          <h3>Thông tin đơn</h3>
-          <InfoGrid>
-            <InfoItem label="Trạng thái"><OrderStatusBadge status={s} /></InfoItem>
-            <InfoItem label="Thanh toán">{PAYMENT_STATUS_LABEL[order.paymentStatus] ?? order.paymentStatus}</InfoItem>
-            <InfoItem label="Phương thức">{methods || '—'}</InfoItem>
-            <InfoItem label="Khách hàng">{order.customerName ?? 'Khách lẻ'}{order.customerPhone ? ` · ${order.customerPhone}` : ''}</InfoItem>
-            <InfoItem label={order.channel === 'POS' ? 'Thu ngân' : 'Nhân viên'}>{order.employeeName ?? '—'}</InfoItem>
-            <InfoItem label="Kênh bán">{order.channel === 'POS' ? 'Tại quầy (POS)' : 'Online'}</InfoItem>
-            {order.voucherCode && <InfoItem label="Voucher">{order.voucherCode}</InfoItem>}
-            {order.promotionName && <InfoItem label="Khuyến mãi" wide>{order.promotionName}</InfoItem>}
-            {order.note && <InfoItem label="Ghi chú" wide>{order.note}</InfoItem>}
-          </InfoGrid>
-        </section>
-
-        <div style={{ marginBottom: 0 }}>
-          <RecipientCard order={order} />
-        </div>
-
-        <section className="card" style={{ marginBottom: 0 }}>
-          <h3>Giao dịch thanh toán</h3>
-          <p className="muted" style={{ fontSize: '0.85em', marginBottom: 12 }}>* Việc xác nhận thu tiền mặt do nhân viên giao hàng thực hiện trên ứng dụng Mobile.</p>
-          {order.payments.length === 0 && <p className="muted">Chưa có giao dịch.</p>}
-          <ul className="plain-list">
-            {order.payments.map((p) => (
-              <li key={p.paymentId} style={{ marginBottom: 12, paddingBottom: 8, borderBottom: '1px dashed #e5e7eb' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span>
-                    <strong>{p.methodName}</strong> · {formatVnd(p.amount)}
-                  </span>
-                  <span className={`badge ${p.status === 'SUCCESS' ? 'badge--confirmed' : p.status === 'FAILED' ? 'badge--cancelled' : 'badge--pending'}`}>
-                    {PAYMENT_TX_LABEL[p.status] ?? p.status}
-                  </span>
-                </div>
-                {p.paidAt && <div className="muted" style={{ fontSize: '0.85em', marginTop: 2 }}>Đã thu: {formatDateTime(p.paidAt)}</div>}
-
-                {p.proofUrl && (
-                  <div style={{ marginTop: 8, background: '#f9fafb', padding: 8, borderRadius: 6 }}>
-                    <div style={{ marginBottom: 6 }}>
-                      <a href={p.proofUrl} target="_blank" rel="noreferrer" className="link" style={{ fontWeight: 500 }}>
-                        📷 Xem ảnh chứng từ chuyển khoản ↗
-                      </a>
-                    </div>
-                    {p.status === 'PENDING' && (
-                      <div style={{ display: 'flex', gap: 8 }}>
-                        <button className="btn btn--small btn--primary" onClick={() => handleReviewProof(p.paymentId, 'SUCCESS')}>
-                          Duyệt hợp lệ
-                        </button>
-                        <button className="btn btn--small btn--danger" onClick={() => handleReviewProof(p.paymentId, 'FAILED')}>
-                          Từ chối
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </li>
-            ))}
-          </ul>
-
-          {order.refundRequired && (
-            <div style={{ marginTop: 12, paddingTop: 8, borderTop: '1px solid #e5e7eb' }}>
-              <button className="btn btn--danger btn--small" onClick={handleCreateRefund}>
-                💸 Tạo yêu cầu hoàn tiền ({formatVnd(order.paidAmount - order.refundedAmount)})
-              </button>
+      {/* Bố cục Master-Detail Cân Đối: Cột chính (Sản phẩm, Thanh toán) & Cột phụ Sidebar */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '20px', alignItems: 'start' }}>
+        
+        {/* Cột chính bên trái */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          {/* Bảng sản phẩm */}
+          <section className="card" style={{ marginBottom: 0 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <h3 style={{ margin: 0 }}>Sản phẩm</h3>
+              <button className="btn btn--ghost btn--small" onClick={() => setAction('qr')}>📱 Mở QR thanh toán</button>
             </div>
-          )}
-        </section>
+            <div className="table-wrap">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Sản phẩm</th>
+                    <th className="num">SL</th>
+                    <th className="num">Đơn giá</th>
+                    <th className="num" title="Khuyến mãi theo sản phẩm, tính cho cả dòng">Giảm giá SP</th>
+                    <th className="num">Thành tiền</th>
+                    <th className="actions-col" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {order.items.map((i) => (
+                    <tr key={i.variantId}>
+                      <td>{i.productName}<br /><span className="muted">{i.sku} · Size {i.sizeLabel} · {i.colorName}</span></td>
+                      <td className="num">{i.quantity}</td>
+                      <td className="num">{formatVnd(i.salePrice)}</td>
+                      <td className="num">{i.discountAmount > 0 ? `-${formatVnd(i.discountAmount)}` : '—'}</td>
+                      <td className="num">{formatVnd(i.lineTotal)}</td>
+                      <td className="actions">
+                        <button className="btn btn--ghost btn--small" onClick={() => setAction('edit')}>Chi tiết</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <AmountSummary
+              gross={gross}
+              productDiscount={productDiscount}
+              invoiceDiscount={order.discountAmount}
+              invoiceDiscountNote={invoiceNote}
+              payable={order.amountPayable}
+              extra={[
+                { label: 'Đã thanh toán', value: formatVnd(order.paidAmount) },
+                ...(order.refundedAmount > 0
+                  ? [
+                      { label: 'Đã hoàn tiền', value: `-${formatVnd(order.refundedAmount)}`, tone: 'refund' as const },
+                      { label: 'Thực thu', value: formatVnd(order.paidAmount - order.refundedAmount), tone: 'strong' as const },
+                    ]
+                  : []),
+              ]}
+            />
+          </section>
 
-        <section className="card" style={{ marginBottom: 0 }}>
-          <h3>Lịch sử trạng thái</h3>
-          <div style={{ paddingLeft: '16px', paddingRight: '8px', paddingTop: '4px', paddingBottom: '12px' }}>
-            <ol className="timeline" style={{ margin: 0, paddingLeft: '12px' }}>
-              {[...order.history].reverse().map((h) => (
-                <li key={h.historyId} style={{ paddingLeft: '20px', marginBottom: '16px', position: 'relative' }}>
-                  <div>
-                    <strong>{h.oldStatus ? `${ORDER_STATUS_LABEL[h.oldStatus]} → ` : ''}{ORDER_STATUS_LABEL[h.newStatus]}</strong>
+          {/* Giao dịch thanh toán */}
+          <section className="card" style={{ marginBottom: 0 }}>
+            <h3>Giao dịch thanh toán</h3>
+            <p className="muted" style={{ fontSize: '0.85em', marginBottom: 12 }}>* Việc xác nhận thu tiền mặt do nhân viên giao hàng thực hiện trên ứng dụng Mobile.</p>
+            {order.payments.length === 0 && <p className="muted">Chưa có giao dịch.</p>}
+            <ul className="plain-list">
+              {order.payments.map((p) => (
+                <li key={p.paymentId} style={{ marginBottom: 12, paddingBottom: 8, borderBottom: '1px dashed #e5e7eb' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>
+                      <strong>{p.methodName}</strong> · {formatVnd(p.amount)}
+                    </span>
+                    <span className={`badge ${p.status === 'SUCCESS' ? 'badge--confirmed' : p.status === 'FAILED' ? 'badge--cancelled' : 'badge--pending'}`}>
+                      {PAYMENT_TX_LABEL[p.status] ?? p.status}
+                    </span>
                   </div>
-                  <div className="muted" style={{ fontSize: '0.85em', marginTop: '2px' }}>
-                    {formatDateTime(h.changedAt)} · {h.changedByName ?? 'Hệ thống'}
-                  </div>
-                  {h.note && <div style={{ fontSize: '0.9em', marginTop: '2px' }}>{h.note}</div>}
+                  {p.paidAt && <div className="muted" style={{ fontSize: '0.85em', marginTop: 2 }}>Đã thu: {formatDateTime(p.paidAt)}</div>}
+
+                  {p.proofUrl && (
+                    <div style={{ marginTop: 8, background: '#f9fafb', padding: 8, borderRadius: 6 }}>
+                      <div style={{ marginBottom: 6 }}>
+                        <a href={p.proofUrl} target="_blank" rel="noreferrer" className="link" style={{ fontWeight: 500 }}>
+                          📷 Xem ảnh chứng từ chuyển khoản ↗
+                        </a>
+                      </div>
+                      {p.status === 'PENDING' && (
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <button className="btn btn--small btn--primary" onClick={() => handleReviewProof(p.paymentId, 'SUCCESS')}>
+                            Duyệt hợp lệ
+                          </button>
+                          <button className="btn btn--small btn--danger" onClick={() => handleReviewProof(p.paymentId, 'FAILED')}>
+                            Từ chối
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </li>
               ))}
-            </ol>
-          </div>
-        </section>
-      </div>
+            </ul>
 
-      <section className="card">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-          <h3 style={{ margin: 0 }}>Sản phẩm</h3>
-          <button className="btn btn--ghost btn--small" onClick={() => setAction('qr')}>📱 Mở QR thanh toán</button>
+            {order.refundRequired && (
+              <div style={{ marginTop: 12, paddingTop: 8, borderTop: '1px solid #e5e7eb' }}>
+                <button className="btn btn--danger btn--small" onClick={handleCreateRefund}>
+                  💸 Tạo yêu cầu hoàn tiền ({formatVnd(order.paidAmount - order.refundedAmount)})
+                </button>
+              </div>
+            )}
+          </section>
         </div>
-        <div className="table-wrap">
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Sản phẩm</th>
-                <th className="num">SL</th>
-                <th className="num">Đơn giá</th>
-                <th className="num" title="Khuyến mãi theo sản phẩm, tính cho cả dòng">Giảm giá SP (cả dòng)</th>
-                <th className="num">Thành tiền</th>
-                <th className="actions-col" />
-              </tr>
-            </thead>
-            <tbody>
-              {order.items.map((i) => (
-                <tr key={i.variantId}>
-                  <td>{i.productName}<br /><span className="muted">{i.sku} · Size {i.sizeLabel} · {i.colorName}</span></td>
-                  <td className="num">{i.quantity}</td>
-                  <td className="num">{formatVnd(i.salePrice)}</td>
-                  <td className="num">{i.discountAmount > 0 ? `-${formatVnd(i.discountAmount)}` : '—'}</td>
-                  <td className="num">{formatVnd(i.lineTotal)}</td>
-                  <td className="actions">
-                    <button className="btn btn--ghost btn--small" onClick={() => setAction('edit')}>Chi tiết</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+
+        {/* Cột thông tin phụ bên phải (Sidebar) */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          {/* Card Thông tin đơn */}
+          <section className="card" style={{ marginBottom: 0 }}>
+            <h3 style={{ marginBottom: 12 }}>Thông tin đơn</h3>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr' }}>
+                <InfoGrid>
+                  <InfoItem label="Trạng thái"><OrderStatusBadge status={s} /></InfoItem>
+                  <InfoItem label="Thanh toán">{PAYMENT_STATUS_LABEL[order.paymentStatus] ?? order.paymentStatus}</InfoItem>
+                  <InfoItem label="Phương thức">{methods || '—'}</InfoItem>
+                  <InfoItem label="Khách hàng">{order.customerName ?? 'Khách lẻ'}{order.customerPhone ? ` · ${order.customerPhone}` : ''}</InfoItem>
+                  <InfoItem label={order.channel === 'POS' ? 'Thu ngân' : 'Nhân viên'}>{order.employeeName ?? '—'}</InfoItem>
+                  <InfoItem label="Kênh bán">{order.channel === 'POS' ? 'Tại quầy (POS)' : 'Online'}</InfoItem>
+                  {order.voucherCode && <InfoItem label="Voucher">{order.voucherCode}</InfoItem>}
+                  {order.promotionName && <InfoItem label="Khuyến mãi" wide>{order.promotionName}</InfoItem>}
+                  {order.note && <InfoItem label="Ghi chú" wide>{order.note}</InfoItem>}
+                </InfoGrid>
+              </div>
+          </section>
+
+          {/* Card Thông tin Giao hàng */}
+          <div style={{ marginBottom: 0 }}>
+            <RecipientCard order={order} />
+          </div>
+
+          {/* Card Lịch sử trạng thái */}
+          <section className="card" style={{ marginBottom: 0 }}>
+            <h3 style={{ marginBottom: 12 }}>Lịch sử trạng thái</h3>
+            <div style={{ paddingLeft: '4px' }}>
+              <ol className="timeline" style={{ margin: 0, paddingLeft: '12px' }}>
+                {[...order.history].reverse().map((h) => (
+                  <li key={h.historyId} style={{ paddingLeft: '16px', marginBottom: '14px', position: 'relative' }}>
+                    <div>
+                      <strong>{h.oldStatus ? `${ORDER_STATUS_LABEL[h.oldStatus]} → ` : ''}{ORDER_STATUS_LABEL[h.newStatus]}</strong>
+                    </div>
+                    <div className="muted" style={{ fontSize: '0.82em', marginTop: '2px' }}>
+                      {formatDateTime(h.changedAt)} · {h.changedByName ?? 'Hệ thống'}
+                    </div>
+                    {h.note && <div style={{ fontSize: '0.88em', marginTop: '2px' }}>{h.note}</div>}
+                  </li>
+                ))}
+              </ol>
+            </div>
+          </section>
         </div>
-        <AmountSummary
-          gross={gross}
-          productDiscount={productDiscount}
-          invoiceDiscount={order.discountAmount}
-          invoiceDiscountNote={invoiceNote}
-          payable={order.amountPayable}
-          extra={[
-            { label: 'Đã thanh toán', value: formatVnd(order.paidAmount) },
-            ...(order.refundedAmount > 0
-              ? [
-                  { label: 'Đã hoàn tiền', value: `-${formatVnd(order.refundedAmount)}`, tone: 'refund' as const },
-                  { label: 'Thực thu', value: formatVnd(order.paidAmount - order.refundedAmount), tone: 'strong' as const },
-                ]
-              : []),
-          ]}
-        />
-      </section>
+
+      </div>
 
       {action === 'qr' && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>

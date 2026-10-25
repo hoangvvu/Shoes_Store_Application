@@ -11,7 +11,6 @@ import { RecipientCard } from '../orders/RecipientCard';
 import { AmountSummary } from '../pos/AmountSummary';
 import { CompletionBadge, PaymentBadge } from './InvoiceBadges';
 
-/** Chi tiết hóa đơn: thông tin chung, sản phẩm, thanh toán, hoàn tiền và lịch sử trạng thái. */
 export function InvoiceDetailView({ basePath, ordersPath }: { basePath: string; ordersPath: string }) {
   const { id } = useParams();
   const invoiceId = Number(id);
@@ -51,6 +50,7 @@ export function InvoiceDetailView({ basePath, ordersPath }: { basePath: string; 
   const invoiceNote = inv.discountAmount > 0
     ? `${invoicePct}% trên tổng tiền hàng sau giảm sản phẩm${inv.voucherCode ? ` · Voucher ${inv.voucherCode}` : inv.promotionName ? ` · ${inv.promotionName}` : ''}`
     : 'Không có giảm giá theo hóa đơn';
+
   return (
     <>
       <PageHeader
@@ -71,104 +71,134 @@ export function InvoiceDetailView({ basePath, ordersPath }: { basePath: string; 
         </p>
       )}
 
-      <div className="grid-2">
-        <section className="card">
-          <h3>Thông tin hóa đơn</h3>
-          <InfoGrid>
-            <InfoItem label="Mã hóa đơn">#{inv.invoiceId}</InfoItem>
-            <InfoItem label="Ngày lập">{formatDateTime(inv.invoiceDate)}</InfoItem>
-            <InfoItem label="Kênh bán">{inv.channel === 'POS' ? 'Tại quầy (POS)' : 'Online'}</InfoItem>
-            <InfoItem label="Tình trạng đơn"><CompletionBadge status={inv.orderStatus} /></InfoItem>
-            <InfoItem label="Thanh toán"><PaymentBadge status={inv.paymentStatus} /></InfoItem>
-            <InfoItem label="Phương thức">{methods || '—'}</InfoItem>
-            <InfoItem label="Khách hàng">{inv.customerName ?? 'Khách lẻ'}{inv.customerPhone ? ` · ${inv.customerPhone}` : ''}</InfoItem>
-            <InfoItem label={inv.channel === 'POS' ? 'Thu ngân' : 'Nhân viên lập'}>{inv.employeeName ?? '—'}</InfoItem>
-            {inv.voucherCode && <InfoItem label="Voucher">{inv.voucherCode}</InfoItem>}
-            {inv.promotionName && <InfoItem label="Khuyến mãi" wide>{inv.promotionName}</InfoItem>}
-            {inv.note && <InfoItem label="Ghi chú" wide>{inv.note}</InfoItem>}
-          </InfoGrid>
-        </section>
-        <RecipientCard order={inv} />
-      </div>
+      {/* Bố cục Master-Detail Cân Đối: Cột chính (Sản phẩm, Thanh toán, Hoàn tiền) & Cột phụ Sidebar */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '20px', alignItems: 'start' }}>
+        
+        {/* Cột chính bên trái */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          {/* Bảng Chi tiết hóa đơn */}
+          <section className="card" style={{ marginBottom: 0 }}>
+            <h3>Chi tiết hóa đơn</h3>
+            <div className="table-wrap">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Sản phẩm</th>
+                    <th className="num">SL</th>
+                    <th className="num">Đơn giá</th>
+                    <th className="num" title="Khuyến mãi theo sản phẩm, tính cho cả dòng">Giảm giá SP</th>
+                    <th className="num">Thành tiền</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {inv.items.map((i, idx) => (
+                    <tr key={i.variantId}>
+                      <td>{idx + 1}</td>
+                      <td>{i.productName}<br /><span className="muted">{i.sku} · Size {i.sizeLabel} · {i.colorName}</span></td>
+                      <td className="num">{i.quantity}</td>
+                      <td className="num">{formatVnd(i.salePrice)}</td>
+                      <td className="num">{i.discountAmount > 0 ? `-${formatVnd(i.discountAmount)}` : '—'}</td>
+                      <td className="num">{formatVnd(i.lineTotal)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <AmountSummary
+              gross={gross}
+              productDiscount={productDiscount}
+              invoiceDiscount={inv.discountAmount}
+              invoiceDiscountNote={invoiceNote}
+              payable={inv.amountPayable}
+              extra={[
+                { label: 'Đã thanh toán', value: formatVnd(inv.paidAmount) },
+                { label: 'Đã hoàn tiền', value: refunded > 0 ? `-${formatVnd(refunded)}` : formatVnd(0), tone: refunded > 0 ? 'refund' : undefined },
+                { label: 'Thực thu', value: formatVnd(net), tone: 'strong' },
+              ]}
+            />
+          </section>
 
-      <section className="card">
-        <h3>Chi tiết hóa đơn</h3>
-        <div className="table-wrap">
-          <table className="table">
-            <thead><tr><th>#</th><th>Sản phẩm</th><th className="num">SL</th><th className="num">Đơn giá</th><th className="num" title="Khuyến mãi theo sản phẩm, tính cho cả dòng">Giảm giá SP (cả dòng)</th><th className="num">Thành tiền</th></tr></thead>
-            <tbody>
-              {inv.items.map((i, idx) => (
-                <tr key={i.variantId}>
-                  <td>{idx + 1}</td>
-                  <td>{i.productName}<br /><span className="muted">{i.sku} · Size {i.sizeLabel} · {i.colorName}</span></td>
-                  <td className="num">{i.quantity}</td>
-                  <td className="num">{formatVnd(i.salePrice)}</td>
-                  <td className="num">{i.discountAmount > 0 ? `-${formatVnd(i.discountAmount)}` : '—'}</td>
-                  <td className="num">{formatVnd(i.lineTotal)}</td>
-                </tr>
+          {/* Giao dịch thanh toán */}
+          <section className="card" style={{ marginBottom: 0 }}>
+            <h3>Giao dịch thanh toán</h3>
+            {inv.payments.length === 0 && <p className="muted">Chưa có giao dịch.</p>}
+            <ul className="plain-list">
+              {inv.payments.map((p) => (
+                <li key={p.paymentId} style={{ marginBottom: 8, paddingBottom: 6, borderBottom: '1px dashed #e5e7eb' }}>
+                  <strong>{p.methodName}</strong> · {formatVnd(p.amount)} · {PAYMENT_TX_LABEL[p.status] ?? p.status}
+                  {p.paidAt && <span className="muted"> ({formatDateTime(p.paidAt)})</span>}
+                  {p.transactionCode && <div className="muted" style={{ fontSize: '0.85em' }}>Mã giao dịch: {p.transactionCode}</div>}
+                </li>
               ))}
-            </tbody>
-          </table>
+            </ul>
+          </section>
+
+          {/* Hoàn tiền */}
+          <section className="card" style={{ marginBottom: 0 }}>
+            <h3>Hoàn tiền</h3>
+            {inv.refunds.length === 0 && <p className="muted">Hóa đơn chưa có giao dịch hoàn tiền.</p>}
+            <ul className="plain-list">
+              {inv.refunds.map((r) => (
+                <li key={r.refundId} style={{ marginBottom: 8, paddingBottom: 6, borderBottom: '1px dashed #e5e7eb' }}>
+                  <strong>{r.methodName}</strong> · <span className="amount-refund">-{formatVnd(r.amount)}</span> · {REFUND_STATUS_LABEL[r.status] ?? r.status}
+                  <div className="muted" style={{ fontSize: '0.85em' }}>
+                    {r.completedAt ? `Hoàn lúc ${formatDateTime(r.completedAt)}` : `Yêu cầu lúc ${formatDateTime(r.requestedAt)}`}
+                    {r.processedByName ? ` · ${r.processedByName}` : ''}
+                  </div>
+                  <div style={{ fontSize: '0.9em' }}>Lý do: {r.reason}</div>
+                  {r.transactionCode && <div className="muted" style={{ fontSize: '0.85em' }}>Mã giao dịch: {r.transactionCode}</div>}
+                </li>
+              ))}
+            </ul>
+          </section>
         </div>
-        <AmountSummary
-          gross={gross}
-          productDiscount={productDiscount}
-          invoiceDiscount={inv.discountAmount}
-          invoiceDiscountNote={invoiceNote}
-          payable={inv.amountPayable}
-          extra={[
-            { label: 'Đã thanh toán', value: formatVnd(inv.paidAmount) },
-            { label: 'Đã hoàn tiền', value: refunded > 0 ? `-${formatVnd(refunded)}` : formatVnd(0), tone: refunded > 0 ? 'refund' : undefined },
-            { label: 'Thực thu', value: formatVnd(net), tone: 'strong' },
-          ]}
-        />
-      </section>
 
-      <div className="grid-2">
-        <section className="card">
-          <h3>Giao dịch thanh toán</h3>
-          {inv.payments.length === 0 && <p className="muted">Chưa có giao dịch.</p>}
-          <ul className="plain-list">
-            {inv.payments.map((p) => (
-              <li key={p.paymentId}>
-                <strong>{p.methodName}</strong> · {formatVnd(p.amount)} · {PAYMENT_TX_LABEL[p.status]}
-                {p.paidAt && <span className="muted"> ({formatDateTime(p.paidAt)})</span>}
-                {p.transactionCode && <div className="muted">Mã giao dịch: {p.transactionCode}</div>}
-              </li>
-            ))}
-          </ul>
-        </section>
-        <section className="card">
-          <h3>Hoàn tiền</h3>
-          {inv.refunds.length === 0 && <p className="muted">Hóa đơn chưa có giao dịch hoàn tiền.</p>}
-          <ul className="plain-list">
-            {inv.refunds.map((r) => (
-              <li key={r.refundId}>
-                <strong>{r.methodName}</strong> · <span className="amount-refund">-{formatVnd(r.amount)}</span> · {REFUND_STATUS_LABEL[r.status] ?? r.status}
-                <div className="muted">
-                  {r.completedAt ? `Hoàn lúc ${formatDateTime(r.completedAt)}` : `Yêu cầu lúc ${formatDateTime(r.requestedAt)}`}
-                  {r.processedByName ? ` · ${r.processedByName}` : ''}
-                </div>
-                <div>Lý do: {r.reason}</div>
-                {r.transactionCode && <div className="muted">Mã giao dịch: {r.transactionCode}</div>}
-              </li>
-            ))}
-          </ul>
-        </section>
+        {/* Cột thông tin phụ bên phải (Sidebar) */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          {/* Card Thông tin hóa đơn */}
+          <section className="card" style={{ marginBottom: 0 }}>
+            <h3 style={{ marginBottom: 12 }}>Thông tin hóa đơn</h3>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr' }}>
+                <InfoGrid>
+                  <InfoItem label="Mã hóa đơn">#{inv.invoiceId}</InfoItem>
+                  <InfoItem label="Ngày lập">{formatDateTime(inv.invoiceDate)}</InfoItem>
+                  <InfoItem label="Kênh bán">{inv.channel === 'POS' ? 'Tại quầy (POS)' : 'Online'}</InfoItem>
+                  <InfoItem label="Tình trạng đơn"><CompletionBadge status={inv.orderStatus} /></InfoItem>
+                  <InfoItem label="Thanh toán"><PaymentBadge status={inv.paymentStatus} /></InfoItem>
+                  <InfoItem label="Phương thức">{methods || '—'}</InfoItem>
+                  <InfoItem label="Khách hàng">{inv.customerName ?? 'Khách lẻ'}{inv.customerPhone ? ` · ${inv.customerPhone}` : ''}</InfoItem>
+                  <InfoItem label={inv.channel === 'POS' ? 'Thu ngân' : 'Nhân viên lập'}>{inv.employeeName ?? '—'}</InfoItem>
+                  {inv.voucherCode && <InfoItem label="Voucher">{inv.voucherCode}</InfoItem>}
+                  {inv.promotionName && <InfoItem label="Khuyến mãi" wide>{inv.promotionName}</InfoItem>}
+                  {inv.note && <InfoItem label="Ghi chú" wide>{inv.note}</InfoItem>}
+                </InfoGrid>
+              </div>
+          </section>
+
+          {/* Card Giao hàng */}
+          <div style={{ marginBottom: 0 }}>
+            <RecipientCard order={inv} />
+          </div>
+
+          {/* Card Lịch sử trạng thái */}
+          <section className="card" style={{ marginBottom: 0 }}>
+            <h3 style={{ marginBottom: 12 }}>Lịch sử trạng thái</h3>
+            <div style={{ paddingLeft: '4px' }}>
+              <ol className="timeline" style={{ margin: 0, paddingLeft: '12px' }}>
+                {[...inv.history].reverse().map((h) => (
+                  <li key={h.historyId} style={{ paddingLeft: '16px', marginBottom: '14px', position: 'relative' }}>
+                    <div><strong>{h.oldStatus ? `${ORDER_STATUS_LABEL[h.oldStatus]} → ` : ''}{ORDER_STATUS_LABEL[h.newStatus]}</strong></div>
+                    <div className="muted" style={{ fontSize: '0.82em', marginTop: '2px' }}>{formatDateTime(h.changedAt)} · {h.changedByName ?? 'Hệ thống'}</div>
+                    {h.note && <div style={{ fontSize: '0.88em', marginTop: '2px' }}>{h.note}</div>}
+                  </li>
+                ))}
+              </ol>
+            </div>
+          </section>
+        </div>
+
       </div>
-
-      <section className="card">
-        <h3>Lịch sử trạng thái</h3>
-        <ol className="timeline">
-          {[...inv.history].reverse().map((h) => (
-            <li key={h.historyId}>
-              <div><strong>{h.oldStatus ? `${ORDER_STATUS_LABEL[h.oldStatus]} → ` : ''}{ORDER_STATUS_LABEL[h.newStatus]}</strong></div>
-              <div className="muted">{formatDateTime(h.changedAt)} · {h.changedByName ?? 'Hệ thống'}</div>
-              {h.note && <div>{h.note}</div>}
-            </li>
-          ))}
-        </ol>
-      </section>
     </>
   );
 }

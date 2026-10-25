@@ -50,6 +50,7 @@ export interface OrderPayment {
   status: 'PENDING' | 'SUCCESS' | 'FAILED';
   paidAt: string | null;
   transactionCode?: string | null;
+  proofUrl?: string;
 }
 
 export interface OrderRefund {
