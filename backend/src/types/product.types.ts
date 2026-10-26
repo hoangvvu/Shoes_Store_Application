@@ -11,6 +11,8 @@ export interface ProductListItemRow {
   isActive: boolean;
   totalStock: number;
   variantCount: number;
+  supplierId: number | null;
+  supplierName: string | null;
 }
 
 export interface ProductDetailRow extends ProductListItemRow {

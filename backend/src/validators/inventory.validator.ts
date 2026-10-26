@@ -57,6 +57,7 @@ export const stockListQuery = z.object({
     .transform((v) => v === 'true')
     .optional(),
   threshold: z.coerce.number().int().min(0).default(5).optional(),
+  supplierId: z.coerce.number().int().positive().optional(),
 });
 
 export const lowStockQuery = z.object({

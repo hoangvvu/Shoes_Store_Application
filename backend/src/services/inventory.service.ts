@@ -16,6 +16,7 @@ export const inventoryService = {
       q: q.q,
       lowStockOnly: q.lowStockOnly,
       threshold: q.threshold,
+      supplierId: q.supplierId,
       page: q.page,
       size: q.size,
     });

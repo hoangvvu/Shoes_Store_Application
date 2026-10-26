@@ -27,6 +27,7 @@ export const productService = {
       q: q.q,
       categoryId: q.categoryId,
       brandId: q.brandId,
+      supplierId: q.supplierId,
       isActive,
       minPrice: q.minPrice,
       maxPrice: q.maxPrice,

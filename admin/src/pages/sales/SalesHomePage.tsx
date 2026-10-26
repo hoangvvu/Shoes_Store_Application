@@ -1,4 +1,6 @@
 import { Link } from 'react-router-dom';
+import { QuickAttendance } from '../../components/attendance/QuickAttendance';
+import { CheckInModalOnLogin } from '../../components/attendance/CheckInModalOnLogin';
 import { reportService } from '../../services/report.service';
 import type { TopProduct } from '../../types/report';
 import { formatNumber, formatVnd, thisMonth } from '../../utils/format';
@@ -17,15 +19,19 @@ export default function SalesHomePage() {
 
   return (
     <>
+      <CheckInModalOnLogin />
+
       <PageHeader
         title="Bảng điều khiển Bán hàng"
-        subtitle="Quản lý bán hàng tại quầy (POS), theo dõi đơn đặt hàng và tra cứu sản phẩm"
         actions={
           <div style={{ display: 'flex', gap: 10 }}>
+            <Link to="/sales/my-work" className="btn btn--ghost">Chấm công & Thu nhập</Link>
             <Link to="/sales/orders" className="btn btn--primary">Xử lý đơn hàng</Link>
           </div>
         }
       />
+
+      <QuickAttendance />
 
       <div className="stats-grid" style={{ marginBottom: 24 }}>
         <StatCard
@@ -54,8 +60,7 @@ export default function SalesHomePage() {
       <div className="card" style={{ marginBottom: 24 }}>
         <div className="page-header" style={{ marginBottom: 16 }}>
           <div>
-            <h3>🔥 Sản phẩm bán chạy nhất tháng này</h3>
-            <p className="muted small">Danh sách các mẫu giày được khách hàng ưa chuộng</p>
+            <h3>Sản phẩm bán chạy nhất tháng này</h3>
           </div>
           <Link to="/sales/products" className="link small">Xem kho giày ›</Link>
         </div>

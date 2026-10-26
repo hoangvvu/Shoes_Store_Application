@@ -70,7 +70,7 @@ export function ReviewManager({ canDelete }: { canDelete: boolean }) {
 
   return (
     <>
-      <PageHeader title="Đánh giá sản phẩm" subtitle="Duyệt, ẩn và phản hồi đánh giá của khách hàng. Đánh giá bị ẩn hoặc chờ duyệt không tính vào điểm trung bình." />
+      <PageHeader title="Đánh giá sản phẩm" />
       <div className="card">
         <SearchBar
           onSearch={search}

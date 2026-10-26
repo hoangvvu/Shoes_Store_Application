@@ -12,6 +12,8 @@ export const MENUS: Record<EmployeeRole, MenuItem[]> = {
   ADMIN: [
     { label: 'Dashboard', path: '/admin', icon: 'dashboard' },
     { label: 'Tài khoản nhân viên', path: '/admin/employees', icon: 'users' },
+    { label: 'Chấm công', path: '/admin/attendance', icon: 'clipboard' },
+    { label: 'Bảng lương', path: '/admin/payrolls', icon: 'card' },
     { label: 'Khách hàng', path: '/admin/customers', icon: 'user' },
     { label: 'Bán tại quầy', path: '/admin/pos', icon: 'store' },
     { label: 'Đơn hàng', path: '/admin/orders', icon: 'cart' },
@@ -30,6 +32,7 @@ export const MENUS: Record<EmployeeRole, MenuItem[]> = {
   ],
   SALES: [
     { label: 'Dashboard', path: '/sales', icon: 'dashboard' },
+    { label: 'Chấm công & Lương', path: '/sales/my-work', icon: 'card' },
     { label: 'Bán tại quầy', path: '/sales/pos', icon: 'store' },
     { label: 'Đơn hàng', path: '/sales/orders', icon: 'cart' },
     { label: 'Hóa đơn', path: '/sales/invoices', icon: 'card' },
@@ -42,6 +45,7 @@ export const MENUS: Record<EmployeeRole, MenuItem[]> = {
   ],
   WAREHOUSE: [
     { label: 'Dashboard', path: '/warehouse', icon: 'dashboard' },
+    { label: 'Chấm công & Lương', path: '/warehouse/my-work', icon: 'card' },
     { label: 'Tồn kho', path: '/warehouse/inventory', icon: 'warehouse' },
     { label: 'Nhập kho', path: '/warehouse/receipts', icon: 'box' },
     { label: 'Nhà cung cấp', path: '/warehouse/suppliers', icon: 'truck' },

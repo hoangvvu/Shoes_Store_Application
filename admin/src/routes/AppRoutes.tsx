@@ -11,6 +11,9 @@ import AdminCustomerDetailPage from '../pages/admin/AdminCustomerDetailPage';
 import AdminCustomersPage from '../pages/admin/AdminCustomersPage';
 import AdminEmployeeDetailPage from '../pages/admin/AdminEmployeeDetailPage';
 import AdminEmployeesPage from '../pages/admin/AdminEmployeesPage';
+import AdminAttendancePage from '../pages/admin/AdminAttendancePage';
+import AdminPayrollsPage from '../pages/admin/AdminPayrollsPage';
+import AdminPayrollDetailPage from '../pages/admin/AdminPayrollDetailPage';
 import AdminHomePage from '../pages/admin/AdminHomePage';
 import AdminInventoryPage from '../pages/admin/AdminInventoryPage';
 import AdminReviewsPage from '../pages/admin/AdminReviewsPage';
@@ -51,6 +54,7 @@ import WarehouseSuppliersPage from '../pages/warehouse/WarehouseSuppliersPage';
 // Common pages
 import LoginPage from '../pages/LoginPage';
 import ProfilePage from '../pages/ProfilePage';
+import MyAttendancePayslipPage from '../pages/common/MyAttendancePayslipPage';
 import { useAuthStore } from '../store/useAuthStore';
 import { ProtectedRoute } from './ProtectedRoute';
 
@@ -68,6 +72,9 @@ export function AppRoutes() {
           <Route index element={<AdminHomePage />} />
           <Route path="employees" element={<AdminEmployeesPage />} />
           <Route path="employees/:id" element={<AdminEmployeeDetailPage />} />
+          <Route path="attendance" element={<AdminAttendancePage />} />
+          <Route path="payrolls" element={<AdminPayrollsPage />} />
+          <Route path="payrolls/:id" element={<AdminPayrollDetailPage />} />
           <Route path="customers" element={<AdminCustomersPage />} />
           <Route path="customers/:id" element={<AdminCustomerDetailPage />} />
           <Route path="pos" element={<AdminPosPage />} />
@@ -77,7 +84,7 @@ export function AppRoutes() {
           <Route path="invoices/:id" element={<AdminInvoiceDetailPage />} />
           <Route path="products" element={<AdminProductsPage />} />
           <Route path="products/:id" element={<AdminProductDetailPage />} />
-          <Route path="catalog" element={<AdminCatalogPage />} /> {/* <-- Bổ sung dòng này */}
+          <Route path="catalog" element={<AdminCatalogPage />} />
           <Route path="reviews" element={<AdminReviewsPage />} />
           <Route path="suppliers" element={<AdminSuppliersPage />} />
           <Route path="receipts" element={<AdminReceiptsPage />} />
@@ -92,6 +99,7 @@ export function AppRoutes() {
       <Route element={<ProtectedRoute roles={['SALES']} />}>
         <Route path="/sales" element={<SalesLayout />}>
           <Route index element={<SalesHomePage />} />
+          <Route path="my-work" element={<MyAttendancePayslipPage />} />
           <Route path="customers" element={<SalesCustomersPage />} />
           <Route path="customers/:id" element={<SalesCustomerDetailPage />} />
           <Route path="pos" element={<SalesPosPage />} />
@@ -99,8 +107,8 @@ export function AppRoutes() {
           <Route path="orders/:id" element={<SalesOrderDetailPage />} />
           <Route path="invoices" element={<SalesInvoicesPage />} />
           <Route path="invoices/:id" element={<SalesInvoiceDetailPage />} />
-          <Route path="products" element={<SalesProductsPage />} />             {/* <-- Bổ sung dòng này */}
-          <Route path="products/:id" element={<SalesProductDetailPage />} />     {/* <-- Bổ sung dòng này */}
+          <Route path="products" element={<SalesProductsPage />} />
+          <Route path="products/:id" element={<SalesProductDetailPage />} />
           <Route path="reviews" element={<SalesReviewsPage />} />
           <Route path="reports" element={<SalesReportsPage />} />
           <Route path="profile" element={<ProfilePage />} />
@@ -112,6 +120,7 @@ export function AppRoutes() {
       <Route element={<ProtectedRoute roles={['WAREHOUSE']} />}>
         <Route path="/warehouse" element={<WarehouseLayout />}>
           <Route index element={<WarehouseHomePage />} />
+          <Route path="my-work" element={<MyAttendancePayslipPage />} />
           <Route path="inventory" element={<WarehouseInventoryPage />} />
           <Route path="receipts" element={<WarehouseReceiptsPage />} />
           <Route path="suppliers" element={<WarehouseSuppliersPage />} />

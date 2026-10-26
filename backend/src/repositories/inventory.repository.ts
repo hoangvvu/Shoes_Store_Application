@@ -8,6 +8,7 @@ export const inventoryRepository = {
     q?: string;
     lowStockOnly?: boolean;
     threshold?: number;
+    supplierId?: number;
     page: number;
     size: number;
   }): Promise<{ rows: StockItemRow[]; total: number }> {
@@ -15,11 +16,13 @@ export const inventoryRepository = {
     const params: Record<string, Param> = {
       pattern: [sql.NVarChar(210), f.q ? searchPattern(f.q) : null],
       threshold: [sql.Int, threshold],
+      supId: [sql.Int, f.supplierId ?? null],
     };
 
     const where = `v.is_deleted = 0 AND p.is_deleted = 0
       AND (@pattern IS NULL OR ${unaccent('p.product_name')} LIKE @pattern ESCAPE '\\' OR ${unaccent('v.sku')} LIKE @pattern ESCAPE '\\')
-      AND (@lowStockOnly = 0 OR v.stock_quantity <= @threshold)`;
+      AND (@lowStockOnly = 0 OR v.stock_quantity <= @threshold)
+      AND (@supId IS NULL OR p.supplier_id = @supId)`;
 
     const countQuery = await query<{ total: number }>(
       `SELECT COUNT(*) AS total
@@ -27,7 +30,8 @@ export const inventoryRepository = {
        JOIN products p ON p.product_id = v.product_id
        WHERE v.is_deleted = 0 AND p.is_deleted = 0
        AND (@pattern IS NULL OR ${unaccent('p.product_name')} LIKE @pattern ESCAPE '\\' OR ${unaccent('v.sku')} LIKE @pattern ESCAPE '\\')
-       AND (${f.lowStockOnly ? '1' : '0'} = 0 OR v.stock_quantity <= @threshold)`,
+       AND (${f.lowStockOnly ? '1' : '0'} = 0 OR v.stock_quantity <= @threshold)
+       AND (@supId IS NULL OR p.supplier_id = @supId)`,
       params,
     );
 
@@ -35,11 +39,13 @@ export const inventoryRepository = {
       `SELECT v.variant_id AS variantId, p.product_id AS productId, v.sku, v.stock_quantity AS stockQuantity,
               p.product_name AS productName, p.image_url AS imageUrl, p.is_active AS isActive,
               cat.category_name AS categoryName, b.brand_name AS brandName,
-              sz.size_label AS sizeLabel, c.color_name AS colorName, c.hex_code AS hexCode
+              sz.size_label AS sizeLabel, c.color_name AS colorName, c.hex_code AS hexCode,
+              p.supplier_id AS supplierId, sup.supplier_name AS supplierName
        FROM product_variants v
        JOIN products p ON p.product_id = v.product_id
        LEFT JOIN categories cat ON cat.category_id = p.category_id
        LEFT JOIN brands b ON b.brand_id = p.brand_id
+       LEFT JOIN suppliers sup ON sup.supplier_id = p.supplier_id
        JOIN sizes sz ON sz.size_id = v.size_id
        JOIN colors c ON c.color_id = v.color_id
        WHERE ${where}
@@ -69,11 +75,13 @@ export const inventoryRepository = {
       `SELECT v.variant_id AS variantId, p.product_id AS productId, v.sku, v.stock_quantity AS stockQuantity,
               p.product_name AS productName, p.image_url AS imageUrl, p.is_active AS isActive,
               cat.category_name AS categoryName, b.brand_name AS brandName,
-              sz.size_label AS sizeLabel, c.color_name AS colorName, c.hex_code AS hexCode
+              sz.size_label AS sizeLabel, c.color_name AS colorName, c.hex_code AS hexCode,
+              p.supplier_id AS supplierId, sup.supplier_name AS supplierName
        FROM product_variants v
        JOIN products p ON p.product_id = v.product_id
        LEFT JOIN categories cat ON cat.category_id = p.category_id
        LEFT JOIN brands b ON b.brand_id = p.brand_id
+       LEFT JOIN suppliers sup ON sup.supplier_id = p.supplier_id
        JOIN sizes sz ON sz.size_id = v.size_id
        JOIN colors c ON c.color_id = v.color_id
        WHERE v.is_deleted = 0 AND p.is_deleted = 0 AND v.stock_quantity <= @threshold
@@ -93,11 +101,13 @@ export const inventoryRepository = {
       `SELECT v.variant_id AS variantId, p.product_id AS productId, v.sku, v.stock_quantity AS stockQuantity,
               p.product_name AS productName, p.image_url AS imageUrl, p.is_active AS isActive,
               cat.category_name AS categoryName, b.brand_name AS brandName,
-              sz.size_label AS sizeLabel, c.color_name AS colorName, c.hex_code AS hexCode
+              sz.size_label AS sizeLabel, c.color_name AS colorName, c.hex_code AS hexCode,
+              p.supplier_id AS supplierId, sup.supplier_name AS supplierName
        FROM product_variants v
        JOIN products p ON p.product_id = v.product_id
        LEFT JOIN categories cat ON cat.category_id = p.category_id
        LEFT JOIN brands b ON b.brand_id = p.brand_id
+       LEFT JOIN suppliers sup ON sup.supplier_id = p.supplier_id
        JOIN sizes sz ON sz.size_id = v.size_id
        JOIN colors c ON c.color_id = v.color_id
        WHERE v.variant_id = @variantId AND v.is_deleted = 0`,
@@ -131,7 +141,7 @@ export const inventoryRepository = {
       AND (@toUtc IS NULL OR l.created_at < @toUtc)`;
 
     const countQuery = await query<{ total: number }>(
-      `SELECT COUNT(*) AS total FROM stock_ledger l WHERE ${where}`,
+      `SELECT COUNT(*) AS total FROM inventory_transactions l WHERE ${where}`,
       params,
     );
 
@@ -141,7 +151,7 @@ export const inventoryRepository = {
               l.reason, l.created_at AS createdAt, l.purchase_receipt_id AS purchaseReceiptId,
               l.invoice_id AS invoiceId, l.return_id AS returnId,
               COALESCE(NULLIF(LTRIM(RTRIM(CONCAT(e.last_name, N' ', e.first_name))), N''), u.username) AS createdByName
-       FROM stock_ledger l
+       FROM inventory_transactions l
        LEFT JOIN users u ON u.user_id = l.created_by
        LEFT JOIN employees e ON e.employee_id = u.employee_id
        WHERE ${where}

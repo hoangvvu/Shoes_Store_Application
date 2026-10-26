@@ -11,9 +11,9 @@ import { api } from './api';
 
 /** M3 – Quản lý nhân viên (chỉ ADMIN). Khóa/đổi vai trò dùng API tài khoản /users của M1. */
 export const employeeService = {
-  async list(p: { q?: string; role?: EmployeeRole | ''; page: number; size: number }): Promise<Paged<EmployeeListItem>> {
+  async list(p: { q?: string; role?: EmployeeRole | ''; employmentType?: string; page: number; size: number }): Promise<Paged<EmployeeListItem>> {
     const { data } = await api.get<Paged<EmployeeListItem>>('/employees', {
-      params: { ...p, q: p.q || undefined, role: p.role || undefined },
+      params: { ...p, q: p.q || undefined, role: p.role || undefined, employmentType: p.employmentType || undefined },
     });
     return data;
   },
@@ -43,5 +43,8 @@ export const employeeService = {
   },
   async changeRole(userId: number, role: EmployeeRole): Promise<void> {
     await api.patch(`/users/${userId}/role`, { role });
+  },
+  async resetPassword(userId: number, newPassword: string): Promise<void> {
+    await api.patch(`/users/${userId}/reset-password`, { newPassword });
   },
 };

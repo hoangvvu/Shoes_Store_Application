@@ -141,9 +141,13 @@ h3 { margin: 0 0 12px; font-size: 16px; }
 .table-wrap { overflow-x: auto; }
 .table { width: 100%; border-collapse: collapse; font-size: 14.5px; }
 .table th { text-align: left; font-size: 13px; color: #6b7488; font-weight: 600; padding: 10px 12px; border-bottom: 1px solid #e3e8f2; white-space: nowrap; }
+.table th.actions-col { text-align: right; white-space: nowrap; }
 .table td { padding: 12px; border-bottom: 1px solid #f0f2f8; vertical-align: middle; }
 .table .num { text-align: right; }
-.table td.actions { display: flex; gap: 6px; justify-content: flex-end; }
+.table td.actions { vertical-align: middle; text-align: right; white-space: nowrap; }
+.table td.actions .actions-group,
+.table td.actions > div { display: inline-flex; align-items: center; justify-content: flex-end; gap: 6px; vertical-align: middle; }
+.table td.actions:not(:has(> div)) { display: flex; align-items: center; justify-content: flex-end; gap: 6px; }
 .badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; margin-right: 6px; }
 .badge--ok { background: #e3f7ec; color: #168a4f; }
 .badge--muted { background: #eef1f7; color: #5b6479; }

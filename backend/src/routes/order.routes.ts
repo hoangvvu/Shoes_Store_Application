@@ -4,6 +4,7 @@ import { orderController as c } from '../controllers/order.controller';
 import { paymentController as pc } from '../controllers/payment.controller';
 import { authenticate } from '../middleware/auth.middleware';
 import { requireRole } from '../middleware/role.middleware';
+import { requireActiveShift } from '../middleware/shiftGuard.middleware';
 import { validate } from '../middleware/validate.middleware';
 import { asyncHandler as h } from '../utils/asyncHandler';
 import { idParam } from '../validators/common';
@@ -46,6 +47,6 @@ posRouter.use(authenticate, requireRole(ADMIN, SALES));
 posRouter.get('/products', validate(posProductQuery, 'query'), h(c.posProducts));
 posRouter.get('/payment-methods', h(c.posPaymentMethods));
 posRouter.post('/preview', validate(posPreviewSchema), h(c.previewPos));
-posRouter.post('/orders', validate(posOrderSchema), h(c.createPos));
+posRouter.post('/orders', requireActiveShift, validate(posOrderSchema), h(c.createPos));
 
 export default orders;

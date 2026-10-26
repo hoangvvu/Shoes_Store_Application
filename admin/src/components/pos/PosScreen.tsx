@@ -190,7 +190,7 @@ export function PosScreen({ ordersPath }: { ordersPath: string }) {
 
   return (
     <>
-      <PageHeader title="Bán hàng tại quầy (POS)" subtitle="Chọn sản phẩm, thanh toán và lập hóa đơn ngay tại quầy" />
+      <PageHeader title="Bán hàng tại quầy (POS)" />
 
       <div className="pos">
         {/* ===== Trái: tìm và chọn sản phẩm ===== */}

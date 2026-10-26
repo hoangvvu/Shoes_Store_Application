@@ -30,6 +30,10 @@ export const employeeRepository = {
       email?: string;
       hireDate?: Date;
       baseSalary?: number;
+      employmentType?: 'FULL_TIME' | 'PART_TIME';
+      hourlyRate?: number;
+      commissionRate?: number;
+      allowance?: number;
     },
     exec?: Executor,
   ): Promise<number> {
@@ -46,8 +50,8 @@ export const employeeRepository = {
     }
 
     const r = await query<{ id: number }>(
-      `INSERT INTO employees (last_name, first_name, date_of_birth, address, phone, gender, email, hire_date, base_salary)
-       VALUES (@lastName, @firstName, @dob, @address, @phone, @gender, @email, @hire, @salary);
+      `INSERT INTO employees (last_name, first_name, date_of_birth, address, phone, gender, email, hire_date, base_salary, employment_type, hourly_rate, commission_rate, allowance)
+       VALUES (@lastName, @firstName, @dob, @address, @phone, @gender, @email, @hire, @salary, @type, @hourly, @comm, @allowance);
        SELECT CAST(SCOPE_IDENTITY() AS INT) AS id;`,
       {
         lastName: [sql.NVarChar(50), lastName],
@@ -59,6 +63,10 @@ export const employeeRepository = {
         email: [sql.VarChar(100), d.email ?? null],
         hire: [sql.Date, d.hireDate ?? null],
         salary: [sql.Decimal(18, 2), d.baseSalary ?? 0],
+        type: [sql.VarChar(10), d.employmentType ?? 'FULL_TIME'],
+        hourly: [sql.Decimal(18, 2), d.hourlyRate ?? 0],
+        comm: [sql.Decimal(5, 4), d.commissionRate ?? 0.0100],
+        allowance: [sql.Decimal(18, 2), d.allowance ?? 0],
       },
       exec,
     );
@@ -69,7 +77,8 @@ export const employeeRepository = {
     const r = await query<EmployeeRow>(
       `SELECT employee_id AS employeeId, last_name AS lastName, first_name AS firstName,
               LTRIM(RTRIM(CONCAT(last_name, N' ', first_name))) AS fullName, date_of_birth AS dateOfBirth,
-              address, phone, gender, email, hire_date AS hireDate, base_salary AS baseSalary
+              address, phone, gender, email, hire_date AS hireDate, base_salary AS baseSalary,
+              employment_type AS employmentType, hourly_rate AS hourlyRate, commission_rate AS commissionRate, allowance
        FROM employees WHERE employee_id = @id AND is_deleted = 0`,
       { id: [sql.Int, employeeId] },
       exec,
@@ -82,7 +91,10 @@ export const employeeRepository = {
       `SELECT e.employee_id AS employeeId,
               LTRIM(RTRIM(CONCAT(e.last_name, N' ', e.first_name))) AS fullName,
               e.date_of_birth AS dateOfBirth,
-              e.address, e.phone, e.base_salary AS baseSalary, u.created_at AS createdAt,
+              e.address, e.phone, e.base_salary AS baseSalary,
+              e.employment_type AS employmentType, e.hourly_rate AS hourlyRate,
+              e.commission_rate AS commissionRate, e.allowance,
+              u.created_at AS createdAt,
               u.user_id AS userId, u.username, r.role_name AS role, ISNULL(u.is_locked, 0) AS isLocked
        FROM employees e
        LEFT JOIN users u ON u.employee_id = e.employee_id AND u.is_deleted = 0
@@ -95,7 +107,7 @@ export const employeeRepository = {
   },
 
   async list(
-    p: { q?: string; role?: string; page: number; size: number },
+    p: { q?: string; role?: string; employmentType?: string; page: number; size: number },
     exec?: Executor,
   ): Promise<{ rows: EmployeeListItemRow[]; total: number }> {
     const offset = (p.page - 1) * p.size;
@@ -108,11 +120,13 @@ export const employeeRepository = {
        LEFT JOIN roles r ON r.role_id = u.role_id
        WHERE e.is_deleted = 0
          AND (@q IS NULL OR LTRIM(RTRIM(CONCAT(e.last_name, N' ', e.first_name))) COLLATE Vietnamese_CI_AI LIKE @qLike OR e.phone LIKE @qLike OR u.username LIKE @qLike)
-         AND (@role IS NULL OR r.role_name = @role)`,
+         AND (@role IS NULL OR r.role_name = @role)
+         AND (@type IS NULL OR e.employment_type = @type)`,
       {
         q: [sql.NVarChar(100), p.q ?? null],
         qLike: [sql.NVarChar(102), qLike],
         role: [sql.VarChar(30), p.role ?? null],
+        type: [sql.VarChar(10), p.employmentType ?? null],
       },
       exec,
     );
@@ -121,6 +135,8 @@ export const employeeRepository = {
       `SELECT e.employee_id AS employeeId,
               LTRIM(RTRIM(CONCAT(e.last_name, N' ', e.first_name))) AS fullName,
               e.phone, e.base_salary AS baseSalary,
+              e.employment_type AS employmentType, e.hourly_rate AS hourlyRate,
+              e.commission_rate AS commissionRate, e.allowance,
               u.user_id AS userId, u.username, r.role_name AS role, ISNULL(u.is_locked, 0) AS isLocked
        FROM employees e
        LEFT JOIN users u ON u.employee_id = e.employee_id AND u.is_deleted = 0
@@ -128,12 +144,14 @@ export const employeeRepository = {
        WHERE e.is_deleted = 0
          AND (@q IS NULL OR LTRIM(RTRIM(CONCAT(e.last_name, N' ', e.first_name))) COLLATE Vietnamese_CI_AI LIKE @qLike OR e.phone LIKE @qLike OR u.username LIKE @qLike)
          AND (@role IS NULL OR r.role_name = @role)
+         AND (@type IS NULL OR e.employment_type = @type)
        ORDER BY e.employee_id DESC
        OFFSET @offset ROWS FETCH NEXT @size ROWS ONLY`,
       {
         q: [sql.NVarChar(100), p.q ?? null],
         qLike: [sql.NVarChar(102), qLike],
         role: [sql.VarChar(30), p.role ?? null],
+        type: [sql.VarChar(10), p.employmentType ?? null],
         offset: [sql.Int, offset],
         size: [sql.Int, p.size],
       },
@@ -160,6 +178,10 @@ export const employeeRepository = {
       baseSalary?: number;
       gender?: Gender | null;
       email?: string | null;
+      employmentType?: 'FULL_TIME' | 'PART_TIME';
+      hourlyRate?: number;
+      commissionRate?: number;
+      allowance?: number;
     },
     exec?: Executor,
   ): Promise<void> {
@@ -184,6 +206,10 @@ export const employeeRepository = {
          address = COALESCE(@address, address),
          phone = COALESCE(@phone, phone),
          base_salary = COALESCE(@salary, base_salary),
+         employment_type = COALESCE(@type, employment_type),
+         hourly_rate = COALESCE(@hourly, hourly_rate),
+         commission_rate = COALESCE(@comm, commission_rate),
+         allowance = COALESCE(@allowance, allowance),
          gender = CASE WHEN @genderSet = 1 THEN @gender ELSE gender END,
          email = CASE WHEN @emailSet = 1 THEN @email ELSE email END
        WHERE employee_id = @id AND is_deleted = 0`,
@@ -194,6 +220,10 @@ export const employeeRepository = {
         address: [sql.NVarChar(255), d.address ?? null],
         phone: [sql.VarChar(20), d.phone ?? null],
         salary: [sql.Decimal(18, 2), d.baseSalary ?? null],
+        type: [sql.VarChar(10), d.employmentType ?? null],
+        hourly: [sql.Decimal(18, 2), d.hourlyRate ?? null],
+        comm: [sql.Decimal(5, 4), d.commissionRate ?? null],
+        allowance: [sql.Decimal(18, 2), d.allowance ?? null],
         genderSet: [sql.Bit, d.gender !== undefined],
         gender: [sql.VarChar(10), d.gender ?? null],
         emailSet: [sql.Bit, d.email !== undefined],

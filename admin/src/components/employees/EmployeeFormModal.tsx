@@ -2,7 +2,7 @@ import { type FormEvent, useState } from 'react';
 import { EMPLOYEE_ROLES, ROLE_LABEL } from '../../config/roles';
 import { employeeService } from '../../services/employee.service';
 import type { EmployeeRole } from '../../types/auth';
-import type { EmployeeDetail } from '../../types/employee';
+import type { EmployeeDetail, EmploymentType } from '../../types/employee';
 import { getErrorMessage } from '../../utils/error';
 import { latestBirthDate, validateBirthDate, validatePassword, validatePhone } from '../../utils/validators';
 import { Modal } from '../common/Modal';
@@ -14,7 +14,7 @@ interface Props {
   onSaved: () => void;
 }
 
-/** M3 #3, #4, #7 – Thêm/sửa nhân viên. Kiểm tra SĐT (10–11 số, bắt đầu 0) và tuổi ≥ 18 ở client; backend kiểm tra lại. */
+/** M3 #3, #4, #7 – Thêm/sửa nhân viên (hỗ trợ Full-time/Part-time, lương giờ, hoa hồng doanh số, phụ cấp). */
 export function EmployeeFormModal({ employee, onClose, onSaved }: Props) {
   const isEdit = !!employee;
   const [f, setF] = useState({
@@ -22,7 +22,11 @@ export function EmployeeFormModal({ employee, onClose, onSaved }: Props) {
     phone: employee?.phone ?? '',
     dateOfBirth: employee?.dateOfBirth?.slice(0, 10) ?? '',
     address: employee?.address ?? '',
-    baseSalary: String(employee?.baseSalary ?? 0),
+    employmentType: (employee?.employmentType ?? 'FULL_TIME') as EmploymentType,
+    baseSalary: String(employee?.baseSalary ?? 5000000),
+    hourlyRate: String(employee?.hourlyRate ?? 25000),
+    commissionRate: String((employee?.commissionRate ?? 0.01) * 100),
+    allowance: String(employee?.allowance ?? 0),
     username: '',
     password: '',
     role: 'SALES' as EmployeeRole,
@@ -41,8 +45,16 @@ export function EmployeeFormModal({ employee, onClose, onSaved }: Props) {
       const m = validateBirthDate(f.dateOfBirth);
       if (m) return m;
     }
-    const salary = Number(f.baseSalary);
-    if (!Number.isFinite(salary) || salary < 0) return 'Lương cơ bản không được âm';
+    if (f.employmentType === 'FULL_TIME') {
+      const salary = Number(f.baseSalary);
+      if (!Number.isFinite(salary) || salary < 0) return 'Lương cơ bản không được âm';
+    } else {
+      const rate = Number(f.hourlyRate);
+      if (!Number.isFinite(rate) || rate < 0) return 'Mức lương theo giờ không được âm';
+    }
+    const comm = Number(f.commissionRate);
+    if (!Number.isFinite(comm) || comm < 0 || comm > 100) return 'Hoa hồng phải từ 0% đến 100%';
+
     if (!isEdit) {
       if (!/^[A-Za-z0-9_.]{4,50}$/.test(f.username.trim())) return 'Tên đăng nhập 4–50 ký tự, chỉ gồm chữ, số, dấu _ hoặc .';
       const m = validatePassword(f.password);
@@ -62,7 +74,11 @@ export function EmployeeFormModal({ employee, onClose, onSaved }: Props) {
       phone: f.phone.trim() || undefined,
       dateOfBirth: f.dateOfBirth || undefined,
       address: f.address.trim() || undefined,
-      baseSalary: Number(f.baseSalary),
+      employmentType: f.employmentType,
+      baseSalary: f.employmentType === 'FULL_TIME' ? Number(f.baseSalary) : 0,
+      hourlyRate: f.employmentType === 'PART_TIME' ? Number(f.hourlyRate) : 0,
+      commissionRate: Number(f.commissionRate) / 100,
+      allowance: Number(f.allowance),
     };
     try {
       if (isEdit) await employeeService.update(employee.employeeId, common);
@@ -91,10 +107,38 @@ export function EmployeeFormModal({ employee, onClose, onSaved }: Props) {
             <span>Ngày sinh</span>
             <input type="date" value={f.dateOfBirth} max={latestBirthDate()} onChange={set('dateOfBirth')} />
           </label>
+
           <label className="field">
-            <span>Lương cơ bản (VND)</span>
-            <input type="number" min={0} step={100000} value={f.baseSalary} onChange={set('baseSalary')} />
+            <span>Hình thức làm việc *</span>
+            <select className="select" value={f.employmentType} onChange={set('employmentType')}>
+              <option value="FULL_TIME">Full-time (Toàn thời gian)</option>
+              <option value="PART_TIME">Part-time (Bán thời gian)</option>
+            </select>
           </label>
+
+          {f.employmentType === 'FULL_TIME' ? (
+            <>
+              <label className="field">
+                <span>Lương cơ bản tháng (VND)</span>
+                <input type="number" min={0} step={100000} value={f.baseSalary} onChange={set('baseSalary')} />
+              </label>
+              <label className="field">
+                <span>Phụ cấp tháng (VND)</span>
+                <input type="number" min={0} step={50000} value={f.allowance} onChange={set('allowance')} placeholder="Ăn trưa, xăng xe..." />
+              </label>
+            </>
+          ) : (
+            <label className="field">
+              <span>Lương theo giờ (VND / giờ)</span>
+              <input type="number" min={0} step={1000} value={f.hourlyRate} onChange={set('hourlyRate')} placeholder="VD: 25000" />
+            </label>
+          )}
+
+          <label className="field">
+            <span>Tỷ lệ hoa hồng doanh số (%)</span>
+            <input type="number" min={0} max={100} step={0.1} value={f.commissionRate} onChange={set('commissionRate')} placeholder="VD: 1.0 = 1%" />
+          </label>
+
           <label className="field span-2">
             <span>Địa chỉ</span>
             <input value={f.address} onChange={set('address')} maxLength={255} />

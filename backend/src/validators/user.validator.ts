@@ -24,6 +24,7 @@ export const createEmployeeUserSchema = z.object({
 
 export const lockSchema = z.object({ isLocked: z.boolean({ required_error: 'Thiếu isLocked' }) });
 export const roleSchema = z.object({ role: anyRole });
+export const adminResetPasswordSchema = z.object({ newPassword: passwordField });
 
 const atLeastOne = (v: Record<string, unknown>) => Object.values(v).some((x) => x !== undefined);
 const NOTHING = { message: 'Không có thông tin nào để cập nhật' };

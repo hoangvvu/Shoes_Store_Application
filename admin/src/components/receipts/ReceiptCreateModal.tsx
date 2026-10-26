@@ -1,4 +1,4 @@
-import { type FormEvent, useState } from 'react';
+import { type FormEvent, useMemo, useState } from 'react';
 import { inventoryService, receiptService, supplierService } from '../../services/inventory.service';
 import type { StockItem, Supplier } from '../../types/inventory';
 import { getErrorMessage } from '../../utils/error';
@@ -16,6 +16,7 @@ interface DraftLine {
   variantId: number;
   variantLabel: string;
   sku: string;
+  supplierName: string;
   quantity: number;
   importPrice: number;
 }
@@ -31,16 +32,164 @@ export function ReceiptCreateModal({ onClose, onSaved }: Props) {
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
+  // Chế độ nhập: 'PRODUCT_MATRIX' (theo mẫu giày) hoặc 'SINGLE_VARIANT' (chọn lẻ)
+  const [inputMode, setInputMode] = useState<'PRODUCT_MATRIX' | 'SINGLE_VARIANT'>('PRODUCT_MATRIX');
+
+  // State cho chế độ nhập theo mẫu giày (Matrix Import)
+  const [matrixProductId, setMatrixProductId] = useState<number | ''>('');
+  const [batchPrice, setBatchPrice] = useState('500000');
+  const [batchQty, setBatchQty] = useState('10');
+  const [matrixDraft, setMatrixDraft] = useState<Record<number, { qty: number; price: number }>>({});
+
   const { data: suppliers, loading: supLoading, error: supErr } = useAsync(
     () => supplierService.list({ page: 1, size: 100 }),
     [],
   );
+
+  // Chỉ tải biến thể kho của nhà cung cấp được chọn
   const { data: stockData, loading: stLoading, error: stErr } = useAsync(
-    () => inventoryService.list({ page: 1, size: 100 }),
-    [],
+    () =>
+      supplierId
+        ? inventoryService.list({ page: 1, size: 500, supplierId: Number(supplierId) })
+        : Promise.resolve({ items: [], total: 0, page: 1, size: 500, totalPages: 0 }),
+    [supplierId],
   );
 
+  const selectedSupplier = suppliers?.items.find((s: Supplier) => s.supplierId === supplierId);
   const variants = stockData?.items || [];
+
+  // Danh sách các mẫu sản phẩm thuộc nhà cung cấp (được gom nhóm từ variants)
+  const productOptions = useMemo(() => {
+    const map = new Map<number, { productId: number; productName: string; variantCount: number }>();
+    for (const v of variants) {
+      if (!map.has(v.productId)) {
+        map.set(v.productId, { productId: v.productId, productName: v.productName, variantCount: 0 });
+      }
+      map.get(v.productId)!.variantCount++;
+    }
+    return Array.from(map.values());
+  }, [variants]);
+
+  // Các biến thể của mẫu sản phẩm đang chọn trong chế độ Matrix
+  const activeMatrixVariants = useMemo(() => {
+    if (!matrixProductId) return [];
+    return variants.filter((v: StockItem) => v.productId === matrixProductId);
+  }, [variants, matrixProductId]);
+
+  // Khi chọn mẫu sản phẩm mới: khởi tạo bảng số lượng và giá cho tất cả size của mẫu đó
+  const handleSelectMatrixProduct = (prodId: number | '') => {
+    setMatrixProductId(prodId);
+    if (!prodId) {
+      setMatrixDraft({});
+      return;
+    }
+    const curVariants = variants.filter((v: StockItem) => v.productId === prodId);
+    const initialDraft: Record<number, { qty: number; price: number }> = {};
+    const defaultP = Number(batchPrice) || 500000;
+    const defaultQ = Number(batchQty) || 10;
+    for (const v of curVariants) {
+      initialDraft[v.variantId] = { qty: defaultQ, price: defaultP };
+    }
+    setMatrixDraft(initialDraft);
+  };
+
+  // Áp dụng giá chung cho tất cả các size của mẫu đang chọn
+  const applyBatchPriceToAll = () => {
+    const p = Number(batchPrice);
+    if (!Number.isFinite(p) || p < 0) return setError('Giá nhập chung không hợp lệ');
+    setError('');
+    setMatrixDraft((prev) => {
+      const next: Record<number, { qty: number; price: number }> = {};
+      for (const v of activeMatrixVariants) {
+        next[v.variantId] = { qty: prev[v.variantId]?.qty ?? 10, price: p };
+      }
+      return next;
+    });
+  };
+
+  // Điền số lượng chung cho tất cả các size của mẫu đang chọn
+  const applyBatchQtyToAll = () => {
+    const q = Number(batchQty);
+    if (!Number.isFinite(q) || q < 0) return setError('Số lượng không hợp lệ');
+    setError('');
+    setMatrixDraft((prev) => {
+      const next: Record<number, { qty: number; price: number }> = {};
+      const defPrice = Number(batchPrice) || 500000;
+      for (const v of activeMatrixVariants) {
+        next[v.variantId] = { qty: q, price: prev[v.variantId]?.price ?? defPrice };
+      }
+      return next;
+    });
+  };
+
+  // Thay đổi số lượng của 1 biến thể trong ma trận
+  const updateMatrixVariantQty = (vId: number, qty: number) => {
+    setMatrixDraft((prev) => ({
+      ...prev,
+      [vId]: {
+        qty: Math.max(0, qty),
+        price: prev[vId]?.price ?? (Number(batchPrice) || 500000),
+      },
+    }));
+  };
+
+  // Thay đổi giá của 1 biến thể trong ma trận
+  const updateMatrixVariantPrice = (vId: number, price: number) => {
+    setMatrixDraft((prev) => ({
+      ...prev,
+      [vId]: {
+        qty: prev[vId]?.qty ?? 10,
+        price: Math.max(0, price),
+      },
+    }));
+  };
+
+  // Thêm toàn bộ các size có SL > 0 vào phiếu nhập
+  const addMatrixToLines = () => {
+    if (!supplierId) return setError('Vui lòng chọn nhà cung cấp đối tác trước');
+    if (!matrixProductId) return setError('Vui lòng chọn mẫu sản phẩm cần nhập');
+
+    const toAdd: DraftLine[] = [];
+    const supName = selectedSupplier?.supplierName || 'Chưa xác định';
+
+    for (const v of activeMatrixVariants) {
+      const row = matrixDraft[v.variantId];
+      if (row && row.qty > 0) {
+        toAdd.push({
+          variantId: v.variantId,
+          variantLabel: `${v.productName} (Size ${v.sizeLabel} - ${v.colorName})`,
+          sku: v.sku,
+          supplierName: v.supplierName || supName,
+          quantity: row.qty,
+          importPrice: row.price,
+        });
+      }
+    }
+
+    if (toAdd.length === 0) {
+      return setError('Vui lòng nhập số lượng lớn hơn 0 cho ít nhất một kích cỡ giày');
+    }
+
+    setError('');
+    setLines((prev) => {
+      const next = [...prev];
+      for (const item of toAdd) {
+        const idx = next.findIndex((l) => l.variantId === item.variantId);
+        if (idx >= 0) {
+          next[idx].quantity += item.quantity;
+          next[idx].importPrice = item.importPrice;
+        } else {
+          next.push(item);
+        }
+      }
+      return next;
+    });
+
+    // Thông báo thêm thành công và cho phép người dùng chọn tiếp mẫu khác
+    setMatrixProductId('');
+    setMatrixDraft({});
+  };
+
   const filteredVariants = variantSearch.trim()
     ? variants.filter((v: StockItem) => {
         const term = variantSearch.toLowerCase();
@@ -53,7 +202,24 @@ export function ReceiptCreateModal({ onClose, onSaved }: Props) {
       })
     : variants;
 
+  const handleSupplierChange = (newSupId: number | '') => {
+    if (lines.length > 0 && newSupId !== supplierId) {
+      const ok = window.confirm(
+        'Thay đổi nhà cung cấp sẽ làm mới danh sách sản phẩm trong phiếu nhập hiện tại. Bạn có chắc chắn muốn đổi không?',
+      );
+      if (!ok) return;
+      setLines([]);
+    }
+    setSupplierId(newSupId);
+    setSelectedVariantId('');
+    setMatrixProductId('');
+    setMatrixDraft({});
+    setVariantSearch('');
+    setError('');
+  };
+
   const addLine = () => {
+    if (!supplierId) return setError('Vui lòng chọn nhà cung cấp đối tác trước khi thêm sản phẩm');
     if (!selectedVariantId) return setError('Vui lòng chọn biến thể cần nhập hàng');
     const q = Number(qtyInput);
     const p = Number(priceInput);
@@ -62,6 +228,8 @@ export function ReceiptCreateModal({ onClose, onSaved }: Props) {
 
     const v = variants.find((x: StockItem) => x.variantId === selectedVariantId);
     if (!v) return;
+
+    const supName = v.supplierName || selectedSupplier?.supplierName || 'Chưa xác định';
 
     setError('');
     // Nếu biến thể đã có trong danh sách -> cộng dồn số lượng
@@ -79,6 +247,7 @@ export function ReceiptCreateModal({ onClose, onSaved }: Props) {
           variantId: v.variantId,
           variantLabel: `${v.productName} (Size ${v.sizeLabel} - ${v.colorName})`,
           sku: v.sku,
+          supplierName: supName,
           quantity: q,
           importPrice: p,
         },
@@ -114,6 +283,10 @@ export function ReceiptCreateModal({ onClose, onSaved }: Props) {
 
   const grandTotal = lines.reduce((sum, l) => sum + l.quantity * l.importPrice, 0);
 
+  // Thống kê nhanh trong chế độ Matrix
+  const matrixTotalQty = Object.values(matrixDraft).reduce((sum, item) => sum + (item.qty || 0), 0);
+  const matrixTotalAmount = Object.values(matrixDraft).reduce((sum, item) => sum + (item.qty || 0) * (item.price || 0), 0);
+
   async function submit(e: FormEvent) {
     e.preventDefault();
     if (!supplierId) return setError('Vui lòng chọn nhà cung cấp');
@@ -140,14 +313,14 @@ export function ReceiptCreateModal({ onClose, onSaved }: Props) {
   return (
     <Modal title="Lập phiếu nhập kho" onClose={onClose} wide>
       <form onSubmit={submit} className="form" noValidate>
-        <LoadState loading={supLoading || stLoading} error={supErr || stErr} />
+        <LoadState loading={supLoading || (!!supplierId && stLoading)} error={supErr || stErr} />
 
         <label className="field">
           <span>Nhà cung cấp đối tác *</span>
           <select
             className="select"
             value={supplierId}
-            onChange={(e) => setSupplierId(e.target.value ? Number(e.target.value) : '')}
+            onChange={(e) => handleSupplierChange(e.target.value ? Number(e.target.value) : '')}
             autoFocus
           >
             <option value="">-- Chọn nhà cung cấp --</option>
@@ -159,54 +332,265 @@ export function ReceiptCreateModal({ onClose, onSaved }: Props) {
           </select>
         </label>
 
-        <fieldset className="fieldset">
-          <legend>Thêm dòng hàng vào phiếu nhập</legend>
+        <fieldset className="fieldset" style={{ opacity: supplierId ? 1 : 0.65 }}>
+          <legend>
+            Thêm dòng hàng vào phiếu nhập {selectedSupplier ? `– ${selectedSupplier.supplierName}` : ''}
+          </legend>
 
-          <div style={{ marginBottom: 10 }}>
-            <input
-              type="text"
-              placeholder="🔍 Lọc nhanh theo tên sản phẩm, SKU, size, màu..."
-              value={variantSearch}
-              onChange={(e) => setVariantSearch(e.target.value)}
-              style={{ width: '100%' }}
-            />
-          </div>
-
-          <div className="form-grid" style={{ alignItems: 'flex-end' }}>
-            <label className="field span-2">
-              <span>
-                Chọn sản phẩm / biến thể ({filteredVariants.length}/{variants.length})
-              </span>
-              <select
-                className="select"
-                value={selectedVariantId}
-                onChange={(e) => setSelectedVariantId(e.target.value ? Number(e.target.value) : '')}
+          {!supplierId ? (
+            <div
+              style={{
+                padding: '12px 14px',
+                background: '#FEF3C7',
+                color: '#92400E',
+                borderRadius: '6px',
+                marginBottom: 12,
+                fontSize: '13px',
+                fontWeight: 500,
+              }}
+            >
+              Vui lòng chọn nhà cung cấp đối tác ở trên trước. Hệ thống sẽ chỉ hiển thị các sản phẩm thuộc nhà cung cấp đó.
+            </div>
+          ) : (
+            <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
+              <button
+                type="button"
+                className={`btn ${inputMode === 'PRODUCT_MATRIX' ? 'btn--primary' : 'btn--ghost'}`}
+                onClick={() => setInputMode('PRODUCT_MATRIX')}
               >
-                <option value="">-- Chọn biến thể giày --</option>
-                {filteredVariants.map((v: StockItem) => (
-                  <option key={v.variantId} value={v.variantId}>
-                    {v.sku} · {v.productName} (Size {v.sizeLabel} - {v.colorName}) [Tồn hiện tại: {v.stockQuantity}]
-                  </option>
-                ))}
-              </select>
-            </label>
+                Nhập nhanh theo mẫu giày (Tất cả size)
+              </button>
+              <button
+                type="button"
+                className={`btn ${inputMode === 'SINGLE_VARIANT' ? 'btn--primary' : 'btn--ghost'}`}
+                onClick={() => setInputMode('SINGLE_VARIANT')}
+              >
+                Chọn từng biến thể lẻ
+              </button>
+            </div>
+          )}
 
-            <label className="field">
-              <span>Số lượng nhập</span>
-              <input type="number" min={1} value={qtyInput} onChange={(e) => setQtyInput(e.target.value)} />
-            </label>
+          {/* CHẾ ĐỘ 1: NHẬP NHANH THEO MẪU GIÀY (MATRIX IMPORT) */}
+          {supplierId && inputMode === 'PRODUCT_MATRIX' && (
+            <div style={{ background: '#f8fafc', padding: 14, borderRadius: 8, border: '1px solid #e2e8f0' }}>
+              <div className="form-grid" style={{ alignItems: 'flex-end', marginBottom: 12 }}>
+                <label className="field span-2">
+                  <span>Chọn mẫu giày của nhà cung cấp ({productOptions.length} mẫu có sẵn) *</span>
+                  <select
+                    className="select"
+                    value={matrixProductId}
+                    onChange={(e) => handleSelectMatrixProduct(e.target.value ? Number(e.target.value) : '')}
+                  >
+                    <option value="">-- Chọn mẫu sản phẩm cần nhập --</option>
+                    {productOptions.map((p) => (
+                      <option key={p.productId} value={p.productId}>
+                        {p.productName} ({p.variantCount} kích cỡ/màu)
+                      </option>
+                    ))}
+                  </select>
+                </label>
 
-            <label className="field">
-              <span>Giá nhập / đôi (VND)</span>
-              <input type="number" min={0} step={10000} value={priceInput} onChange={(e) => setPriceInput(e.target.value)} />
-            </label>
-          </div>
+                <label className="field">
+                  <span>Giá nhập chung / đôi (VND)</span>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <input
+                      type="number"
+                      min={0}
+                      step={10000}
+                      value={batchPrice}
+                      onChange={(e) => setBatchPrice(e.target.value)}
+                    />
+                    <button
+                      type="button"
+                      className="btn btn--ghost"
+                      onClick={applyBatchPriceToAll}
+                      title="Gán giá này cho tất cả kích cỡ"
+                      disabled={!matrixProductId}
+                    >
+                      Áp dụng
+                    </button>
+                  </div>
+                </label>
 
-          <div style={{ marginTop: 10, textAlign: 'right' }}>
-            <button type="button" className="btn btn--primary" onClick={addLine}>
-              + Thêm vào danh sách
-            </button>
-          </div>
+                <label className="field">
+                  <span>Điền nhanh số lượng</span>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <input
+                      type="number"
+                      min={1}
+                      value={batchQty}
+                      onChange={(e) => setBatchQty(e.target.value)}
+                    />
+                    <button
+                      type="button"
+                      className="btn btn--ghost"
+                      onClick={applyBatchQtyToAll}
+                      title="Gán số lượng này cho tất cả kích cỡ"
+                      disabled={!matrixProductId}
+                    >
+                      Điền tất cả
+                    </button>
+                  </div>
+                </label>
+              </div>
+
+              {matrixProductId && activeMatrixVariants.length > 0 && (
+                <div>
+                  <div style={{ maxHeight: 280, overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: 6, background: '#fff' }}>
+                    <table className="table" style={{ margin: 0 }}>
+                      <thead>
+                        <tr>
+                          <th>Kích cỡ</th>
+                          <th>Màu sắc</th>
+                          <th>Mã SKU</th>
+                          <th className="num">Tồn kho hiện tại</th>
+                          <th className="num" style={{ width: 130 }}>SL nhập</th>
+                          <th className="num" style={{ width: 160 }}>Giá nhập (VND)</th>
+                          <th className="num">Thành tiền</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {activeMatrixVariants.map((v: StockItem) => {
+                          const row = matrixDraft[v.variantId] || { qty: 0, price: Number(batchPrice) || 500000 };
+                          const lineSum = row.qty * row.price;
+                          return (
+                            <tr key={v.variantId} style={{ background: row.qty > 0 ? '#f0fdf4' : 'transparent' }}>
+                              <td><strong style={{ fontSize: '15px' }}>Size {v.sizeLabel}</strong></td>
+                              <td>{v.colorName}</td>
+                              <td><code>{v.sku}</code></td>
+                              <td className="num">{v.stockQuantity} đôi</td>
+                              <td className="num">
+                                <input
+                                  type="number"
+                                  min={0}
+                                  value={row.qty}
+                                  onChange={(e) => updateMatrixVariantQty(v.variantId, Number(e.target.value) || 0)}
+                                  style={{ width: 75, textAlign: 'center', padding: '4px 6px', fontWeight: 'bold' }}
+                                />
+                              </td>
+                              <td className="num">
+                                <input
+                                  type="number"
+                                  min={0}
+                                  step={10000}
+                                  value={row.price}
+                                  onChange={(e) => updateMatrixVariantPrice(v.variantId, Number(e.target.value) || 0)}
+                                  style={{ width: 130, textAlign: 'right', padding: '4px 6px' }}
+                                />
+                              </td>
+                              <td className="num font-bold" style={{ color: row.qty > 0 ? '#059669' : '#94a3b8' }}>
+                                {formatVnd(lineSum)}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      marginTop: 12,
+                      padding: '10px 14px',
+                      background: '#ecfdf5',
+                      borderRadius: 6,
+                      border: '1px solid #a7f3d0',
+                    }}
+                  >
+                    <div>
+                      <strong>Đang chọn mẫu:</strong> {matrixTotalQty} đôi · <strong>Tạm tính:</strong>{' '}
+                      <span style={{ color: '#059669', fontSize: '16px' }}>{formatVnd(matrixTotalAmount)}</span>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn btn--primary"
+                      onClick={addMatrixToLines}
+                      disabled={matrixTotalQty <= 0}
+                    >
+                      Thêm {activeMatrixVariants.filter((v) => (matrixDraft[v.variantId]?.qty || 0) > 0).length} kích cỡ này vào phiếu nhập
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* CHẾ ĐỘ 2: CHỌN TỪNG BIẾN THỂ LẺ (TRUYỀN THỐNG) */}
+          {supplierId && inputMode === 'SINGLE_VARIANT' && (
+            <div>
+              <div style={{ marginBottom: 10 }}>
+                <input
+                  type="text"
+                  placeholder="Lọc theo tên sản phẩm, SKU, size, màu của nhà cung cấp này..."
+                  value={variantSearch}
+                  onChange={(e) => setVariantSearch(e.target.value)}
+                  style={{ width: '100%' }}
+                />
+              </div>
+
+              <div className="form-grid" style={{ alignItems: 'flex-end' }}>
+                <label className="field span-2">
+                  <span>
+                    Chọn biến thể giày ({filteredVariants.length}/{variants.length})
+                  </span>
+                  <select
+                    className="select"
+                    value={selectedVariantId}
+                    onChange={(e) => setSelectedVariantId(e.target.value ? Number(e.target.value) : '')}
+                    disabled={variants.length === 0}
+                  >
+                    {variants.length === 0 ? (
+                      <option value="">-- Nhà cung cấp này chưa có sản phẩm nào trong hệ thống --</option>
+                    ) : (
+                      <>
+                        <option value="">-- Chọn biến thể giày ({filteredVariants.length} lựa chọn) --</option>
+                        {filteredVariants.map((v: StockItem) => (
+                          <option key={v.variantId} value={v.variantId}>
+                            {v.sku} · {v.productName} (Size {v.sizeLabel} - {v.colorName}) [Tồn: {v.stockQuantity}]
+                          </option>
+                        ))}
+                      </>
+                    )}
+                  </select>
+                </label>
+
+                <label className="field">
+                  <span>Số lượng nhập</span>
+                  <input
+                    type="number"
+                    min={1}
+                    value={qtyInput}
+                    onChange={(e) => setQtyInput(e.target.value)}
+                  />
+                </label>
+
+                <label className="field">
+                  <span>Giá nhập / đôi (VND)</span>
+                  <input
+                    type="number"
+                    min={0}
+                    step={10000}
+                    value={priceInput}
+                    onChange={(e) => setPriceInput(e.target.value)}
+                  />
+                </label>
+              </div>
+
+              <div style={{ marginTop: 10, textAlign: 'right' }}>
+                <button
+                  type="button"
+                  className="btn btn--primary"
+                  onClick={addLine}
+                  disabled={!selectedVariantId}
+                >
+                  Thêm vào danh sách
+                </button>
+              </div>
+            </div>
+          )}
         </fieldset>
 
         {lines.length > 0 && (
@@ -215,6 +599,7 @@ export function ReceiptCreateModal({ onClose, onSaved }: Props) {
               <thead>
                 <tr>
                   <th>Sản phẩm</th>
+                  <th>Nhà cung cấp</th>
                   <th>Mã SKU</th>
                   <th className="num" style={{ width: 130 }}>SL nhập</th>
                   <th className="num" style={{ width: 160 }}>Giá nhập (VND)</th>
@@ -226,6 +611,21 @@ export function ReceiptCreateModal({ onClose, onSaved }: Props) {
                 {lines.map((l, idx) => (
                   <tr key={l.variantId}>
                     <td><strong>{l.variantLabel}</strong></td>
+                    <td>
+                      <span
+                        style={{
+                          display: 'inline-block',
+                          padding: '3px 8px',
+                          borderRadius: '4px',
+                          background: '#E0E7FF',
+                          color: '#3730A3',
+                          fontSize: '12px',
+                          fontWeight: 600,
+                        }}
+                      >
+                        {l.supplierName}
+                      </span>
+                    </td>
                     <td><code>{l.sku}</code></td>
                     <td className="num">
                       <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>

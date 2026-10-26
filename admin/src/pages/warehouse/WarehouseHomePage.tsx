@@ -1,4 +1,6 @@
 import { Link } from 'react-router-dom';
+import { QuickAttendance } from '../../components/attendance/QuickAttendance';
+import { CheckInModalOnLogin } from '../../components/attendance/CheckInModalOnLogin';
 import { inventoryService } from '../../services/inventory.service';
 import { reportService } from '../../services/report.service';
 import type { StockItem } from '../../types/inventory';
@@ -17,15 +19,19 @@ export default function WarehouseHomePage() {
 
   return (
     <>
+      <CheckInModalOnLogin />
+
       <PageHeader
         title="Bảng điều khiển Kho hàng"
-        subtitle="Tổng quan tình hình tồn kho, cảnh báo sắp hết hàng và điều phối xuất nhập hàng"
         actions={
           <div style={{ display: 'flex', gap: 10 }}>
-            <Link to="/warehouse/receipts" className="btn btn--primary">+ Lập phiếu nhập kho</Link>
+            <Link to="/warehouse/my-work" className="btn btn--ghost">Chấm công & Thu nhập</Link>
+            <Link to="/warehouse/receipts" className="btn btn--primary">Lập phiếu nhập kho</Link>
           </div>
         }
       />
+
+      <QuickAttendance />
 
       <div className="stats-grid" style={{ marginBottom: 24 }}>
         <StatCard
@@ -54,8 +60,7 @@ export default function WarehouseHomePage() {
       <div className="card" style={{ marginBottom: 24 }}>
         <div className="page-header" style={{ marginBottom: 16 }}>
           <div>
-            <h3>⚠️ Mặt hàng sắp hết hàng cần nhập bổ sung</h3>
-            <p className="muted small">Danh sách các biến thể có lượng tồn kho đạt mức cảnh báo</p>
+            <h3>Mặt hàng sắp hết hàng cần nhập bổ sung</h3>
           </div>
           <Link to="/warehouse/inventory" className="link small">Tất cả kho ›</Link>
         </div>

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { reportService } from '../../services/report.service';
 import type { EmployeeRole } from '../../types/auth';
 import type {
@@ -15,6 +15,85 @@ import { useAsync } from '../../utils/useAsync';
 import { PageHeader } from '../common/PageHeader';
 import { SearchBar } from '../common/SearchBar';
 import { BarChart, LoadState, Meter, StatCard, Tabs, Thumb } from '../common/Widgets';
+import { Pagination } from '../tables/Pagination';
+
+/** Hook quản lý phân trang độc lập cho từng bảng báo cáo */
+function useClientPagination<T>(items: T[], defaultPageSize = 10) {
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(defaultPageSize);
+
+  useEffect(() => {
+    setPage(1);
+  }, [items]);
+
+  const total = items.length;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const safePage = Math.min(Math.max(1, page), totalPages);
+
+  const paginatedItems = useMemo(() => {
+    const start = (safePage - 1) * pageSize;
+    return items.slice(start, start + pageSize);
+  }, [items, safePage, pageSize]);
+
+  const paginationControl = total > pageSize ? (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 14, flexWrap: 'wrap', gap: 10 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span className="muted small">Hiển thị:</span>
+        <select
+          className="select small"
+          value={pageSize}
+          onChange={(e) => {
+            setPageSize(Number(e.target.value));
+            setPage(1);
+          }}
+          style={{ width: 'auto', padding: '3px 8px', fontSize: 13 }}
+        >
+          <option value="5">5 / trang</option>
+          <option value="10">10 / trang</option>
+          <option value="20">20 / trang</option>
+          <option value="50">50 / trang</option>
+        </select>
+        <span className="muted small">
+          ({(safePage - 1) * pageSize + 1} – {Math.min(safePage * pageSize, total)} trên tổng {total})
+        </span>
+      </div>
+      <Pagination
+        page={safePage}
+        totalPages={totalPages}
+        total={total}
+        onChange={setPage}
+      />
+    </div>
+  ) : total > 5 ? (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 }}>
+      <span className="muted small">Hiển thị toàn bộ {total} bản ghi</span>
+      <select
+        className="select small"
+        value={pageSize}
+        onChange={(e) => {
+          setPageSize(Number(e.target.value));
+          setPage(1);
+        }}
+        style={{ width: 'auto', padding: '2px 8px', fontSize: 12 }}
+      >
+        <option value="5">5 / trang</option>
+        <option value="10">10 / trang</option>
+        <option value="20">20 / trang</option>
+      </select>
+    </div>
+  ) : null;
+
+  return {
+    page: safePage,
+    setPage,
+    pageSize,
+    setPageSize,
+    paginatedItems,
+    totalPages,
+    total,
+    paginationControl,
+  };
+}
 
 interface Props {
   role: EmployeeRole;
@@ -78,7 +157,7 @@ export function ReportsManager({ role }: Props) {
   );
 
   const { data: topProducts, loading: prodLoading, error: prodError } = useAsync(
-    () => (tab === 'top-products' ? reportService.topProducts({ ...range, limit: 15 }) : Promise.resolve(null)),
+    () => (tab === 'top-products' ? reportService.topProducts({ ...range, limit: 100 }) : Promise.resolve(null)),
     [tab, range],
   );
 
@@ -98,7 +177,7 @@ export function ReportsManager({ role }: Props) {
   );
 
   const { data: topCustomers, loading: cusLoading, error: cusError } = useAsync(
-    () => (tab === 'top-customers' ? reportService.topCustomers({ ...range, limit: 15 }) : Promise.resolve(null)),
+    () => (tab === 'top-customers' ? reportService.topCustomers({ ...range, limit: 100 }) : Promise.resolve(null)),
     [tab, range],
   );
 
@@ -218,13 +297,24 @@ export function ReportsManager({ role }: Props) {
     );
   }, [returnRates, query]);
 
+  // Phân trang độc lập cho từng bảng báo cáo
+  const pgRevenue = useClientPagination(filteredRevenue, 10);
+  const pgProducts = useClientPagination(filteredProducts, 10);
+  const pgOrders = useClientPagination(ordersReport?.byStatus ?? [], 10);
+  const pgMovement = useClientPagination(filteredMovement, 10);
+  const pgStockLow = useClientPagination(filteredStockLow, 5);
+  const pgStockStale = useClientPagination(filteredStockStale, 5);
+  const pgCustomers = useClientPagination(filteredCustomers, 10);
+  const pgEmployees = useClientPagination(filteredEmployees, 10);
+  const pgReturns = useClientPagination(filteredReturns, 10);
+
   return (
     <>
       <PageHeader
         title="Báo cáo & Thống kê kinh doanh"
         actions={
           <button className="btn btn--primary" onClick={handleExportExcel} disabled={exporting}>
-            {exporting ? 'Đang xuất tệp…' : '📥 Xuất báo cáo Excel'}
+            {exporting ? 'Đang xuất tệp…' : 'Xuất báo cáo Excel'}
           </button>
         }
       />
@@ -344,7 +434,6 @@ export function ReportsManager({ role }: Props) {
                   <div className="page-header" style={{ marginBottom: 16 }}>
                     <div>
                       <h4 style={{ margin: 0 }}>Biểu đồ doanh thu thuần theo ngày</h4>
-                      <p className="muted small" style={{ margin: '4px 0 0' }}>Biến động doanh thu thực nhận trong khoảng thời gian đã chọn</p>
                     </div>
                   </div>
                   <BarChart
@@ -368,7 +457,7 @@ export function ReportsManager({ role }: Props) {
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredRevenue.map((r: RevenuePoint) => (
+                      {pgRevenue.paginatedItems.map((r: RevenuePoint) => (
                         <tr key={r.period}>
                           <td><strong>{r.period}</strong></td>
                           <td className="num">{formatNumber(r.orders)}</td>
@@ -395,6 +484,7 @@ export function ReportsManager({ role }: Props) {
                     </tfoot>
                   </table>
                 </div>
+                {pgRevenue.paginationControl}
               </>
             )}
           </div>
@@ -443,20 +533,21 @@ export function ReportsManager({ role }: Props) {
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredProducts.map((p: TopProduct, idx: number) => {
+                      {pgProducts.paginatedItems.map((p: TopProduct, idx: number) => {
                         const maxSold = topProducts[0]?.quantity || 1;
+                        const rank = (pgProducts.page - 1) * pgProducts.pageSize + idx + 1;
                         const rankClass =
-                          idx === 0
+                          rank === 1
                             ? 'badge badge--ok'
-                            : idx === 1
+                            : rank === 2
                               ? 'badge badge--warning'
-                              : idx === 2
+                              : rank === 3
                                 ? 'badge badge--muted'
                                 : 'badge badge--muted';
 
                         return (
                           <tr key={p.productId}>
-                            <td><span className={rankClass} style={{ fontWeight: 800 }}>#{idx + 1}</span></td>
+                            <td><span className={rankClass} style={{ fontWeight: 800 }}>#{rank}</span></td>
                             <td><Thumb src={p.imageUrl} alt={p.productName} /></td>
                             <td>
                               <strong>{p.productName}</strong>
@@ -471,6 +562,7 @@ export function ReportsManager({ role }: Props) {
                     </tbody>
                   </table>
                 </div>
+                {pgProducts.paginationControl}
               </>
             )}
           </div>
@@ -522,7 +614,7 @@ export function ReportsManager({ role }: Props) {
                       </tr>
                     </thead>
                     <tbody>
-                      {ordersReport.byStatus.map((s: { status: string; count: number }) => {
+                      {pgOrders.paginatedItems.map((s: { status: string; count: number }) => {
                         const total = ordersReport.byStatus.reduce((acc: number, curr: { count: number }) => acc + curr.count, 0);
                         return (
                           <tr key={s.status}>
@@ -535,6 +627,7 @@ export function ReportsManager({ role }: Props) {
                     </tbody>
                   </table>
                 </div>
+                {pgOrders.paginationControl}
               </>
             )}
           </div>
@@ -587,7 +680,7 @@ export function ReportsManager({ role }: Props) {
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredMovement.map((m: InventoryMovementRow) => (
+                      {pgMovement.paginatedItems.map((m: InventoryMovementRow) => (
                         <tr key={m.variantId}>
                           <td><code>{m.sku}</code></td>
                           <td><strong>{m.productName}</strong></td>
@@ -601,6 +694,7 @@ export function ReportsManager({ role }: Props) {
                     </tbody>
                   </table>
                 </div>
+                {pgMovement.paginationControl}
               </>
             )}
           </div>
@@ -631,58 +725,64 @@ export function ReportsManager({ role }: Props) {
 
                 <div className="grid-2">
                   <div className="card" style={{ background: '#fffbeb', border: '1px solid #fde68a' }}>
-                    <h4 style={{ margin: '0 0 12px', color: '#b45309' }}>⚠️ Sản phẩm sắp hết hàng (Tồn ≤ 5 đôi)</h4>
+                    <h4 style={{ margin: '0 0 12px', color: '#b45309' }}>Sản phẩm sắp hết hàng (Tồn ≤ 5 đôi)</h4>
                     {filteredStockLow.length === 0 ? (
                       <p className="muted">Không có sản phẩm nào sắp hết hàng</p>
                     ) : (
-                      <div className="table-wrap">
-                        <table className="table" style={{ background: '#fff' }}>
-                          <thead>
-                            <tr>
-                              <th>SKU</th>
-                              <th>Sản phẩm</th>
-                              <th className="num">Tồn</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {filteredStockLow.map((s) => (
-                              <tr key={s.variantId}>
-                                <td><code>{s.sku}</code></td>
-                                <td>{s.productName} ({s.sizeLabel} - {s.colorName})</td>
-                                <td className="num font-bold"><span className="badge badge--danger">{s.stockQuantity}</span></td>
+                      <>
+                        <div className="table-wrap">
+                          <table className="table" style={{ background: '#fff' }}>
+                            <thead>
+                              <tr>
+                                <th>SKU</th>
+                                <th>Sản phẩm</th>
+                                <th className="num">Tồn</th>
                               </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
+                            </thead>
+                            <tbody>
+                              {pgStockLow.paginatedItems.map((s) => (
+                                <tr key={s.variantId}>
+                                  <td><code>{s.sku}</code></td>
+                                  <td>{s.productName} ({s.sizeLabel} - {s.colorName})</td>
+                                  <td className="num font-bold"><span className="badge badge--danger">{s.stockQuantity}</span></td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                        {pgStockLow.paginationControl}
+                      </>
                     )}
                   </div>
 
                   <div className="card" style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}>
-                    <h4 style={{ margin: '0 0 12px', color: '#475569' }}>⏳ Sản phẩm tồn đọng lâu ngày (&gt; 30 ngày)</h4>
+                    <h4 style={{ margin: '0 0 12px', color: '#475569' }}>Sản phẩm tồn đọng lâu ngày (&gt; 30 ngày)</h4>
                     {filteredStockStale.length === 0 ? (
                       <p className="muted">Không có sản phẩm tồn lâu</p>
                     ) : (
-                      <div className="table-wrap">
-                        <table className="table" style={{ background: '#fff' }}>
-                          <thead>
-                            <tr>
-                              <th>SKU</th>
-                              <th>Sản phẩm</th>
-                              <th className="num">Tồn</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {filteredStockStale.map((s) => (
-                              <tr key={s.variantId}>
-                                <td><code>{s.sku}</code></td>
-                                <td>{s.productName} ({s.sizeLabel} - {s.colorName})</td>
-                                <td className="num font-bold"><span className="badge badge--warning">{s.stockQuantity}</span></td>
+                      <>
+                        <div className="table-wrap">
+                          <table className="table" style={{ background: '#fff' }}>
+                            <thead>
+                              <tr>
+                                <th>SKU</th>
+                                <th>Sản phẩm</th>
+                                <th className="num">Tồn</th>
                               </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
+                            </thead>
+                            <tbody>
+                              {pgStockStale.paginatedItems.map((s) => (
+                                <tr key={s.variantId}>
+                                  <td><code>{s.sku}</code></td>
+                                  <td>{s.productName} ({s.sizeLabel} - {s.colorName})</td>
+                                  <td className="num font-bold"><span className="badge badge--warning">{s.stockQuantity}</span></td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                        {pgStockStale.paginationControl}
+                      </>
                     )}
                   </div>
                 </div>
@@ -731,18 +831,22 @@ export function ReportsManager({ role }: Props) {
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredCustomers.map((c: TopCustomer, idx: number) => (
-                        <tr key={c.customerId}>
-                          <td><span className={`badge ${idx < 3 ? 'badge--ok' : 'badge--muted'}`} style={{ fontWeight: 800 }}>#{idx + 1}</span></td>
-                          <td><strong>{c.fullName}</strong></td>
-                          <td>{c.phone || '—'}</td>
-                          <td className="num font-bold">{formatNumber(c.orders)} đơn</td>
-                          <td className="num font-bold" style={{ color: '#059669' }}>{formatVnd(c.totalPurchased)}</td>
-                        </tr>
-                      ))}
+                      {pgCustomers.paginatedItems.map((c: TopCustomer, idx: number) => {
+                        const rank = (pgCustomers.page - 1) * pgCustomers.pageSize + idx + 1;
+                        return (
+                          <tr key={c.customerId}>
+                            <td><span className={`badge ${rank <= 3 ? 'badge--ok' : 'badge--muted'}`} style={{ fontWeight: 800 }}>#{rank}</span></td>
+                            <td><strong>{c.fullName}</strong></td>
+                            <td>{c.phone || '—'}</td>
+                            <td className="num font-bold">{formatNumber(c.orders)} đơn</td>
+                            <td className="num font-bold" style={{ color: '#059669' }}>{formatVnd(c.totalPurchased)}</td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
+                {pgCustomers.paginationControl}
               </>
             )}
           </div>
@@ -788,7 +892,7 @@ export function ReportsManager({ role }: Props) {
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredEmployees.map((e: EmployeeSales) => {
+                      {pgEmployees.paginatedItems.map((e: EmployeeSales) => {
                         const maxRev = employeeSales[0]?.revenue || 1;
                         return (
                           <tr key={e.employeeId}>
@@ -803,6 +907,7 @@ export function ReportsManager({ role }: Props) {
                     </tbody>
                   </table>
                 </div>
+                {pgEmployees.paginationControl}
               </>
             )}
           </div>
@@ -847,7 +952,7 @@ export function ReportsManager({ role }: Props) {
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredReturns.map((r: ReturnRate) => (
+                      {pgReturns.paginatedItems.map((r: ReturnRate) => (
                         <tr key={r.productId}>
                           <td><strong>{r.productName}</strong></td>
                           <td className="num">{formatNumber(r.soldQuantity)} đôi</td>
@@ -863,6 +968,7 @@ export function ReportsManager({ role }: Props) {
                     </tbody>
                   </table>
                 </div>
+                {pgReturns.paginationControl}
               </>
             )}
           </div>

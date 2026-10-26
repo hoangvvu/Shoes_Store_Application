@@ -1,5 +1,5 @@
 import type { PosPreview } from '../../types/order';
-import { formatVnd } from '../../utils/format';
+import { formatVnd, resolveImageUrl } from '../../utils/format';
 
 export interface CartLine {
   variantId: number;
@@ -32,8 +32,17 @@ export function PosCart({ lines, preview, previewing, onQty, onRemove }: Props) 
       {lines.map((l) => {
         const p = priced.get(l.variantId);
         const issue = issues.get(l.variantId);
+        const imgUrl = resolveImageUrl(l.imageUrl);
         return (
           <li key={l.variantId} className={`pos-line${issue ? ' pos-line--issue' : ''}`}>
+            {imgUrl && (
+              <img
+                src={imgUrl}
+                alt={l.productName}
+                style={{ width: 42, height: 42, objectFit: 'cover', borderRadius: 8, flexShrink: 0 }}
+                onError={(e) => ((e.currentTarget.style.display = 'none'))}
+              />
+            )}
             <div className="pos-line__info">
               <strong>{l.productName}</strong>
               <span className="muted">{l.sku} · Size {l.sizeLabel} · {l.colorName}</span>

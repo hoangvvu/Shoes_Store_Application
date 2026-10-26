@@ -111,6 +111,17 @@ export const userService = {
       await userRepository.softDelete(targetId, tx); // unique index có điều kiện => username được giải phóng
     });
   },
+
+  async adminResetPassword(actorId: number, targetId: number, newPassword: string) {
+    await mustFindUser(targetId);
+    const hash = await hashPassword(newPassword);
+    await withTransaction(async (tx) => {
+      await setActor(tx, actorId);
+      await userRepository.updatePassword(targetId, hash, tx);
+      await userRepository.setLocked(targetId, false, tx); // Mở khóa luôn nếu tài khoản đang bị khóa
+    });
+    return { success: true, message: 'Đã cấp lại mật khẩu thành công' };
+  },
 };
 
 export const ADMIN_ROLE = ROLES.ADMIN;

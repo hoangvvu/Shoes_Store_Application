@@ -1,6 +1,8 @@
 import { type ChangeEvent, type FormEvent, useRef, useState } from 'react';
 import { api } from '../../services/api';
 import { catalogService, productService } from '../../services/product.service';
+import { supplierService } from '../../services/inventory.service';
+import type { Supplier } from '../../types/inventory';
 import type { Brand, Category, ProductDetail } from '../../types/product';
 import { getErrorMessage } from '../../utils/error';
 import { useAsync } from '../../utils/useAsync';
@@ -22,6 +24,7 @@ export function ProductFormModal({ product, onClose, onSaved }: Props) {
     productName: product?.productName ?? '',
     categoryId: product?.categoryId ? String(product.categoryId) : '',
     brandId: product?.brandId ? String(product.brandId) : '',
+    supplierId: product?.supplierId ? String(product.supplierId) : '',
     currentPrice: String(product?.currentPrice ?? 0),
     unit: product?.unit ?? 'Đôi',
     description: product?.description ?? '',
@@ -33,6 +36,7 @@ export function ProductFormModal({ product, onClose, onSaved }: Props) {
 
   const { data: categories } = useAsync(() => catalogService.list('categories'), []);
   const { data: brands } = useAsync(() => catalogService.list('brands'), []);
+  const { data: suppliers } = useAsync(() => supplierService.list({ page: 1, size: 100 }), []);
 
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF((s) => ({ ...s, [k]: e.target.value }));
 
@@ -91,6 +95,7 @@ export function ProductFormModal({ product, onClose, onSaved }: Props) {
       productName: f.productName.trim(),
       categoryId: f.categoryId ? Number(f.categoryId) : null,
       brandId: f.brandId ? Number(f.brandId) : null,
+      supplierId: f.supplierId ? Number(f.supplierId) : null,
       currentPrice: Number(f.currentPrice),
       unit: f.unit.trim(),
       description: f.description.trim() || '',
@@ -114,6 +119,18 @@ export function ProductFormModal({ product, onClose, onSaved }: Props) {
           <label className="field span-2">
             <span>Tên sản phẩm *</span>
             <input value={f.productName} onChange={set('productName')} autoFocus />
+          </label>
+
+          <label className="field">
+            <span>Nhà cung cấp đối tác</span>
+            <select className="select" value={f.supplierId} onChange={set('supplierId')}>
+              <option value="">-- Chọn nhà cung cấp --</option>
+              {suppliers?.items.map((s: Supplier) => (
+                <option key={s.supplierId} value={s.supplierId}>
+                  {s.supplierName}
+                </option>
+              ))}
+            </select>
           </label>
 
           <label className="field">
@@ -165,7 +182,7 @@ export function ProductFormModal({ product, onClose, onSaved }: Props) {
                     onClick={() => fileInputRef.current?.click()}
                     disabled={uploading}
                   >
-                    {uploading ? 'Đang tải ảnh lên…' : '📁 Tải ảnh từ máy tính'}
+                    {uploading ? 'Đang tải ảnh lên…' : 'Tải ảnh từ máy tính'}
                   </button>
                   {f.imageUrl && (
                     <button

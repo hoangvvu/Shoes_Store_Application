@@ -11,6 +11,8 @@ export interface StockItemRow {
   sizeLabel: string;
   colorName: string;
   hexCode: string | null;
+  supplierId: number | null;
+  supplierName: string | null;
 }
 
 export interface LedgerEntryRow {

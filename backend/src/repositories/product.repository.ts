@@ -11,6 +11,7 @@ export const productRepository = {
       q?: string;
       categoryId?: number;
       brandId?: number;
+      supplierId?: number;
       isActive?: boolean;
       minPrice?: number;
       maxPrice?: number;
@@ -29,6 +30,7 @@ export const productRepository = {
          AND (@q IS NULL OR p.product_name COLLATE Vietnamese_CI_AI LIKE @qLike)
          AND (@catId IS NULL OR p.category_id = @catId)
          AND (@brandId IS NULL OR p.brand_id = @brandId)
+         AND (@supId IS NULL OR p.supplier_id = @supId)
          AND (@isActive IS NULL OR p.is_active = @isActive)
          AND (@minPrice IS NULL OR p.current_price >= @minPrice)
          AND (@maxPrice IS NULL OR p.current_price <= @maxPrice)`,
@@ -37,6 +39,7 @@ export const productRepository = {
         qLike: [sql.NVarChar(202), qLike],
         catId: [sql.Int, p.categoryId ?? null],
         brandId: [sql.Int, p.brandId ?? null],
+        supId: [sql.Int, p.supplierId ?? null],
         isActive: [sql.Bit, p.isActive !== undefined ? (p.isActive ? 1 : 0) : null],
         minPrice: [sql.Decimal(18, 2), p.minPrice ?? null],
         maxPrice: [sql.Decimal(18, 2), p.maxPrice ?? null],
@@ -48,6 +51,7 @@ export const productRepository = {
       `SELECT p.product_id AS productId, p.product_name AS productName,
               p.category_id AS categoryId, c.category_name AS categoryName,
               p.brand_id AS brandId, b.brand_name AS brandName,
+              p.supplier_id AS supplierId, s.supplier_name AS supplierName,
               p.current_price AS currentPrice, p.unit, p.image_url AS imageUrl,
               p.is_active AS isActive,
               ISNULL(SUM(v.stock_quantity), 0) AS totalStock,
@@ -55,16 +59,19 @@ export const productRepository = {
        FROM products p
        LEFT JOIN categories c ON c.category_id = p.category_id
        LEFT JOIN brands b ON b.brand_id = p.brand_id
+       LEFT JOIN suppliers s ON s.supplier_id = p.supplier_id
        LEFT JOIN product_variants v ON v.product_id = p.product_id AND v.is_deleted = 0
        WHERE p.is_deleted = 0
          AND (@q IS NULL OR p.product_name COLLATE Vietnamese_CI_AI LIKE @qLike)
          AND (@catId IS NULL OR p.category_id = @catId)
          AND (@brandId IS NULL OR p.brand_id = @brandId)
+         AND (@supId IS NULL OR p.supplier_id = @supId)
          AND (@isActive IS NULL OR p.is_active = @isActive)
          AND (@minPrice IS NULL OR p.current_price >= @minPrice)
          AND (@maxPrice IS NULL OR p.current_price <= @maxPrice)
        GROUP BY p.product_id, p.product_name, p.category_id, c.category_name,
-                p.brand_id, b.brand_name, p.current_price, p.unit, p.image_url, p.is_active
+                p.brand_id, b.brand_name, p.supplier_id, s.supplier_name,
+                p.current_price, p.unit, p.image_url, p.is_active
        ORDER BY p.product_id DESC
        OFFSET @offset ROWS FETCH NEXT @size ROWS ONLY`,
       {
@@ -72,6 +79,7 @@ export const productRepository = {
         qLike: [sql.NVarChar(202), qLike],
         catId: [sql.Int, p.categoryId ?? null],
         brandId: [sql.Int, p.brandId ?? null],
+        supId: [sql.Int, p.supplierId ?? null],
         isActive: [sql.Bit, p.isActive !== undefined ? (p.isActive ? 1 : 0) : null],
         minPrice: [sql.Decimal(18, 2), p.minPrice ?? null],
         maxPrice: [sql.Decimal(18, 2), p.maxPrice ?? null],
@@ -98,6 +106,7 @@ export const productRepository = {
       `SELECT p.product_id AS productId, p.product_name AS productName,
               p.category_id AS categoryId, c.category_name AS categoryName,
               p.brand_id AS brandId, b.brand_name AS brandName,
+              p.supplier_id AS supplierId, s.supplier_name AS supplierName,
               p.current_price AS currentPrice, p.unit, p.image_url AS imageUrl,
               p.description, p.is_active AS isActive,
               ISNULL(v.totalStock, 0) AS totalStock,
@@ -107,6 +116,7 @@ export const productRepository = {
        FROM products p
        LEFT JOIN categories c ON c.category_id = p.category_id
        LEFT JOIN brands b ON b.brand_id = p.brand_id
+       LEFT JOIN suppliers s ON s.supplier_id = p.supplier_id
        OUTER APPLY (
          SELECT SUM(stock_quantity) AS totalStock, COUNT(*) AS variantCount
          FROM product_variants
@@ -158,6 +168,7 @@ export const productRepository = {
       productName: string;
       categoryId?: number | null;
       brandId?: number | null;
+      supplierId?: number | null;
       currentPrice: number;
       unit?: string;
       description?: string | null;
@@ -166,13 +177,14 @@ export const productRepository = {
     exec?: Executor,
   ): Promise<number> {
     const r = await query<{ id: number }>(
-      `INSERT INTO products (product_name, category_id, brand_id, current_price, unit, description, image_url)
-       VALUES (@name, @cat, @brand, @price, @unit, @desc, @img);
+      `INSERT INTO products (product_name, category_id, brand_id, supplier_id, current_price, unit, description, image_url)
+       VALUES (@name, @cat, @brand, @sup, @price, @unit, @desc, @img);
        SELECT CAST(SCOPE_IDENTITY() AS INT) AS id;`,
       {
         name: [sql.NVarChar(200), d.productName],
         cat: [sql.Int, d.categoryId ?? null],
         brand: [sql.Int, d.brandId ?? null],
+        sup: [sql.Int, d.supplierId ?? null],
         price: [sql.Decimal(18, 2), d.currentPrice],
         unit: [sql.NVarChar(20), d.unit ?? 'Đôi'],
         desc: [sql.NVarChar(sql.MAX), d.description ?? null],
@@ -189,6 +201,7 @@ export const productRepository = {
       productName?: string;
       categoryId?: number | null;
       brandId?: number | null;
+      supplierId?: number | null;
       currentPrice?: number;
       unit?: string;
       description?: string | null;
@@ -201,6 +214,7 @@ export const productRepository = {
          product_name = COALESCE(@name, product_name),
          category_id = CASE WHEN @catProvided = 1 THEN @cat ELSE category_id END,
          brand_id = CASE WHEN @brandProvided = 1 THEN @brand ELSE brand_id END,
+         supplier_id = CASE WHEN @supProvided = 1 THEN @sup ELSE supplier_id END,
          current_price = COALESCE(@price, current_price),
          unit = COALESCE(@unit, unit),
          description = CASE WHEN @descProvided = 1 THEN @desc ELSE description END,
@@ -213,6 +227,8 @@ export const productRepository = {
         cat: [sql.Int, d.categoryId ?? null],
         brandProvided: [sql.Bit, d.brandId !== undefined ? 1 : 0],
         brand: [sql.Int, d.brandId ?? null],
+        supProvided: [sql.Bit, d.supplierId !== undefined ? 1 : 0],
+        sup: [sql.Int, d.supplierId ?? null],
         price: [sql.Decimal(18, 2), d.currentPrice ?? null],
         unit: [sql.NVarChar(20), d.unit ?? null],
         descProvided: [sql.Bit, d.description !== undefined ? 1 : 0],

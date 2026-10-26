@@ -126,7 +126,7 @@ export function OrderDetailView({ basePath, canDelete }: Props) {
         subtitle={`${order.channel === 'POS' ? 'Bán tại quầy' : 'Đặt online'} · ${formatDateTime(order.invoiceDate)}`}
         actions={
           <>
-            <Link to={basePath} className="btn btn--ghost">← Danh sách</Link>
+            <Link to={basePath} className="btn btn--ghost">Danh sách</Link>
             {s === 'PENDING' && <button className="btn btn--primary" onClick={() => setAction('confirm')}>Xác nhận đơn</button>}
             {s === 'CONFIRMED' && <button className="btn btn--primary" onClick={() => setAction('ship')}>Bàn giao vận chuyển</button>}
             {s === 'SHIPPING' && <button className="btn btn--primary" onClick={() => setAction('deliver')}>Xác nhận đã giao</button>}
@@ -217,7 +217,7 @@ export function OrderDetailView({ basePath, canDelete }: Props) {
                 {p.status === 'PENDING' && p.methodCode === 'CASH' && (
                   <div style={{ marginTop: 8 }}>
                     <button className="btn btn--small btn--primary" onClick={() => handleConfirmCash(p.paymentId)}>
-                      ✓ Xác nhận đã thu tiền mặt
+                      Xác nhận đã thu tiền mặt
                     </button>
                   </div>
                 )}
@@ -226,7 +226,7 @@ export function OrderDetailView({ basePath, canDelete }: Props) {
                   <div style={{ marginTop: 8, background: '#f9fafb', padding: 8, borderRadius: 6 }}>
                     <div style={{ marginBottom: 6 }}>
                       <a href={p.proofUrl} target="_blank" rel="noreferrer" className="link" style={{ fontWeight: 500 }}>
-                        📷 Xem ảnh chứng từ chuyển khoản ↗
+                        Xem ảnh chứng từ chuyển khoản
                       </a>
                     </div>
                     {p.status === 'PENDING' && (
@@ -248,7 +248,7 @@ export function OrderDetailView({ basePath, canDelete }: Props) {
           {order.refundRequired && (
             <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid #e5e7eb' }}>
               <button className="btn btn--danger btn--small" onClick={handleCreateRefund}>
-                💸 Tạo yêu cầu hoàn tiền ({formatVnd(order.paidAmount - order.refundedAmount)})
+                Tạo yêu cầu hoàn tiền ({formatVnd(order.paidAmount - order.refundedAmount)})
               </button>
             </div>
           )}

@@ -58,7 +58,7 @@ export function InvoiceDetailView({ basePath, ordersPath }: { basePath: string; 
         subtitle={`${inv.channel === 'POS' ? 'Bán tại quầy' : 'Đặt online'} · ${formatDateTime(inv.invoiceDate)}`}
         actions={
           <>
-            <Link to={basePath} className="btn btn--ghost">← Danh sách</Link>
+            <Link to={basePath} className="btn btn--ghost">Danh sách</Link>
             <Link to={`${ordersPath}/${inv.invoiceId}`} className="btn btn--ghost">Xem đơn hàng</Link>
             <button className="btn btn--primary" onClick={print}>In hóa đơn</button>
           </>

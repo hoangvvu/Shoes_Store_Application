@@ -25,7 +25,6 @@ export default function AdminHomePage() {
     <>
       <PageHeader
         title="Bảng điều khiển Quản trị"
-        subtitle="Tổng quan tình hình kinh doanh, số liệu vận hành và cảnh báo hệ thống Shoes Store"
         actions={
           <div style={{ display: 'flex', gap: 10 }}>
             <Link to="/admin/reports" className="btn btn--primary">Xem báo cáo chi tiết</Link>
@@ -69,7 +68,6 @@ export default function AdminHomePage() {
           <div className="page-header" style={{ marginBottom: 16 }}>
             <div>
               <h3>Doanh thu 7 ngày gần nhất</h3>
-              <p className="muted small">Biến động doanh thu thuần hàng ngày</p>
             </div>
             <Link to="/admin/reports" className="link small">Chi tiết ›</Link>
           </div>
@@ -91,7 +89,6 @@ export default function AdminHomePage() {
           <div className="page-header" style={{ marginBottom: 16 }}>
             <div>
               <h3>Top sản phẩm bán chạy tháng này</h3>
-              <p className="muted small">Sản phẩm có lượng tiêu thụ cao nhất</p>
             </div>
             <Link to="/admin/reports" className="link small">Tất cả ›</Link>
           </div>
