@@ -24,6 +24,7 @@ import uploadRoutes from './upload.routes';
 import userRoutes from './user.routes';
 import inventoryRoutes from './inventory.routes';
 import { adminNotificationRouter, customerNotificationRouter } from './notification.routes';
+import { promotionsRouter, vouchersRouter } from './promotion.routes';
 
 const router = Router();
 router.use('/auth', authRoutes);
@@ -47,12 +48,17 @@ router.use('/reviews', reviewRoutes);
 router.use('/replies', repliesRouter);
 router.use('/suppliers', supplierRoutes);
 router.use('/purchase-receipts', receiptRoutes);
+
 router.use('/inventory', inventoryRoutes);
 router.use('/reports', reportRoutes);
 router.use('/cart', cartRoutes);
 router.use('/orders', orderRoutes);
 router.use('/invoices', invoiceRoutes);
 router.use('/pos', posRouter);
+
+// M11 – Khuyến mãi & Voucher
+router.use('/promotions', promotionsRouter);
+router.use('/vouchers', vouchersRouter);
 
 // M9 – Thanh toán & Hoàn tiền
 router.use('/payment-methods', paymentMethodRouter);
