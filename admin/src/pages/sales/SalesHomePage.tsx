@@ -1,14 +1,11 @@
 import { Link } from 'react-router-dom';
-import { QuickAttendance } from '../../components/attendance/QuickAttendance';
-import { CheckInModalOnLogin } from '../../components/attendance/CheckInModalOnLogin';
+import { PageHeader } from '../../components/common/PageHeader';
+import { LoadState, Meter, StatCard, Thumb } from '../../components/common/Widgets';
 import { reportService } from '../../services/report.service';
 import type { TopProduct } from '../../types/report';
 import { formatNumber, formatVnd, thisMonth } from '../../utils/format';
 import { useAsync } from '../../utils/useAsync';
-import { PageHeader } from '../../components/common/PageHeader';
-import { LoadState, Meter, StatCard, Thumb } from '../../components/common/Widgets';
 
-/** Dashboard dành riêng cho bộ phận Bán hàng (SALES). */
 export default function SalesHomePage() {
   const monthRange = thisMonth();
   const { data: topProducts, loading: prodLoading } = useAsync(() => reportService.topProducts({ ...monthRange, limit: 5 }), []);
@@ -19,19 +16,14 @@ export default function SalesHomePage() {
 
   return (
     <>
-      <CheckInModalOnLogin />
-
       <PageHeader
         title="Bảng điều khiển Bán hàng"
         actions={
           <div style={{ display: 'flex', gap: 10 }}>
-            <Link to="/sales/my-work" className="btn btn--ghost">Chấm công & Thu nhập</Link>
             <Link to="/sales/orders" className="btn btn--primary">Xử lý đơn hàng</Link>
           </div>
         }
       />
-
-      <QuickAttendance />
 
       <div className="stats-grid" style={{ marginBottom: 24 }}>
         <StatCard

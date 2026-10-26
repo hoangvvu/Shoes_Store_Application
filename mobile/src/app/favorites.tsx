@@ -45,7 +45,17 @@ export default function FavoritesScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <Stack.Screen options={{ headerShown: true, title: 'Sản phẩm yêu thích', headerStyle: { backgroundColor: colors.primary }, headerTintColor: colors.white, headerTitleStyle: { fontWeight: '700' }, headerBackTitle: 'Tài khoản' }} />
+      <Stack.Screen
+        options={{
+          headerShown: true,
+          title: 'Sản phẩm yêu thích',
+          headerStyle: { backgroundColor: '#FFFFFF' },
+          headerTintColor: colors.text,
+          headerTitleStyle: { fontWeight: '800', fontSize: 18 },
+          headerShadowVisible: false,
+          headerBackTitle: 'Tài khoản',
+        }}
+      />
       <FlatList
         data={items}
         keyExtractor={(i) => String(i.productId)}
@@ -65,7 +75,7 @@ export default function FavoritesScreen() {
             </View>
           )
         }
-        ListFooterComponent={loadingMore ? <ActivityIndicator color={colors.primary} /> : null}
+        ListFooterComponent={loadingMore ? <ActivityIndicator color={colors.primary} /> : undefined}
         renderItem={({ item }) => (
           <View style={styles.card}>
             {item.imageUrl ? (

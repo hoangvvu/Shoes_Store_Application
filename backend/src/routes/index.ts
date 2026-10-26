@@ -23,8 +23,7 @@ import supplierRoutes from './supplier.routes';
 import uploadRoutes from './upload.routes';
 import userRoutes from './user.routes';
 import inventoryRoutes from './inventory.routes';
-import attendanceRoutes from './attendance.routes';
-import payrollRoutes from './payroll.routes';
+import bannerRoutes from './banner.routes';
 
 const router = Router();
 router.use('/auth', authRoutes);
@@ -35,8 +34,7 @@ router.use('/me', meRoutes);
 router.use('/users', userRoutes);
 router.use('/customers', customerRoutes);
 router.use('/employees', employeeRoutes);
-router.use('/attendance', attendanceRoutes);
-router.use('/payrolls', payrollRoutes);
+router.use('/banners', bannerRoutes);
 router.use('/categories', categoriesRouter);
 router.use('/brands', brandsRouter);
 router.use('/sizes', sizesRouter);
@@ -61,5 +59,6 @@ router.use('/payments', paymentsRouter);
 router.use('/webhooks', webhookRouter);
 router.use('/refunds', refundsRouter);
 router.use('/uploads', uploadRoutes);
+router.use('/banners', bannerRoutes);
 
 export default router;

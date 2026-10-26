@@ -439,3 +439,15 @@ h3 { margin: 0 0 12px; font-size: 16px; }
 .summary__row--strong { font-size: 17px; font-weight: 800; }
 .pos-updating { margin: 6px 0 0; font-size: 12px; text-align: center; }
 .pos-pay-btn { transition: none; }
+
+/* ===== Banner Manager Form Styles ===== */
+.banner-form-modal { display: flex; flex-direction: column; gap: 14px; }
+.banner-form-group { display: flex; flex-direction: column; gap: 6px; }
+.banner-form-label { font-size: 13px; font-weight: 700; color: #1e293b; }
+.banner-form-input { padding: 9px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; outline: none; background: #fff; }
+.banner-form-input:focus { border-color: #0bb062; box-shadow: 0 0 0 2px rgba(11, 176, 98, 0.15); }
+.banner-upload-btn { padding: 8px 14px; border: 1px dashed #0bb062; border-radius: 8px; background: #f0fdf4; color: #058a46; font-size: 13px; font-weight: 700; cursor: pointer; transition: background 0.15s; }
+.banner-upload-btn:hover { background: #dcfce7; }
+.banner-preview-box { background: #f8fafc; border-radius: 8px; padding: 10px; border: 1px solid #e2e8f0; }
+.banner-form-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px; }
+.banner-form-error { padding: 10px 14px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; color: #dc2626; font-size: 13px; font-weight: 600; }

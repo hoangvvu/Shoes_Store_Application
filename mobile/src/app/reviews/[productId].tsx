@@ -142,9 +142,9 @@ export default function ProductReviewsScreen() {
       contentContainerStyle={{ padding: 16, gap: 12 }}
       onEndReached={loadMore}
       onEndReachedThreshold={0.4}
-      ListHeaderComponent={header}
+      ListHeaderComponent={header ?? undefined}
       ListEmptyComponent={<Text style={styles.empty}>Chưa có đánh giá nào{rating ? ` ${rating} sao` : ''}.</Text>}
-      ListFooterComponent={loadingMore ? <ActivityIndicator color={colors.primary} /> : null}
+      ListFooterComponent={loadingMore ? <ActivityIndicator color={colors.primary} /> : undefined}
       renderItem={({ item: r }) => (
         <View style={styles.card}>
           <View style={styles.rowBetween}>

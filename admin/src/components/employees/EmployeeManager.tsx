@@ -79,8 +79,6 @@ export function EmployeeManager({ basePath }: { basePath: string }) {
         title="Tài khoản nhân viên"
         actions={
           <div style={{ display: 'flex', gap: 10 }}>
-            <Link to="/admin/attendance" className="btn btn--ghost">Chấm công</Link>
-            <Link to="/admin/payrolls" className="btn btn--ghost">Bảng lương</Link>
             <button className="btn btn--primary" onClick={() => setModal({})}>+ Thêm nhân viên</button>
           </div>
         }

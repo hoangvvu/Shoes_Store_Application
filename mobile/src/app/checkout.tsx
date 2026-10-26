@@ -372,11 +372,12 @@ function Row({ label, value, big }: { label: string; value: string; big?: boolea
 
 const headerOptions = {
   headerShown: true,
-  title: 'Đặt hàng',
-  headerStyle: { backgroundColor: colors.primary },
-  headerTintColor: colors.white,
-  headerTitleStyle: { fontWeight: '700' as const },
+  title: 'Xác nhận đơn hàng',
+  headerStyle: { backgroundColor: '#FFFFFF' },
+  headerTintColor: colors.text,
+  headerTitleStyle: { fontWeight: '800' as const, fontSize: 18 },
   headerBackTitle: 'Giỏ hàng',
+  headerShadowVisible: false,
 };
 
 const styles = StyleSheet.create({

@@ -80,7 +80,7 @@ export default function OrderListScreen() {
         onEndReachedThreshold={0.4}
         refreshControl={<RefreshControl refreshing={false} onRefresh={() => load(status, 1, false)} />}
         ListEmptyComponent={loading ? <ActivityIndicator color={colors.primary} style={{ marginTop: 40 }} /> : <Text style={styles.empty}>Chưa có đơn hàng nào</Text>}
-        ListFooterComponent={loadingMore ? <ActivityIndicator color={colors.primary} /> : null}
+        ListFooterComponent={loadingMore ? <ActivityIndicator color={colors.primary} /> : undefined}
         renderItem={({ item: o }) => (
           <Pressable style={styles.card} onPress={() => router.push({ pathname: '/orders/[id]', params: { id: String(o.invoiceId) } })}>
             <View style={styles.row}>

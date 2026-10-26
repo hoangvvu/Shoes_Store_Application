@@ -5,9 +5,10 @@ export default function AddressesLayout() {
   return (
     <Stack
       screenOptions={{
-        headerStyle: { backgroundColor: colors.primary },
-        headerTintColor: colors.white,
-        headerTitleStyle: { fontWeight: '700' },
+        headerStyle: { backgroundColor: '#FFFFFF' },
+        headerTintColor: colors.text,
+        headerTitleStyle: { fontWeight: '800' },
+        headerShadowVisible: false,
         headerBackTitle: 'Quay lại',
       }}
     >

@@ -11,9 +11,6 @@ import AdminCustomerDetailPage from '../pages/admin/AdminCustomerDetailPage';
 import AdminCustomersPage from '../pages/admin/AdminCustomersPage';
 import AdminEmployeeDetailPage from '../pages/admin/AdminEmployeeDetailPage';
 import AdminEmployeesPage from '../pages/admin/AdminEmployeesPage';
-import AdminAttendancePage from '../pages/admin/AdminAttendancePage';
-import AdminPayrollsPage from '../pages/admin/AdminPayrollsPage';
-import AdminPayrollDetailPage from '../pages/admin/AdminPayrollDetailPage';
 import AdminHomePage from '../pages/admin/AdminHomePage';
 import AdminInventoryPage from '../pages/admin/AdminInventoryPage';
 import AdminReviewsPage from '../pages/admin/AdminReviewsPage';
@@ -27,6 +24,7 @@ import AdminProductsPage from '../pages/admin/AdminProductsPage';
 import AdminReceiptsPage from '../pages/admin/AdminReceiptsPage';
 import AdminReportsPage from '../pages/admin/AdminReportsPage';
 import AdminSuppliersPage from '../pages/admin/AdminSuppliersPage';
+import AdminBannersPage from '../pages/admin/AdminBannersPage';
 
 // Sales pages
 import SalesCustomerDetailPage from '../pages/sales/SalesCustomerDetailPage';
@@ -54,7 +52,6 @@ import WarehouseSuppliersPage from '../pages/warehouse/WarehouseSuppliersPage';
 // Common pages
 import LoginPage from '../pages/LoginPage';
 import ProfilePage from '../pages/ProfilePage';
-import MyAttendancePayslipPage from '../pages/common/MyAttendancePayslipPage';
 import { useAuthStore } from '../store/useAuthStore';
 import { ProtectedRoute } from './ProtectedRoute';
 
@@ -72,9 +69,6 @@ export function AppRoutes() {
           <Route index element={<AdminHomePage />} />
           <Route path="employees" element={<AdminEmployeesPage />} />
           <Route path="employees/:id" element={<AdminEmployeeDetailPage />} />
-          <Route path="attendance" element={<AdminAttendancePage />} />
-          <Route path="payrolls" element={<AdminPayrollsPage />} />
-          <Route path="payrolls/:id" element={<AdminPayrollDetailPage />} />
           <Route path="customers" element={<AdminCustomersPage />} />
           <Route path="customers/:id" element={<AdminCustomerDetailPage />} />
           <Route path="pos" element={<AdminPosPage />} />
@@ -90,6 +84,7 @@ export function AppRoutes() {
           <Route path="receipts" element={<AdminReceiptsPage />} />
           <Route path="inventory" element={<AdminInventoryPage />} />
           <Route path="reports" element={<AdminReportsPage />} />
+          <Route path="banners" element={<AdminBannersPage />} />
           <Route path="profile" element={<ProfilePage />} />
           <Route path="*" element={<PlaceholderPage role="ADMIN" />} />
         </Route>
@@ -99,7 +94,6 @@ export function AppRoutes() {
       <Route element={<ProtectedRoute roles={['SALES']} />}>
         <Route path="/sales" element={<SalesLayout />}>
           <Route index element={<SalesHomePage />} />
-          <Route path="my-work" element={<MyAttendancePayslipPage />} />
           <Route path="customers" element={<SalesCustomersPage />} />
           <Route path="customers/:id" element={<SalesCustomerDetailPage />} />
           <Route path="pos" element={<SalesPosPage />} />
@@ -120,7 +114,6 @@ export function AppRoutes() {
       <Route element={<ProtectedRoute roles={['WAREHOUSE']} />}>
         <Route path="/warehouse" element={<WarehouseLayout />}>
           <Route index element={<WarehouseHomePage />} />
-          <Route path="my-work" element={<MyAttendancePayslipPage />} />
           <Route path="inventory" element={<WarehouseInventoryPage />} />
           <Route path="receipts" element={<WarehouseReceiptsPage />} />
           <Route path="suppliers" element={<WarehouseSuppliersPage />} />
