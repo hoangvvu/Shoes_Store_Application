@@ -1,30 +1,28 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { orderService } from '../../services/order.service';
 import { paymentService } from '../../services/payment.service';
 import type { OrderDetail } from '../../types/order';
 import { getErrorMessage } from '../../utils/error';
 import { ORDER_STATUS_LABEL, formatDateTime, formatVnd } from '../../utils/format';
-import { PAYMENT_STATUS_LABEL, PAYMENT_TX_LABEL, openPrintWindow } from '../../utils/order';
+import { PAYMENT_STATUS_LABEL, PAYMENT_TX_LABEL } from '../../utils/order';
 import { InfoGrid, InfoItem } from '../common/InfoGrid';
 import { PageHeader } from '../common/PageHeader';
 import { AmountSummary } from '../pos/AmountSummary';
-import { EditItemsModal } from './EditItemsModal';
 import { OrderActionModal } from './OrderActionModal';
 import { OrderStatusBadge } from './OrderStatusBadge';
 import { RecipientCard } from './RecipientCard';
 
-type Action = 'confirm' | 'ship' | 'cancel' | 'edit' | null;
+type Action = 'confirm' | 'ship' | 'cancel' | null;
 
 interface Props {
   basePath: string;
-  canDelete: boolean;
+  canDelete?: boolean;
 }
 
-export function OrderDetailView({ basePath, canDelete }: Props) {
+export function OrderDetailView({ basePath }: Props) {
   const { id } = useParams();
   const orderId = Number(id);
-  const navigate = useNavigate();
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [error, setError] = useState('');
   const [action, setAction] = useState<Action>(null);
@@ -58,38 +56,6 @@ export function OrderDetailView({ basePath, canDelete }: Props) {
     };
   }, [load]);
 
-  async function print(type: 'invoice' | 'delivery') {
-    try {
-      openPrintWindow(await orderService.printHtml(orderId, type));
-    } catch (err) {
-      window.alert(getErrorMessage(err));
-    }
-  }
-
-  async function remove() {
-    if (!window.confirm(`Xóa mềm đơn #${orderId}? Chỉ áp dụng cho đơn chờ xác nhận hoặc đã hủy.`)) return;
-    try {
-      await orderService.remove(orderId);
-      navigate(basePath, { replace: true });
-    } catch (err) {
-      window.alert(getErrorMessage(err));
-    }
-  }
-
-  async function handleReviewProof(paymentId: number, status: 'SUCCESS' | 'FAILED') {
-    const note = window.prompt(status === 'SUCCESS' ? 'Ghi chú duyệt (không bắt buộc):' : 'Lý do từ chối:') ?? '';
-    if (status === 'FAILED' && !note.trim()) {
-      window.alert('Vui lòng nhập lý do từ chối.');
-      return;
-    }
-    try {
-      await paymentService.reviewProof(paymentId, status, note);
-      void load(false);
-    } catch (err) {
-      window.alert(getErrorMessage(err));
-    }
-  }
-
   async function handleCreateRefund() {
     if (!order) return;
     const remainingRefundable = order.paidAmount - order.refundedAmount;
@@ -103,6 +69,15 @@ export function OrderDetailView({ basePath, canDelete }: Props) {
       });
       window.alert('Đã tạo yêu cầu hoàn tiền thành công.');
       void load(false);
+    } catch (err) {
+      window.alert(getErrorMessage(err));
+    }
+  }
+
+  async function handleConfirm() {
+    try {
+      await orderService.confirm(orderId);
+      done();
     } catch (err) {
       window.alert(getErrorMessage(err));
     }
@@ -148,14 +123,19 @@ export function OrderDetailView({ basePath, canDelete }: Props) {
     return `${method} - Chờ thu`;
   };
 
-  const methods = [...new Set(order.payments.filter((p) => p.status === 'SUCCESS').map((p) => getCleanPaymentMethodName(p.methodName, p)))].join(', ');
+  // Lọc chỉ lấy các giao dịch đã thanh toán thành công (SUCCESS)
+  const successfulPayments = order.payments?.filter((p) => p.status === 'SUCCESS') || [];
+  const methods = [...new Set(successfulPayments.map((p) => getCleanPaymentMethodName(p.methodName, p)))].join(', ');
+  
   const gross = order.items.reduce((sum, i) => sum + i.salePrice * i.quantity, 0);
   const productDiscount = order.items.reduce((sum, i) => sum + i.discountAmount, 0);
   const invoicePct = order.totalAmount > 0 ? Math.round((order.discountAmount * 1000) / order.totalAmount) / 10 : 0;
   const invoiceNote = order.discountAmount > 0
     ? `${invoicePct}% trên tổng tiền hàng sau giảm sản phẩm${order.voucherCode ? ` · Voucher ${order.voucherCode}` : order.promotionName ? ` · ${order.promotionName}` : ''}`
     : 'Không có giảm giá theo hóa đơn';
-
+  const confirmedBy = order.history?.find((h) => h.newStatus === 'CONFIRMED')?.changedByName;
+  const shippedBy = order.history?.find((h) => h.newStatus === 'SHIPPING')?.changedByName;
+  const deliveredBy = order.history?.find((h) => h.newStatus === 'DELIVERED')?.changedByName;
   return (
     <>
       <PageHeader
@@ -164,13 +144,9 @@ export function OrderDetailView({ basePath, canDelete }: Props) {
         actions={
           <>
             <Link to={basePath} className="btn btn--ghost">← Danh sách</Link>
-            {s === 'PENDING' && <button className="btn btn--primary" onClick={() => setAction('confirm')}>Xác nhận đơn</button>}
+            {s === 'PENDING' && <button className="btn btn--primary" onClick={handleConfirm}>Xác nhận đơn</button>}
             {s === 'CONFIRMED' && <button className="btn btn--primary" onClick={() => setAction('ship')}>Bàn giao vận chuyển</button>}
-            {order.canEdit && <button className="btn btn--ghost" onClick={() => setAction('edit')}>Sửa sản phẩm</button>}
             {order.canCancel && <button className="btn btn--danger" onClick={() => setAction('cancel')}>Hủy đơn</button>}
-            <button className="btn btn--ghost" onClick={() => print('invoice')}>In hóa đơn</button>
-            {order.channel === 'ONLINE' && <button className="btn btn--ghost" onClick={() => print('delivery')}>In phiếu giao</button>}
-            {canDelete && (s === 'PENDING' || s === 'CANCELLED') && <button className="btn btn--danger" onClick={remove}>Xóa mềm</button>}
           </>
         }
       />
@@ -194,7 +170,6 @@ export function OrderDetailView({ basePath, canDelete }: Props) {
                     <th className="num">Đơn giá</th>
                     <th className="num" title="Khuyến mãi theo sản phẩm, tính cho cả dòng">Giảm giá SP</th>
                     <th className="num">Thành tiền</th>
-                    <th className="actions-col" />
                   </tr>
                 </thead>
                 <tbody>
@@ -205,9 +180,6 @@ export function OrderDetailView({ basePath, canDelete }: Props) {
                       <td className="num">{formatVnd(i.salePrice)}</td>
                       <td className="num">{i.discountAmount > 0 ? `-${formatVnd(i.discountAmount)}` : '—'}</td>
                       <td className="num">{formatVnd(i.lineTotal)}</td>
-                      <td className="actions">
-                        <button className="btn btn--ghost btn--small" onClick={() => setAction('edit')}>Chi tiết</button>
-                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -235,42 +207,22 @@ export function OrderDetailView({ basePath, canDelete }: Props) {
             <h3>Giao dịch thanh toán</h3>
             <p className="muted" style={{ fontSize: '0.85em', marginBottom: 12 }}>* Việc xác nhận thanh toán được ghi nhận theo phương thức thực tế của giao dịch.</p>
             
-            {/* Chỉ hiển thị danh sách khi đơn hàng thực sự có phát sinh giao dịch thanh toán */}
-            {(!order.payments || order.payments.length === 0) ? (
+            {/* Ban đầu không có giao dịch SUCCESS thì hiện thông báo chưa phát sinh, sau khi thanh toán xong sẽ hiển thị giao dịch thành công */}
+            {successfulPayments.length === 0 ? (
               <p className="muted">Chưa phát sinh giao dịch thanh toán.</p>
             ) : (
               <ul className="plain-list">
-                {order.payments.map((p) => (
+                {successfulPayments.map((p) => (
                   <li key={p.paymentId} style={{ marginBottom: 12, paddingBottom: 8, borderBottom: '1px dashed #e5e7eb' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span>
                         <strong>{getPaymentStatusDisplay(p)}</strong> · {formatVnd(p.amount)}
                       </span>
-                      <span className={`badge ${p.status === 'SUCCESS' ? 'badge--confirmed' : p.status === 'FAILED' ? 'badge--cancelled' : 'badge--pending'}`}>
+                      <span className="badge badge--confirmed">
                         {PAYMENT_TX_LABEL[p.status] ?? p.status}
                       </span>
                     </div>
                     {p.paidAt && <div className="muted" style={{ fontSize: '0.85em', marginTop: 2 }}>Đã thu: {formatDateTime(p.paidAt)}</div>}
-
-                    {p.proofUrl && (
-                      <div style={{ marginTop: 8, background: '#f9fafb', padding: 8, borderRadius: 6 }}>
-                        <div style={{ marginBottom: 6 }}>
-                          <a href={p.proofUrl} target="_blank" rel="noreferrer" className="link" style={{ fontWeight: 500 }}>
-                            📷 Xem ảnh chứng từ chuyển khoản ↗
-                          </a>
-                        </div>
-                        {p.status === 'PENDING' && (
-                          <div style={{ display: 'flex', gap: 8 }}>
-                            <button className="btn btn--small btn--primary" onClick={() => handleReviewProof(p.paymentId, 'SUCCESS')}>
-                              Duyệt hợp lệ
-                            </button>
-                            <button className="btn btn--small btn--danger" onClick={() => handleReviewProof(p.paymentId, 'FAILED')}>
-                              Từ chối
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    )}
                   </li>
                 ))}
               </ul>
@@ -294,8 +246,11 @@ export function OrderDetailView({ basePath, canDelete }: Props) {
                   <InfoItem label="Trạng thái"><OrderStatusBadge status={s} /></InfoItem>
                   <InfoItem label="Thanh toán">{PAYMENT_STATUS_LABEL[order.paymentStatus] ?? order.paymentStatus}</InfoItem>
                   <InfoItem label="Phương thức">{methods || '—'}</InfoItem>
-                  <InfoItem label="Khách hàng">{order.customerName ?? 'Khách lẻ'}{order.customerPhone ? ` · ${order.customerPhone}` : ''}</InfoItem>
-                  <InfoItem label={order.channel === 'POS' ? 'Thu ngân' : 'Nhân viên'}>{order.employeeName ?? '—'}</InfoItem>
+                  <InfoItem label="Khách hàng">{order.customerName ?? 'Khách lẻ'}</InfoItem>
+                  <InfoItem label={order.channel === 'POS' ? 'Thu ngân' : 'Người tạo đơn'}>{order.employeeName ?? (order.channel === 'POS' ? '—' : 'Khách tự đặt')}</InfoItem>
+                  {confirmedBy && <InfoItem label="Nhân viên xác nhận">{confirmedBy}</InfoItem>}
+                  {shippedBy && <InfoItem label="Bàn giao vận chuyển">{shippedBy}</InfoItem>}
+                  {deliveredBy && <InfoItem label="Nhân viên giao hàng">{deliveredBy}</InfoItem>}
                   <InfoItem label="Kênh bán">{order.channel === 'POS' ? 'Tại quầy (POS)' : 'Online'}</InfoItem>
                   {order.voucherCode && <InfoItem label="Voucher">{order.voucherCode}</InfoItem>}
                   {order.promotionName && <InfoItem label="Khuyến mãi" wide>{order.promotionName}</InfoItem>}
@@ -334,7 +289,7 @@ export function OrderDetailView({ basePath, canDelete }: Props) {
           onSubmit={async (t) => { await orderService.confirm(orderId, t || undefined); done(); }} />
       )}
       {action === 'ship' && (
-        <OrderActionModal title="Bàn giao vận chuyển" label="Ghi chú (mã vận đơn, đơn vị vận chuyển…)" submitText="Bàn giao" onClose={() => setAction(null)}
+        <OrderActionModal title="Bàn giao vận chuyển" label="Ghi chú cho nhân viên vận chuyển (không bắt buộc)" submitText="Bàn giao" onClose={() => setAction(null)}
           onSubmit={async (t) => { await orderService.ship(orderId, t || undefined); done(); }} />
       )}
       {action === 'cancel' && (
@@ -345,7 +300,6 @@ export function OrderDetailView({ basePath, canDelete }: Props) {
             setAction(null);
           }} />
       )}
-      {action === 'edit' && <EditItemsModal order={order} onClose={() => setAction(null)} onSaved={done} />}
     </>
   );
 }

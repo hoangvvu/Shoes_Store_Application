@@ -14,8 +14,7 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { api } from '@/services/api';
-import { paymentService } from '@/services/payment.service';
+import { deliveryService, type DeliveryMethodCode } from '@/services/delivery.service';
 import { colors, radius } from '@/theme';
 import { formatVnd } from '@/utils/format';
 
@@ -64,7 +63,7 @@ function QrPaymentCard({
 }: {
   payment: any;
   orderId: number | null;
-  onSimulate: () => Promise<void>;
+  onSimulate: (methodCode: DeliveryMethodCode) => Promise<void>;
 }) {
   const [channel, setChannel] = useState<'vietqr' | 'momo'>(
     payment?.methodCode === 'MOMO' ? 'momo' : 'vietqr',
@@ -92,7 +91,7 @@ function QrPaymentCard({
   async function handleSimulatePress() {
     setSimulating(true);
     try {
-      await onSimulate();
+      await onSimulate(channel === 'momo' ? 'MOMO' : 'BANK_QR');
     } finally {
       setSimulating(false);
     }
@@ -244,8 +243,7 @@ export default function DeliveryOrderDetailScreen() {
   const fetchOrderDetail = async () => {
     setLoading(true);
     try {
-      const res = await api.get(`/delivery/orders/${id}`);
-      setOrder(res.data);
+      setOrder(await deliveryService.getOrder(id as string));
     } catch (err: any) {
       Alert.alert('Lỗi', 'Không thể lấy thông tin chi tiết đơn hàng.');
     } finally {
@@ -274,8 +272,8 @@ export default function DeliveryOrderDetailScreen() {
           onPress: async () => {
             setSimulating(true);
             try {
-              await paymentService.simulateSuccess(paymentId, amount);
-              Alert.alert('Thành công', 'Đã ghi nhận thanh toán tiền mặt thành công!');
+              await deliveryService.confirmPayment(id as string, paymentId, 'CASH');
+              Alert.alert('Thành công', 'Đã ghi nhận thu tiền mặt thành công!');
               setActiveQrPaymentId(null);
               await fetchOrderDetail();
             } catch (err: any) {
@@ -290,10 +288,10 @@ export default function DeliveryOrderDetailScreen() {
   };
 
   // Giả lập thanh toán QR thành công
-  const handleSimulateQrPayment = async (paymentId: number, amount: number) => {
+  const handleSimulateQrPayment = async (paymentId: number, methodCode: DeliveryMethodCode) => {
     setSimulating(true);
     try {
-      await paymentService.simulateSuccess(paymentId, amount);
+      await deliveryService.confirmPayment(id as string, paymentId, methodCode);
       Alert.alert('Thanh toán thành công!', 'Đã ghi nhận chuyển khoản QR từ khách hàng thành công.');
       setActiveQrPaymentId(null);
       await fetchOrderDetail();
@@ -314,7 +312,7 @@ export default function DeliveryOrderDetailScreen() {
           text: 'Xác nhận đã giao',
           onPress: async () => {
             try {
-              await api.post(`/delivery/orders/${id}/deliver`);
+              await deliveryService.deliver(id as string);
               Alert.alert('Thành công', 'Đã cập nhật trạng thái đơn hàng thành công!');
               goToList();
             } catch (err: any) {
@@ -367,6 +365,17 @@ export default function DeliveryOrderDetailScreen() {
   }
 
   const hasPayments = order.payments && order.payments.length > 0;
+  // Backend có thể trả ghi chú dưới nhiều tên khác nhau tùy DTO
+  const customerNote: string = String(
+    order.note ?? order.customerNote ?? order.orderNote ?? order.invoiceNote ?? order.notes ?? ''
+  ).trim();
+  // Ghi chú của người bàn giao vận chuyển dành cho nhân viên giao hàng
+  const shipNoteRaw =
+    order.shippingNote ??
+    order.shipNote ??
+    [...(order.history ?? [])].reverse().find((h: any) => h.newStatus === 'SHIPPING')?.note ??
+    '';
+  const shipNote: string = String(shipNoteRaw).trim();
   const isPaidSuccess = hasPayments && order.payments.every((p: any) => p.status === 'SUCCESS');
   const activeQrPayment = order.payments?.find((p: any) => (p.paymentId || p.id) === activeQrPaymentId);
 
@@ -390,6 +399,28 @@ export default function DeliveryOrderDetailScreen() {
             <Text style={styles.rowText}>{order.shippingAddress}</Text>
           </View>
         </View>
+
+        {/* Ghi chú của khách hàng (chỉ hiện khi có nội dung) */}
+        {customerNote ? (
+          <View style={[styles.card, { backgroundColor: '#FFF8E8', borderColor: '#F3D9A0' }]}>
+            <Text style={styles.cardTitle}>Ghi chú của khách hàng</Text>
+            <View style={[styles.row, { alignItems: 'flex-start' }]}>
+              <Ionicons name="document-text-outline" size={18} color="#B26A00" style={{ marginTop: 1 }} />
+              <Text style={[styles.rowText, { color: '#B26A00', fontWeight: '600' }]}>{customerNote}</Text>
+            </View>
+          </View>
+        ) : null}
+
+        {/* Ghi chú của quản trị viên khi bàn giao vận chuyển (chỉ hiện khi có nội dung) */}
+        {shipNote ? (
+          <View style={[styles.card, { backgroundColor: '#EEF4FF', borderColor: '#C7D8F7' }]}>
+            <Text style={styles.cardTitle}>Ghi chú của quản trị viên</Text>
+            <View style={[styles.row, { alignItems: 'flex-start' }]}>
+              <Ionicons name="chatbox-ellipses-outline" size={18} color={colors.primary} style={{ marginTop: 1 }} />
+              <Text style={[styles.rowText, { fontWeight: '600' }]}>{shipNote}</Text>
+            </View>
+          </View>
+        ) : null}
 
         {/* Danh sách sản phẩm trong đơn */}
         <View style={styles.card}>
@@ -486,7 +517,7 @@ export default function DeliveryOrderDetailScreen() {
           <QrPaymentCard
             payment={activeQrPayment}
             orderId={order.invoiceId}
-            onSimulate={() => handleSimulateQrPayment(activeQrPayment.paymentId || activeQrPayment.id, activeQrPayment.amount || order.amountPayable)}
+            onSimulate={(methodCode) => handleSimulateQrPayment(activeQrPayment.paymentId || activeQrPayment.id, methodCode)}
           />
         )}
 

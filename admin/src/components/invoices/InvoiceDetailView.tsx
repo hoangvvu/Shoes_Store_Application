@@ -66,7 +66,9 @@ export function InvoiceDetailView({ basePath, ordersPath }: { basePath: string; 
   const invoiceNote = inv.discountAmount > 0
     ? `${invoicePct}% trên tổng tiền hàng sau giảm sản phẩm${inv.voucherCode ? ` · Voucher ${inv.voucherCode}` : inv.promotionName ? ` · ${inv.promotionName}` : ''}`
     : 'Không có giảm giá theo hóa đơn';
-
+  const confirmedBy = inv.history?.find((h) => h.newStatus === 'CONFIRMED')?.changedByName;
+  const shippedBy = inv.history?.find((h) => h.newStatus === 'SHIPPING')?.changedByName;
+  const deliveredBy = inv.history?.find((h) => h.newStatus === 'DELIVERED')?.changedByName;
   return (
     <>
       <PageHeader
@@ -175,8 +177,11 @@ export function InvoiceDetailView({ basePath, ordersPath }: { basePath: string; 
                   <InfoItem label="Tình trạng đơn"><CompletionBadge status={inv.orderStatus} /></InfoItem>
                   <InfoItem label="Thanh toán"><PaymentBadge status={inv.paymentStatus} /></InfoItem>
                   <InfoItem label="Phương thức">{methods || '—'}</InfoItem>
-                  <InfoItem label="Khách hàng">{inv.customerName ?? 'Khách lẻ'}{inv.customerPhone ? ` · ${inv.customerPhone}` : ''}</InfoItem>
-                  <InfoItem label={inv.channel === 'POS' ? 'Thu ngân' : 'Nhân viên lập'}>{inv.employeeName ?? '—'}</InfoItem>
+                  <InfoItem label="Khách hàng">{inv.customerName ?? 'Khách lẻ'}</InfoItem>
+                  <InfoItem label={inv.channel === 'POS' ? 'Thu ngân' : 'Người tạo đơn'}>{inv.employeeName ?? (inv.channel === 'POS' ? '—' : 'Khách tự đặt')}</InfoItem>
+                  {confirmedBy && <InfoItem label="Nhân viên xác nhận">{confirmedBy}</InfoItem>}
+                  {shippedBy && <InfoItem label="Bàn giao vận chuyển">{shippedBy}</InfoItem>}
+                  {deliveredBy && <InfoItem label="Nhân viên giao hàng">{deliveredBy}</InfoItem>}
                   {inv.voucherCode && <InfoItem label="Voucher">{inv.voucherCode}</InfoItem>}
                   {inv.promotionName && <InfoItem label="Khuyến mãi" wide>{inv.promotionName}</InfoItem>}
                   {inv.note && <InfoItem label="Ghi chú" wide>{inv.note}</InfoItem>}
