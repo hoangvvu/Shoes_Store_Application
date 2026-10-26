@@ -23,38 +23,54 @@ interface Filters {
 }
 const EMPTY: Filters = { q: '', status: '', channel: '', from: '', to: '' };
 
-/** Danh sách đơn dùng chung cho Admin và Bán hàng. Bộ lọc chỉ có hiệu lực khi bấm "Tìm kiếm". */
+/** Danh sách đơn dùng chung cho Admin và Bán hàng. Tự động cập nhật real-time. */
 export function OrderManager({ basePath }: { basePath: string }) {
-  // draft = đang chọn trên giao diện; applied = đã bấm Tìm kiếm; tất cả về mặc định thì tự về danh sách đầy đủ
   const { draft, applied, page, setPage, set, apply, pending } = useSearchFilters<Filters>(EMPTY);
   const [data, setData] = useState<Paged<OrderListItem> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (isBackground = false) => {
+    if (!isBackground) setLoading(true);
     setError('');
     try {
-      setData(
-        await orderService.list({
-          status: (applied.status || undefined) as OrderStatus | undefined,
-          channel: (applied.channel || undefined) as Channel | undefined,
-          from: applied.from || undefined,
-          to: applied.to || undefined,
-          q: applied.q.trim(),
-          page,
-          size: SIZE,
-        }),
-      );
+      const result = await orderService.list({
+        status: (applied.status || undefined) as OrderStatus | undefined,
+        channel: (applied.channel || undefined) as Channel | undefined,
+        from: applied.from || undefined,
+        to: applied.to || undefined,
+        q: applied.q.trim(),
+        page,
+        size: SIZE,
+      });
+      setData(result);
     } catch (err) {
-      setError(getErrorMessage(err));
+      if (!isBackground) setError(getErrorMessage(err));
     } finally {
-      setLoading(false);
+      if (!isBackground) setLoading(false);
     }
   }, [applied, page]);
 
+  // Load ban đầu hoặc khi đổi filter/page
   useEffect(() => {
-    void load();
+    void load(false);
+  }, [load]);
+
+  // Real-time polling ngầm mỗi 6 giây & cập nhật khi focus lại tab
+  useEffect(() => {
+    const interval = setInterval(() => {
+      void load(true);
+    }, 6000);
+
+    const handleFocus = () => {
+      void load(true);
+    };
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+    };
   }, [load]);
 
   function search() {
@@ -93,21 +109,20 @@ export function OrderManager({ basePath }: { basePath: string }) {
               </tr>
             </thead>
             <tbody>
-              {loading && <tr><td colSpan={8} className="muted center">Đang tải…</td></tr>}
+              {loading && !data && <tr><td colSpan={8} className="muted center">Đang tải…</td></tr>}
               {!loading && data?.items.length === 0 && <tr><td colSpan={8} className="muted center">Không có đơn hàng nào</td></tr>}
-              {!loading &&
-                data?.items.map((o) => (
-                  <tr key={o.invoiceId}>
-                    <td><Link to={`${basePath}/${o.invoiceId}`} className="link">#{o.invoiceId}</Link></td>
-                    <td>{formatDateTime(o.invoiceDate)}</td>
-                    <td>{o.channel === 'POS' ? 'Tại quầy' : 'Online'}</td>
-                    <td>{o.customerName ?? 'Khách lẻ'}</td>
-                    <td><OrderStatusBadge status={o.orderStatus} /></td>
-                    <td>{PAYMENT_STATUS_LABEL[o.paymentStatus] ?? o.paymentStatus}</td>
-                    <td className="num">{formatVnd(o.amountPayable)}</td>
-                    <td className="actions"><Link to={`${basePath}/${o.invoiceId}`} className="btn btn--ghost">Xem</Link></td>
-                  </tr>
-                ))}
+              {data?.items.map((o) => (
+                <tr key={o.invoiceId}>
+                  <td><Link to={`${basePath}/${o.invoiceId}`} className="link">#{o.invoiceId}</Link></td>
+                  <td>{formatDateTime(o.invoiceDate)}</td>
+                  <td>{o.channel === 'POS' ? 'Tại quầy' : 'Online'}</td>
+                  <td>{o.customerName ?? 'Khách lẻ'}</td>
+                  <td><OrderStatusBadge status={o.orderStatus} /></td>
+                  <td>{PAYMENT_STATUS_LABEL[o.paymentStatus] ?? o.paymentStatus}</td>
+                  <td className="num">{formatVnd(o.amountPayable)}</td>
+                  <td className="actions"><Link to={`${basePath}/${o.invoiceId}`} className="btn btn--ghost">Xem</Link></td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>

@@ -23,40 +23,51 @@ interface Filters {
 }
 const EMPTY: Filters = { q: '', type: '', channel: '', from: '', to: '' };
 
-/**
- * Quản lý hóa đơn: đơn đã hoàn thành + đã thanh toán, và đơn đã hoàn tiền (một phần / toàn bộ) – không bỏ sót.
- * Đơn đang xử lý hoặc chưa thu đủ tiền nằm ở màn "Đơn hàng". Bộ lọc chỉ có hiệu lực khi bấm "Tìm kiếm".
- */
+/** Quản lý hóa đơn: Tự động cập nhật real-time. */
 export function InvoiceManager({ basePath }: { basePath: string }) {
   const { draft, applied, page, setPage, set, apply, pending } = useSearchFilters<Filters>(EMPTY);
   const [data, setData] = useState<(Paged<OrderListItem> & { summary?: InvoiceSummary }) | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (isBackground = false) => {
+    if (!isBackground) setLoading(true);
     setError('');
     try {
-      setData(
-        await invoiceService.list({
-          type: (applied.type || undefined) as InvoiceType | undefined,
-          channel: (applied.channel || undefined) as Channel | undefined,
-          from: applied.from || undefined,
-          to: applied.to || undefined,
-          q: applied.q.trim(),
-          page,
-          size: SIZE,
-        }),
-      );
+      const result = await invoiceService.list({
+        type: (applied.type || undefined) as InvoiceType | undefined,
+        channel: (applied.channel || undefined) as Channel | undefined,
+        from: applied.from || undefined,
+        to: applied.to || undefined,
+        q: applied.q.trim(),
+        page,
+        size: SIZE,
+      });
+      setData(result);
     } catch (err) {
-      setError(getErrorMessage(err));
+      if (!isBackground) setError(getErrorMessage(err));
     } finally {
-      setLoading(false);
+      if (!isBackground) setLoading(false);
     }
   }, [applied, page]);
 
   useEffect(() => {
-    void load();
+    void load(false);
+  }, [load]);
+
+  // Real-time polling tự động đồng bộ hóa đơn và tổng doanh thu mỗi 6 giây
+  useEffect(() => {
+    const interval = setInterval(() => {
+      void load(true);
+    }, 6000);
+
+    const handleFocus = () => void load(true);
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+    };
   }, [load]);
 
   function search() {
@@ -106,23 +117,22 @@ export function InvoiceManager({ basePath }: { basePath: string }) {
               </tr>
             </thead>
             <tbody>
-              {loading && <tr><td colSpan={10} className="muted center">Đang tải…</td></tr>}
+              {loading && !data && <tr><td colSpan={10} className="muted center">Đang tải…</td></tr>}
               {!loading && data?.items.length === 0 && <tr><td colSpan={10} className="muted center">Không có hóa đơn nào</td></tr>}
-              {!loading &&
-                data?.items.map((o) => (
-                  <tr key={o.invoiceId}>
-                    <td><Link to={`${basePath}/${o.invoiceId}`} className="link">#{o.invoiceId}</Link></td>
-                    <td>{formatDateTime(o.invoiceDate)}</td>
-                    <td>{o.channel === 'POS' ? 'Tại quầy' : 'Online'}</td>
-                    <td>{o.customerName ?? 'Khách lẻ'}</td>
-                    <td><CompletionBadge status={o.orderStatus} /></td>
-                    <td><PaymentBadge status={o.paymentStatus} /></td>
-                    <td className="num">{formatVnd(o.amountPayable)}</td>
-                    <td className="num">{o.refundedAmount > 0 ? <span className="amount-refund">-{formatVnd(o.refundedAmount)}</span> : '—'}</td>
-                    <td className="num"><strong>{formatVnd(o.paidAmount - o.refundedAmount)}</strong></td>
-                    <td className="actions"><Link to={`${basePath}/${o.invoiceId}`} className="btn btn--ghost">Xem</Link></td>
-                  </tr>
-                ))}
+              {data?.items.map((o) => (
+                <tr key={o.invoiceId}>
+                  <td><Link to={`${basePath}/${o.invoiceId}`} className="link">#{o.invoiceId}</Link></td>
+                  <td>{formatDateTime(o.invoiceDate)}</td>
+                  <td>{o.channel === 'POS' ? 'Tại quầy' : 'Online'}</td>
+                  <td>{o.customerName ?? 'Khách lẻ'}</td>
+                  <td><CompletionBadge status={o.orderStatus} /></td>
+                  <td><PaymentBadge status={o.paymentStatus} /></td>
+                  <td className="num">{formatVnd(o.amountPayable)}</td>
+                  <td className="num">{o.refundedAmount > 0 ? <span className="amount-refund">-{formatVnd(o.refundedAmount)}</span> : '—'}</td>
+                  <td className="num"><strong>{formatVnd(o.paidAmount - o.refundedAmount)}</strong></td>
+                  <td className="actions"><Link to={`${basePath}/${o.invoiceId}`} className="btn btn--ghost">Xem</Link></td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>

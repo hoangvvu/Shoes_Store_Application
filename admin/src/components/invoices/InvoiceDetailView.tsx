@@ -17,17 +17,33 @@ export function InvoiceDetailView({ basePath, ordersPath }: { basePath: string; 
   const [inv, setInv] = useState<OrderDetail | null>(null);
   const [error, setError] = useState('');
 
-  const load = useCallback(async () => {
-    setError('');
+  const load = useCallback(async (isBackground = false) => {
+    if (!isBackground) setError('');
     try {
-      setInv(await invoiceService.get(invoiceId));
+      const data = await invoiceService.get(invoiceId);
+      setInv(data);
     } catch (err) {
-      setError(getErrorMessage(err));
+      if (!isBackground) setError(getErrorMessage(err));
     }
   }, [invoiceId]);
 
   useEffect(() => {
-    void load();
+    void load(false);
+  }, [load]);
+
+  // Real-time polling chi tiết hóa đơn mỗi 4 giây
+  useEffect(() => {
+    const interval = setInterval(() => {
+      void load(true);
+    }, 4000);
+
+    const handleFocus = () => void load(true);
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+    };
   }, [load]);
 
   async function print() {
@@ -71,12 +87,8 @@ export function InvoiceDetailView({ basePath, ordersPath }: { basePath: string; 
         </p>
       )}
 
-      {/* Bố cục Master-Detail Cân Đối: Cột chính (Sản phẩm, Thanh toán, Hoàn tiền) & Cột phụ Sidebar */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '20px', alignItems: 'start' }}>
-        
-        {/* Cột chính bên trái */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          {/* Bảng Chi tiết hóa đơn */}
           <section className="card" style={{ marginBottom: 0 }}>
             <h3>Chi tiết hóa đơn</h3>
             <div className="table-wrap">
@@ -119,7 +131,6 @@ export function InvoiceDetailView({ basePath, ordersPath }: { basePath: string; 
             />
           </section>
 
-          {/* Giao dịch thanh toán */}
           <section className="card" style={{ marginBottom: 0 }}>
             <h3>Giao dịch thanh toán</h3>
             {inv.payments.length === 0 && <p className="muted">Chưa có giao dịch.</p>}
@@ -134,7 +145,6 @@ export function InvoiceDetailView({ basePath, ordersPath }: { basePath: string; 
             </ul>
           </section>
 
-          {/* Hoàn tiền */}
           <section className="card" style={{ marginBottom: 0 }}>
             <h3>Hoàn tiền</h3>
             {inv.refunds.length === 0 && <p className="muted">Hóa đơn chưa có giao dịch hoàn tiền.</p>}
@@ -154,9 +164,7 @@ export function InvoiceDetailView({ basePath, ordersPath }: { basePath: string; 
           </section>
         </div>
 
-        {/* Cột thông tin phụ bên phải (Sidebar) */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          {/* Card Thông tin hóa đơn */}
           <section className="card" style={{ marginBottom: 0 }}>
             <h3 style={{ marginBottom: 12 }}>Thông tin hóa đơn</h3>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr' }}>
@@ -176,12 +184,10 @@ export function InvoiceDetailView({ basePath, ordersPath }: { basePath: string; 
               </div>
           </section>
 
-          {/* Card Giao hàng */}
           <div style={{ marginBottom: 0 }}>
             <RecipientCard order={inv} />
           </div>
 
-          {/* Card Lịch sử trạng thái */}
           <section className="card" style={{ marginBottom: 0 }}>
             <h3 style={{ marginBottom: 12 }}>Lịch sử trạng thái</h3>
             <div style={{ paddingLeft: '4px' }}>
@@ -197,7 +203,6 @@ export function InvoiceDetailView({ basePath, ordersPath }: { basePath: string; 
             </div>
           </section>
         </div>
-
       </div>
     </>
   );

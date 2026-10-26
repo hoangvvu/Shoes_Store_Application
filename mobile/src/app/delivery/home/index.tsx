@@ -3,11 +3,10 @@ import {
   View,
   Text,
   FlatList,
-  TouchableOpacity,
+  Pressable,
   StyleSheet,
   Alert,
   ActivityIndicator,
-  Pressable,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -23,58 +22,42 @@ export default function DeliveryScreen() {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const fetchShippingOrders = async () => {
-    setLoading(true);
+  const fetchShippingOrders = async (isBackground = false) => {
+    if (!isBackground) setLoading(true);
     try {
-      const res = await api.get('/delivery/orders');
-      setOrders(res.data.items || []);
+      // Thêm _t: Date.now() để chống cache GET request, đảm bảo nhận dữ liệu real-time mới nhất
+      const res = await api.get('/delivery/orders', {
+        params: { _t: Date.now() },
+      });
+      setOrders([...(res.data.items || [])]);
     } catch (err: any) {
-      Alert.alert(
-        'Lỗi',
-        err.response?.data?.message ||
-          'Không thể tải danh sách đơn hàng cần giao.'
-      );
+      if (!isBackground) {
+        Alert.alert(
+          'Lỗi',
+          err.response?.data?.message ||
+            'Không thể tải danh sách đơn hàng cần giao.'
+        );
+      }
     } finally {
-      setLoading(false);
+      if (!isBackground) setLoading(false);
     }
   };
 
-  // Tải lại danh sách mỗi khi màn hình được focus (vd: quay về sau khi giao xong ở trang chi tiết)
+  // Tải lại danh sách mỗi khi màn hình được focus và duy trì polling real-time ngầm mỗi 4 giây
   useFocusEffect(
     useCallback(() => {
-      fetchShippingOrders();
+      fetchShippingOrders(false);
+
+      const interval = setInterval(() => {
+        fetchShippingOrders(true);
+      }, 4000);
+
+      return () => clearInterval(interval);
     }, [])
   );
 
   const openOrderDetail = (invoiceId: number | string) => {
-    // Trang chi tiết nằm ngoài Tabs (app/delivery-detail/[id].tsx) giống orders/[id]
-    router.push(`/delivery-detail/${invoiceId}` as any);
-  };
-
-  const handleConfirmDelivered = async (invoiceId: number) => {
-    Alert.alert(
-      'Xác nhận hoàn tất giao hàng',
-      `Xác nhận đơn hàng #${invoiceId} đã được giao thành công cho khách?`,
-      [
-        { text: 'Hủy', style: 'cancel' },
-        {
-          text: 'Đã giao thành công',
-          onPress: async () => {
-            try {
-              await api.post(`/delivery/orders/${invoiceId}/deliver`);
-              Alert.alert('Thành công', 'Đã cập nhật trạng thái đơn hàng!');
-              await fetchShippingOrders();
-            } catch (err: any) {
-              Alert.alert(
-                'Lỗi',
-                err.response?.data?.message ||
-                  'Không thể cập nhật trạng thái.'
-              );
-            }
-          },
-        },
-      ]
-    );
+    router.push({ pathname: '/delivery/[id]', params: { id: String(invoiceId) } } as any);
   };
 
   return (
@@ -103,7 +86,7 @@ export default function DeliveryScreen() {
           data={orders}
           keyExtractor={(item) => String(item.invoiceId)}
           refreshing={loading}
-          onRefresh={fetchShippingOrders}
+          onRefresh={() => fetchShippingOrders(false)}
           contentContainerStyle={{ gap: 12, paddingBottom: 24, flexGrow: 1 }}
           renderItem={({ item }) => (
             <View style={styles.card}>
@@ -148,15 +131,6 @@ export default function DeliveryScreen() {
                   <Ionicons name="document-text-outline" size={18} color={colors.primary} />
                   <Text style={styles.detailButtonText}>Chi tiết</Text>
                 </Pressable>
-
-                <TouchableOpacity
-                  style={styles.deliverButton}
-                  onPress={() => handleConfirmDelivered(Number(item.invoiceId))}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name="checkmark-circle-outline" size={20} color="#fff" />
-                  <Text style={styles.buttonText}>Xác nhận đã giao</Text>
-                </TouchableOpacity>
               </View>
             </View>
           )}
@@ -191,8 +165,6 @@ const styles = StyleSheet.create({
   actionRow: { flexDirection: 'row', gap: 10, marginTop: 8 },
   detailButton: { flex: 1, borderWidth: 1, borderColor: colors.primary, borderRadius: radius.md, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: colors.surface },
   detailButtonText: { color: colors.primary, fontWeight: '700', fontSize: 15 },
-  deliverButton: { flex: 1.5, backgroundColor: '#059669', borderRadius: radius.md, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
-  buttonText: { color: '#fff', fontWeight: '700', fontSize: 15 },
   emptyBox: { alignItems: 'center', justifyContent: 'center', marginTop: 60, gap: 12 },
   emptyText: { color: colors.textMuted, fontSize: 15, textAlign: 'center' },
 });

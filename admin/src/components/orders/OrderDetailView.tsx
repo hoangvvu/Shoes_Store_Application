@@ -14,7 +14,7 @@ import { OrderActionModal } from './OrderActionModal';
 import { OrderStatusBadge } from './OrderStatusBadge';
 import { RecipientCard } from './RecipientCard';
 
-type Action = 'confirm' | 'ship' | 'cancel' | 'edit' | 'qr' | null;
+type Action = 'confirm' | 'ship' | 'cancel' | 'edit' | null;
 
 interface Props {
   basePath: string;
@@ -29,17 +29,33 @@ export function OrderDetailView({ basePath, canDelete }: Props) {
   const [error, setError] = useState('');
   const [action, setAction] = useState<Action>(null);
 
-  const load = useCallback(async () => {
-    setError('');
+  const load = useCallback(async (isBackground = false) => {
+    if (!isBackground) setError('');
     try {
-      setOrder(await orderService.get(orderId));
+      const data = await orderService.get(orderId);
+      setOrder(data);
     } catch (err) {
-      setError(getErrorMessage(err));
+      if (!isBackground) setError(getErrorMessage(err));
     }
   }, [orderId]);
 
   useEffect(() => {
-    void load();
+    void load(false);
+  }, [load]);
+
+  // Real-time polling chi tiết đơn hàng mỗi 4 giây để cập nhật trạng thái thanh toán QR / duyệt chứng từ tức thì
+  useEffect(() => {
+    const interval = setInterval(() => {
+      void load(true);
+    }, 4000);
+
+    const handleFocus = () => void load(true);
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+    };
   }, [load]);
 
   async function print(type: 'invoice' | 'delivery') {
@@ -68,7 +84,7 @@ export function OrderDetailView({ basePath, canDelete }: Props) {
     }
     try {
       await paymentService.reviewProof(paymentId, status, note);
-      void load();
+      void load(false);
     } catch (err) {
       window.alert(getErrorMessage(err));
     }
@@ -86,7 +102,7 @@ export function OrderDetailView({ basePath, canDelete }: Props) {
         reason,
       });
       window.alert('Đã tạo yêu cầu hoàn tiền thành công.');
-      void load();
+      void load(false);
     } catch (err) {
       window.alert(getErrorMessage(err));
     }
@@ -94,22 +110,51 @@ export function OrderDetailView({ basePath, canDelete }: Props) {
 
   const done = () => {
     setAction(null);
-    void load();
+    void load(false);
   };
 
   if (error) return (<><p className="form-error">{error}</p><Link to={basePath} className="link">← Quay lại danh sách</Link></>);
   if (!order) return <p className="muted">Đang tải…</p>;
 
   const s = order.orderStatus;
-  const methods = [...new Set(order.payments.filter((p) => p.status === 'SUCCESS').map((p) => p.methodName))].join(', ');
+
+  // Hàm xác định chính xác tên phương thức thanh toán thực tế
+  const getCleanPaymentMethodName = (methodName?: string, payment?: any) => {
+    const raw = (methodName || payment?.method || payment?.type || payment?.gateway || '').toUpperCase();
+    if (
+      raw.includes('QR') ||
+      raw.includes('VIETQR') ||
+      raw.includes('CHUYỂN KHOẢN') ||
+      raw.includes('TRANSFER') ||
+      raw.includes('BANK')
+    ) {
+      return 'Chuyển khoản quét QR';
+    }
+    if (raw.includes('CASH') || raw.includes('TIỀN MẶT') || raw === 'COD') {
+      return 'Tiền mặt';
+    }
+    return methodName || payment?.method || 'Tiền mặt';
+  };
+
+  // Hàm hiển thị trạng thái chi tiết dựa trên trạng thái giao dịch thực tế
+  const getPaymentStatusDisplay = (p: any) => {
+    const method = getCleanPaymentMethodName(p.methodName, p);
+    if (p.status === 'SUCCESS') {
+      return method.includes('QR') ? 'Chuyển khoản QR thành công' : 'Thu tiền mặt thành công';
+    }
+    if (p.status === 'FAILED') {
+      return `${method} - Thất bại`;
+    }
+    return `${method} - Chờ thu`;
+  };
+
+  const methods = [...new Set(order.payments.filter((p) => p.status === 'SUCCESS').map((p) => getCleanPaymentMethodName(p.methodName, p)))].join(', ');
   const gross = order.items.reduce((sum, i) => sum + i.salePrice * i.quantity, 0);
   const productDiscount = order.items.reduce((sum, i) => sum + i.discountAmount, 0);
   const invoicePct = order.totalAmount > 0 ? Math.round((order.discountAmount * 1000) / order.totalAmount) / 10 : 0;
   const invoiceNote = order.discountAmount > 0
     ? `${invoicePct}% trên tổng tiền hàng sau giảm sản phẩm${order.voucherCode ? ` · Voucher ${order.voucherCode}` : order.promotionName ? ` · ${order.promotionName}` : ''}`
     : 'Không có giảm giá theo hóa đơn';
-
-  const qrUrl = `https://img.vietqr.io/image/970422-0000123456789-compact2.png?amount=${order.amountPayable}&addInfo=THANHTOAN_DON_${order.invoiceId}`;
 
   return (
     <>
@@ -123,7 +168,6 @@ export function OrderDetailView({ basePath, canDelete }: Props) {
             {s === 'CONFIRMED' && <button className="btn btn--primary" onClick={() => setAction('ship')}>Bàn giao vận chuyển</button>}
             {order.canEdit && <button className="btn btn--ghost" onClick={() => setAction('edit')}>Sửa sản phẩm</button>}
             {order.canCancel && <button className="btn btn--danger" onClick={() => setAction('cancel')}>Hủy đơn</button>}
-            <button className="btn btn--ghost" onClick={() => setAction('qr')}>Mã Quét QR</button>
             <button className="btn btn--ghost" onClick={() => print('invoice')}>In hóa đơn</button>
             {order.channel === 'ONLINE' && <button className="btn btn--ghost" onClick={() => print('delivery')}>In phiếu giao</button>}
             {canDelete && (s === 'PENDING' || s === 'CANCELLED') && <button className="btn btn--danger" onClick={remove}>Xóa mềm</button>}
@@ -135,16 +179,11 @@ export function OrderDetailView({ basePath, canDelete }: Props) {
         <p className="notice">Đơn đã thu {formatVnd(order.paidAmount)} trước khi hủy. Cần tạo yêu cầu hoàn tiền ở module Thanh toán.</p>
       )}
 
-      {/* Bố cục Master-Detail Cân Đối: Cột chính (Sản phẩm, Thanh toán) & Cột phụ Sidebar */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '20px', alignItems: 'start' }}>
-        
-        {/* Cột chính bên trái */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          {/* Bảng sản phẩm */}
           <section className="card" style={{ marginBottom: 0 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
               <h3 style={{ margin: 0 }}>Sản phẩm</h3>
-              <button className="btn btn--ghost btn--small" onClick={() => setAction('qr')}>📱 Mở QR thanh toán</button>
             </div>
             <div className="table-wrap">
               <table className="table">
@@ -192,46 +231,50 @@ export function OrderDetailView({ basePath, canDelete }: Props) {
             />
           </section>
 
-          {/* Giao dịch thanh toán */}
           <section className="card" style={{ marginBottom: 0 }}>
             <h3>Giao dịch thanh toán</h3>
-            <p className="muted" style={{ fontSize: '0.85em', marginBottom: 12 }}>* Việc xác nhận thu tiền mặt do nhân viên giao hàng thực hiện trên ứng dụng Mobile.</p>
-            {order.payments.length === 0 && <p className="muted">Chưa có giao dịch.</p>}
-            <ul className="plain-list">
-              {order.payments.map((p) => (
-                <li key={p.paymentId} style={{ marginBottom: 12, paddingBottom: 8, borderBottom: '1px dashed #e5e7eb' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span>
-                      <strong>{p.methodName}</strong> · {formatVnd(p.amount)}
-                    </span>
-                    <span className={`badge ${p.status === 'SUCCESS' ? 'badge--confirmed' : p.status === 'FAILED' ? 'badge--cancelled' : 'badge--pending'}`}>
-                      {PAYMENT_TX_LABEL[p.status] ?? p.status}
-                    </span>
-                  </div>
-                  {p.paidAt && <div className="muted" style={{ fontSize: '0.85em', marginTop: 2 }}>Đã thu: {formatDateTime(p.paidAt)}</div>}
-
-                  {p.proofUrl && (
-                    <div style={{ marginTop: 8, background: '#f9fafb', padding: 8, borderRadius: 6 }}>
-                      <div style={{ marginBottom: 6 }}>
-                        <a href={p.proofUrl} target="_blank" rel="noreferrer" className="link" style={{ fontWeight: 500 }}>
-                          📷 Xem ảnh chứng từ chuyển khoản ↗
-                        </a>
-                      </div>
-                      {p.status === 'PENDING' && (
-                        <div style={{ display: 'flex', gap: 8 }}>
-                          <button className="btn btn--small btn--primary" onClick={() => handleReviewProof(p.paymentId, 'SUCCESS')}>
-                            Duyệt hợp lệ
-                          </button>
-                          <button className="btn btn--small btn--danger" onClick={() => handleReviewProof(p.paymentId, 'FAILED')}>
-                            Từ chối
-                          </button>
-                        </div>
-                      )}
+            <p className="muted" style={{ fontSize: '0.85em', marginBottom: 12 }}>* Việc xác nhận thanh toán được ghi nhận theo phương thức thực tế của giao dịch.</p>
+            
+            {/* Chỉ hiển thị danh sách khi đơn hàng thực sự có phát sinh giao dịch thanh toán */}
+            {(!order.payments || order.payments.length === 0) ? (
+              <p className="muted">Chưa phát sinh giao dịch thanh toán.</p>
+            ) : (
+              <ul className="plain-list">
+                {order.payments.map((p) => (
+                  <li key={p.paymentId} style={{ marginBottom: 12, paddingBottom: 8, borderBottom: '1px dashed #e5e7eb' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span>
+                        <strong>{getPaymentStatusDisplay(p)}</strong> · {formatVnd(p.amount)}
+                      </span>
+                      <span className={`badge ${p.status === 'SUCCESS' ? 'badge--confirmed' : p.status === 'FAILED' ? 'badge--cancelled' : 'badge--pending'}`}>
+                        {PAYMENT_TX_LABEL[p.status] ?? p.status}
+                      </span>
                     </div>
-                  )}
-                </li>
-              ))}
-            </ul>
+                    {p.paidAt && <div className="muted" style={{ fontSize: '0.85em', marginTop: 2 }}>Đã thu: {formatDateTime(p.paidAt)}</div>}
+
+                    {p.proofUrl && (
+                      <div style={{ marginTop: 8, background: '#f9fafb', padding: 8, borderRadius: 6 }}>
+                        <div style={{ marginBottom: 6 }}>
+                          <a href={p.proofUrl} target="_blank" rel="noreferrer" className="link" style={{ fontWeight: 500 }}>
+                            📷 Xem ảnh chứng từ chuyển khoản ↗
+                          </a>
+                        </div>
+                        {p.status === 'PENDING' && (
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            <button className="btn btn--small btn--primary" onClick={() => handleReviewProof(p.paymentId, 'SUCCESS')}>
+                              Duyệt hợp lệ
+                            </button>
+                            <button className="btn btn--small btn--danger" onClick={() => handleReviewProof(p.paymentId, 'FAILED')}>
+                              Từ chối
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
 
             {order.refundRequired && (
               <div style={{ marginTop: 12, paddingTop: 8, borderTop: '1px solid #e5e7eb' }}>
@@ -243,9 +286,7 @@ export function OrderDetailView({ basePath, canDelete }: Props) {
           </section>
         </div>
 
-        {/* Cột thông tin phụ bên phải (Sidebar) */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          {/* Card Thông tin đơn */}
           <section className="card" style={{ marginBottom: 0 }}>
             <h3 style={{ marginBottom: 12 }}>Thông tin đơn</h3>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr' }}>
@@ -263,12 +304,10 @@ export function OrderDetailView({ basePath, canDelete }: Props) {
               </div>
           </section>
 
-          {/* Card Thông tin Giao hàng */}
           <div style={{ marginBottom: 0 }}>
             <RecipientCard order={order} />
           </div>
 
-          {/* Card Lịch sử trạng thái */}
           <section className="card" style={{ marginBottom: 0 }}>
             <h3 style={{ marginBottom: 12 }}>Lịch sử trạng thái</h3>
             <div style={{ paddingLeft: '4px' }}>
@@ -288,20 +327,7 @@ export function OrderDetailView({ basePath, canDelete }: Props) {
             </div>
           </section>
         </div>
-
       </div>
-
-      {action === 'qr' && (
-        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ backgroundColor: '#fff', padding: 24, borderRadius: 12, textAlign: 'center', maxWidth: 360, width: '100%' }}>
-            <h3>Mã QR Thanh Toán Chuyển Khoản</h3>
-            <p className="muted" style={{ marginBottom: 12 }}>Đơn hàng #{order.invoiceId} · Số tiền: {formatVnd(order.amountPayable)}</p>
-            <img src={qrUrl} alt="VietQR" style={{ width: 240, height: 240, margin: '0 auto', display: 'block' }} />
-            <p style={{ fontSize: '0.85em', color: '#6b7280', marginTop: 12 }}>Quét mã QR để tự động điền số tiền và nội dung chuyển khoản.</p>
-            <button className="btn btn--primary" style={{ marginTop: 16, width: '100%' }} onClick={() => setAction(null)}>Đóng</button>
-          </div>
-        </div>
-      )}
 
       {action === 'confirm' && (
         <OrderActionModal title="Xác nhận đơn hàng" label="Ghi chú (không bắt buộc)" submitText="Xác nhận" onClose={() => setAction(null)}

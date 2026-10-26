@@ -2,10 +2,11 @@ import { Router } from 'express';
 import { asyncHandler } from '../utils/asyncHandler';
 import { authenticate } from '../middleware/auth.middleware';
 import { requireRole } from '../middleware/role.middleware';
-import { getPool, withTransaction } from '../config/database';
+import { getPool } from '../config/database';
 import sql from 'mssql';
 import { AppError } from '../errors/AppError';
-import { userRepository } from '../repositories/user.repository';
+import { orderService } from '../services/order.service';
+import { paymentRepository } from '../repositories/payment.repository';
 
 const router = Router();
 
@@ -41,6 +42,9 @@ router.get('/orders', asyncHandler(async (req, res) => {
 // Lấy chi tiết đơn hàng cho giao diện giao hàng
 router.get('/orders/:id', asyncHandler(async (req, res) => {
   const invoiceId = Number(req.params.id);
+  if (!Number.isInteger(invoiceId) || invoiceId <= 0) {
+    throw AppError.badRequest('Mã đơn hàng không hợp lệ');
+  }
   const pool = await getPool();
 
   const invRes = await pool.request()
@@ -84,46 +88,37 @@ router.get('/orders/:id', asyncHandler(async (req, res) => {
       WHERE d.invoice_id = @id
     `);
 
+  // Giao dịch thanh toán: màn chi tiết trên mobile cần mảng này (methodCode, methodName, amount, status, paymentId)
+  const payments = await paymentRepository.listByInvoice(invoiceId);
+
   res.json({
     ...invRes.recordset[0],
     items: itemsRes.recordset,
+    payments,
   });
 }));
 
-// Xác nhận giao hàng thành công
+// Xác nhận giao hàng thành công.
+// Đi qua orderService.deliver -> sp_change_order_status: kiểm tra luồng SHIPPING -> DELIVERED, khóa dòng đơn,
+// trigger tự ghi lịch sử (changed_by = người giao) và service cộng total_purchased cho khách.
+// Sau đó ghi shipper_employee_id (migration 003_shipper_employee.sql).
 router.post('/orders/:id/deliver', asyncHandler(async (req, res) => {
   const invoiceId = Number(req.params.id);
-  const userId = req.user!.userId;
+  if (!Number.isInteger(invoiceId) || invoiceId <= 0) {
+    throw AppError.badRequest('Mã đơn hàng không hợp lệ');
+  }
 
-  const user = await userRepository.findActiveById(userId);
-  const employeeId = user?.employeeId || null;
+  await orderService.deliver(req.user!, invoiceId, 'Nhân viên xác nhận giao hàng thành công trên Mobile');
 
-  await withTransaction(async (tx) => {
-    const request = new sql.Request(tx);
-
-    const updateResult = await request
+  // Ghi nhân viên giao hàng (cột shipper_employee_id từ migration 003). Không đổi trạng thái nên trigger bỏ qua.
+  const shipperId = req.user!.employeeId ?? null;
+  if (shipperId) {
+    const pool = await getPool();
+    await pool.request()
       .input('id', sql.Int, invoiceId)
-      .input('empId', sql.Int, employeeId)
-      .query(`
-        UPDATE invoices 
-        SET order_status = 'DELIVERED', 
-            shipper_employee_id = @empId
-        WHERE invoice_id = @id AND order_status = 'SHIPPING' AND is_deleted = 0
-      `);
-
-    if (updateResult.rowsAffected[0] === 0) {
-      throw AppError.badRequest('Đơn hàng không tồn tại, không ở trạng thái vận chuyển hoặc đã được giao.');
-    }
-
-    const historyRequest = new sql.Request(tx);
-    await historyRequest
-      .input('invId', sql.Int, invoiceId)
-      .input('uId', sql.Int, userId)
-      .query(`
-        INSERT INTO order_status_history (invoice_id, old_status, new_status, changed_by, note)
-        VALUES (@invId, 'SHIPPING', 'DELIVERED', @uId, N'Nhân viên xác nhận giao hàng thành công trên Mobile')
-      `);
-  });
+      .input('empId', sql.Int, shipperId)
+      .query(`UPDATE invoices SET shipper_employee_id = @empId WHERE invoice_id = @id AND is_deleted = 0`);
+  }
 
   res.json({ message: 'Xác nhận giao hàng thành công' });
 }));
