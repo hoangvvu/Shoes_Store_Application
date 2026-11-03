@@ -1,13 +1,13 @@
 import { Link, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { AppTextInput } from '@/components/AppTextInput';
 import { AuthLayout } from '@/components/AuthLayout';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { authService } from '@/services/auth.service';
 import { useAuthStore } from '@/store/useAuthStore';
-import { colors } from '@/theme';
+import { colors, radius } from '@/theme';
 import { getErrorMessage } from '@/utils/error';
 
 export default function LoginScreen() {
@@ -43,8 +43,21 @@ export default function LoginScreen() {
         </Text>
       </View>
 
-      <AppTextInput icon="person-outline" placeholder="Tên đăng nhập" value={username} onChangeText={setUsername} textContentType="username" />
-      <AppTextInput icon="lock-closed-outline" placeholder="Mật khẩu" value={password} onChangeText={setPassword} secure textContentType="password" />
+      <AppTextInput
+        icon="person-outline"
+        placeholder="Tên đăng nhập"
+        value={username}
+        onChangeText={setUsername}
+        textContentType="username"
+      />
+      <AppTextInput
+        icon="lock-closed-outline"
+        placeholder="Mật khẩu"
+        value={password}
+        onChangeText={setPassword}
+        secure
+        textContentType="password"
+      />
 
       <View style={styles.row}>
         <Pressable style={styles.remember} onPress={() => setRemember((r) => !r)}>
@@ -54,6 +67,36 @@ export default function LoginScreen() {
         <Pressable onPress={() => router.push('/(auth)/forgot-password')}>
           <Text style={styles.link}>Quên mật khẩu?</Text>
         </Pressable>
+      </View>
+
+      {/* Quick Fill Test Accounts */}
+      <View style={styles.quickFillWrap}>
+        <Text style={styles.quickFillLabel}>Tài khoản mẫu để thử nghiệm nhanh:</Text>
+        <View style={styles.quickFillButtons}>
+          <TouchableOpacity
+            style={styles.quickChip}
+            onPress={() => {
+              setUsername('khach01');
+              setPassword('Khach@12345');
+              setError('');
+            }}
+          >
+            <Ionicons name="person-circle-outline" size={14} color={colors.primary} />
+            <Text style={styles.quickChipText}>khach01 (Khách hàng)</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.quickChip}
+            onPress={() => {
+              setUsername('admin');
+              setPassword('Admin@12345');
+              setError('');
+            }}
+          >
+            <Ionicons name="shield-checkmark-outline" size={14} color={colors.primary} />
+            <Text style={styles.quickChipText}>admin (Quản trị)</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {!!error && <Text style={styles.error}>{error}</Text>}
@@ -70,4 +113,39 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   remember: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   error: { color: colors.danger, fontSize: 14, textAlign: 'center' },
+  quickFillWrap: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: radius.md,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    gap: 8,
+    marginTop: 4,
+  },
+  quickFillLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textMuted,
+  },
+  quickFillButtons: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  quickChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: radius.pill,
+  },
+  quickChipText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.text,
+  },
 });

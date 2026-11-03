@@ -6,15 +6,14 @@ import {
   Alert,
   FlatList,
   Image,
-  Pressable,
   RefreshControl,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { resolveProductImage } from '@/components/ProductDetailModal';
 import { cartService } from '@/services/cart.service';
 import { useCartStore } from '@/store/useCartStore';
 import { colors, radius, shadows } from '@/theme';
@@ -101,15 +100,28 @@ export default function CartScreen() {
     }
   }
 
+  function handleBack() {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.push('/(tabs)');
+    }
+  }
+
   return (
     <View style={[styles.container, { paddingTop: insets.top + 8 }]}>
-      {/* Header */}
+      {/* Header with Back Button */}
       <View style={styles.header}>
-        <View>
-          <Text style={styles.title}>Giỏ hàng</Text>
-          <Text style={styles.subtitle}>
-            {cart.lineCount > 0 ? `${cart.lineCount} mẫu giày đã chọn` : 'Chưa có sản phẩm'}
-          </Text>
+        <View style={styles.headerLeft}>
+          <TouchableOpacity style={styles.backBtnCircle} onPress={handleBack} hitSlop={8}>
+            <Ionicons name="arrow-back" size={20} color={colors.text} />
+          </TouchableOpacity>
+          <View>
+            <Text style={styles.title}>Giỏ hàng</Text>
+            <Text style={styles.subtitle}>
+              {cart.lineCount > 0 ? `${cart.lineCount} mẫu giày đã chọn` : 'Chưa có sản phẩm'}
+            </Text>
+          </View>
         </View>
 
         {cart.lineCount > 0 && (
@@ -155,26 +167,41 @@ export default function CartScreen() {
         renderItem={({ item }) => {
           const bad = item.availability !== 'OK';
           const disabled = busyId === item.variantId;
+          const imgUri = resolveProductImage(item.imageUrl);
 
           return (
             <View style={[styles.card, bad && styles.cardBad]}>
-              {/* Product Thumbnail */}
-              <View style={styles.imgWrapper}>
-                {item.imageUrl ? (
-                  <Image source={{ uri: item.imageUrl }} style={styles.img} resizeMode="contain" />
+              {/* Product Thumbnail -> Clickable to open Product Detail */}
+              <TouchableOpacity
+                style={styles.imgWrapper}
+                activeOpacity={0.85}
+                onPress={() => router.push(`/products/${item.productId}`)}
+              >
+                {imgUri ? (
+                  <Image source={{ uri: imgUri }} style={styles.img} resizeMode="contain" />
                 ) : (
                   <View style={styles.imgPlaceholder}>
-                    <Text style={{ fontSize: 28 }}>👟</Text>
+                    <Ionicons name="image-outline" size={28} color={colors.textMuted} />
                   </View>
                 )}
-              </View>
+              </TouchableOpacity>
 
               {/* Product Info */}
               <View style={styles.info}>
                 <View style={styles.infoTopRow}>
-                  <Text style={styles.name} numberOfLines={1}>
-                    {item.productName}
-                  </Text>
+                  <TouchableOpacity
+                    style={{ flex: 1, marginRight: 6 }}
+                    activeOpacity={0.75}
+                    onPress={() => router.push(`/products/${item.productId}`)}
+                  >
+                    <Text style={styles.name} numberOfLines={2}>
+                      {item.productName}
+                    </Text>
+                    <View style={styles.detailLinkRow}>
+                      <Text style={styles.detailLinkText}>Xem chi tiết sản phẩm</Text>
+                      <Ionicons name="chevron-forward" size={12} color={colors.primary} />
+                    </View>
+                  </TouchableOpacity>
                   <TouchableOpacity
                     onPress={() => confirmRemove(item)}
                     hitSlop={8}
@@ -277,8 +304,21 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
   },
-  title: { fontSize: 24, fontWeight: '800', color: colors.text },
-  subtitle: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  backBtnCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  title: { fontSize: 22, fontWeight: '800', color: colors.text },
+  subtitle: { fontSize: 12, color: colors.textMuted, marginTop: 1 },
   clearBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -316,6 +356,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 6,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
   img: {
     width: '100%',
@@ -338,8 +380,17 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     color: colors.text,
-    flex: 1,
-    marginRight: 6,
+  },
+  detailLinkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    marginTop: 2,
+  },
+  detailLinkText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.primary,
   },
   deleteIconBtn: {
     padding: 2,

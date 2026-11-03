@@ -5,8 +5,13 @@ import { useAuthStore } from '../store/useAuthStore';
 export const api = axios.create({ baseURL: API_URL, timeout: 15000 });
 
 api.interceptors.request.use((config) => {
-  const token = useAuthStore.getState().accessToken;
-  if (token) config.headers.Authorization = `Bearer ${token}`;
+  const { accessToken, isExpired, clear } = useAuthStore.getState();
+  if (isExpired()) {
+    clear();
+    window.alert('Phiên làm việc đã hết hạn (15 phút). Vui lòng đăng nhập lại.');
+    return Promise.reject(new Error('session expired'));
+  }
+  if (accessToken) config.headers.Authorization = `Bearer ${accessToken}`;
   return config;
 });
 
@@ -16,7 +21,12 @@ const PUBLIC_AUTH_PATHS = ['/auth/login', '/auth/refresh', '/auth/register', '/a
 let refreshing: Promise<string> | null = null;
 
 async function refreshAccessToken(): Promise<string> {
-  const { refreshToken, setAccessToken } = useAuthStore.getState();
+  const { refreshToken, setAccessToken, isExpired, clear } = useAuthStore.getState();
+  if (isExpired()) {
+    clear();
+    window.alert('Phiên làm việc đã hết hạn (15 phút). Vui lòng đăng nhập lại.');
+    throw new Error('session expired');
+  }
   if (!refreshToken) throw new Error('no refresh token');
   // dùng axios trần để không đi qua interceptor của `api` (tránh lặp vô hạn)
   const { data } = await axios.post<{ accessToken: string }>(`${API_URL}/auth/refresh`, { refreshToken });

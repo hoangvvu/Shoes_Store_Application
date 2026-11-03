@@ -6,6 +6,7 @@ import { getErrorMessage } from '../../utils/error';
 import { formatNumber, formatVnd } from '../../utils/format';
 import { useAsync } from '../../utils/useAsync';
 import { Modal } from '../common/Modal';
+import { SearchBar } from '../common/SearchBar';
 import { ColorDot, LoadState, Thumb } from '../common/Widgets';
 import { Pagination } from '../tables/Pagination';
 import { BulkVariantModal } from './BulkVariantModal';
@@ -25,12 +26,38 @@ export function ProductDetailView({ basePath, canEdit = true }: Props) {
   const [bulkModal, setBulkModal] = useState(false);
   const [editingVariant, setEditingVariant] = useState<ProductVariant | null>(null);
 
-  // Phân trang & sắp xếp biến thể theo số lượng
+  // Phân trang & sắp xếp biến thể theo số lượng: cố định 5 sản phẩm/trang
+  const VARIANT_PAGE_SIZE = 5;
   const [variantPage, setVariantPage] = useState(1);
-  const [variantPageSize, setVariantPageSize] = useState(10);
-  const [variantSort, setVariantSort] = useState<'default' | 'stock_desc' | 'stock_asc'>('default');
-  const [variantSearch, setVariantSearch] = useState('');
-  const [variantStockFilter, setVariantStockFilter] = useState<'all' | 'in_stock' | 'low_stock' | 'out_of_stock'>('all');
+  const [draftSearch, setDraftSearch] = useState('');
+  const [draftStockFilter, setDraftStockFilter] = useState<'all' | 'in_stock' | 'low_stock' | 'out_of_stock'>('all');
+  const [draftSort, setDraftSort] = useState<'default' | 'stock_desc' | 'stock_asc'>('default');
+
+  const [appliedSearch, setAppliedSearch] = useState('');
+  const [appliedStockFilter, setAppliedStockFilter] = useState<'all' | 'in_stock' | 'low_stock' | 'out_of_stock'>('all');
+  const [appliedSort, setAppliedSort] = useState<'default' | 'stock_desc' | 'stock_asc'>('default');
+
+  const isPending =
+    draftSearch !== appliedSearch ||
+    draftStockFilter !== appliedStockFilter ||
+    draftSort !== appliedSort;
+
+  function handleSearch() {
+    setAppliedSearch(draftSearch);
+    setAppliedStockFilter(draftStockFilter);
+    setAppliedSort(draftSort);
+    setVariantPage(1);
+  }
+
+  function handleReset() {
+    setDraftSearch('');
+    setDraftStockFilter('all');
+    setDraftSort('default');
+    setAppliedSearch('');
+    setAppliedStockFilter('all');
+    setAppliedSort('default');
+    setVariantPage(1);
+  }
 
   const { data: product, loading, error, reload } = useAsync(
     () => productService.get(productId),
@@ -53,7 +80,7 @@ export function ProductDetailView({ basePath, canEdit = true }: Props) {
     let list = [...product.variants];
 
     // Lọc theo từ khóa (SKU, size, màu)
-    const q = variantSearch.trim().toLowerCase();
+    const q = appliedSearch.trim().toLowerCase();
     if (q) {
       list = list.filter(
         (v) =>
@@ -64,40 +91,43 @@ export function ProductDetailView({ basePath, canEdit = true }: Props) {
     }
 
     // Lọc theo trạng thái tồn kho
-    if (variantStockFilter === 'out_of_stock') {
+    if (appliedStockFilter === 'out_of_stock') {
       list = list.filter((v) => v.stockQuantity <= 0);
-    } else if (variantStockFilter === 'low_stock') {
+    } else if (appliedStockFilter === 'low_stock') {
       list = list.filter((v) => v.stockQuantity > 0 && v.stockQuantity <= 5);
-    } else if (variantStockFilter === 'in_stock') {
+    } else if (appliedStockFilter === 'in_stock') {
       list = list.filter((v) => v.stockQuantity > 0);
     }
 
     // Sắp xếp theo số lượng (Tồn kho)
-    if (variantSort === 'stock_desc') {
+    if (appliedSort === 'stock_desc') {
       list.sort((a, b) => b.stockQuantity - a.stockQuantity);
-    } else if (variantSort === 'stock_asc') {
+    } else if (appliedSort === 'stock_asc') {
       list.sort((a, b) => a.stockQuantity - b.stockQuantity);
     }
 
     return list;
-  }, [product?.variants, variantSearch, variantStockFilter, variantSort]);
+  }, [product?.variants, appliedSearch, appliedStockFilter, appliedSort]);
 
   const totalVariantItems = filteredAndSortedVariants.length;
-  const totalVariantPages = Math.max(1, Math.ceil(totalVariantItems / variantPageSize));
+  const totalVariantPages = Math.max(1, Math.ceil(totalVariantItems / VARIANT_PAGE_SIZE));
   const safeVariantPage = Math.min(Math.max(1, variantPage), totalVariantPages);
-  const startVariantIndex = (safeVariantPage - 1) * variantPageSize;
+  const startVariantIndex = (safeVariantPage - 1) * VARIANT_PAGE_SIZE;
   const paginatedVariants = filteredAndSortedVariants.slice(
     startVariantIndex,
-    startVariantIndex + variantPageSize,
+    startVariantIndex + VARIANT_PAGE_SIZE,
   );
 
   function toggleStockSort() {
     setVariantPage(1);
-    setVariantSort((prev) => {
-      if (prev === 'default') return 'stock_desc';
-      if (prev === 'stock_desc') return 'stock_asc';
-      return 'default';
-    });
+    const nextSort =
+      appliedSort === 'default'
+        ? 'stock_desc'
+        : appliedSort === 'stock_desc'
+        ? 'stock_asc'
+        : 'default';
+    setDraftSort(nextSort);
+    setAppliedSort(nextSort);
   }
 
   if (loading) return <LoadState loading={true} error="" />;
@@ -168,44 +198,23 @@ export function ProductDetailView({ basePath, canEdit = true }: Props) {
             </div>
           </div>
 
-          {/* Thanh công cụ: tìm kiếm, sắp xếp theo số lượng và phân trang */}
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginBottom: 14 }}>
-            <div style={{ flex: 1, minWidth: 160 }}>
-              <input
-                type="search"
-                className="input"
-                placeholder="Tìm SKU, size, màu..."
-                value={variantSearch}
-                onChange={(e) => {
-                  setVariantSearch(e.target.value);
-                  setVariantPage(1);
-                }}
-                style={{ width: '100%' }}
-              />
-            </div>
+          {/* Thanh công cụ: tìm kiếm theo chuẩn SearchBar dùng chung của hệ thống */}
+          <SearchBar
+            onSearch={handleSearch}
+            hint={isPending ? 'Bạn đã đổi tiêu chí, bấm "Tìm kiếm" để cập nhật kết quả.' : undefined}
+          >
+            <input
+              type="search"
+              className="search"
+              placeholder="Tìm SKU, size, màu..."
+              value={draftSearch}
+              onChange={(e) => setDraftSearch(e.target.value)}
+            />
             <select
               className="select"
-              value={variantSort}
-              onChange={(e) => {
-                setVariantSort(e.target.value as 'default' | 'stock_desc' | 'stock_asc');
-                setVariantPage(1);
-              }}
-              aria-label="Sắp xếp theo số lượng"
-              style={{ minWidth: 190 }}
-            >
-              <option value="default">Sắp xếp: Mặc định (Size / Màu)</option>
-              <option value="stock_desc">Số lượng: Nhiều nhất trước (Giảm dần)</option>
-              <option value="stock_asc">Số lượng: Ít nhất trước (Tăng dần)</option>
-            </select>
-            <select
-              className="select"
-              value={variantStockFilter}
-              onChange={(e) => {
-                setVariantStockFilter(e.target.value as 'all' | 'in_stock' | 'low_stock' | 'out_of_stock');
-                setVariantPage(1);
-              }}
+              value={draftStockFilter}
+              onChange={(e) => setDraftStockFilter(e.target.value as 'all' | 'in_stock' | 'low_stock' | 'out_of_stock')}
               aria-label="Lọc theo trạng thái tồn kho"
-              style={{ minWidth: 140 }}
             >
               <option value="all">Tất cả tồn kho</option>
               <option value="in_stock">Còn hàng (&gt; 0)</option>
@@ -214,34 +223,25 @@ export function ProductDetailView({ basePath, canEdit = true }: Props) {
             </select>
             <select
               className="select"
-              value={variantPageSize}
-              onChange={(e) => {
-                setVariantPageSize(Number(e.target.value));
-                setVariantPage(1);
-              }}
-              aria-label="Số biến thể mỗi trang"
-              style={{ width: 110 }}
+              value={draftSort}
+              onChange={(e) => setDraftSort(e.target.value as 'default' | 'stock_desc' | 'stock_asc')}
+              aria-label="Sắp xếp theo số lượng"
             >
-              <option value="5">5 / trang</option>
-              <option value="10">10 / trang</option>
-              <option value="20">20 / trang</option>
-              <option value="50">50 / trang</option>
+              <option value="default">Sắp xếp: Mặc định (Size / Màu)</option>
+              <option value="stock_desc">Số lượng: Nhiều nhất trước</option>
+              <option value="stock_asc">Số lượng: Ít nhất trước</option>
             </select>
-            {(variantSearch || variantStockFilter !== 'all' || variantSort !== 'default') && (
+            {(appliedSearch || appliedStockFilter !== 'all' || appliedSort !== 'default' || isPending) && (
               <button
                 type="button"
                 className="btn btn--ghost small"
-                onClick={() => {
-                  setVariantSearch('');
-                  setVariantStockFilter('all');
-                  setVariantSort('default');
-                  setVariantPage(1);
-                }}
+                onClick={handleReset}
+                title="Đặt lại bộ lọc"
               >
                 Đặt lại
               </button>
             )}
-          </div>
+          </SearchBar>
 
           <div className="table-wrap">
             <table className="table">
@@ -257,9 +257,9 @@ export function ProductDetailView({ basePath, canEdit = true }: Props) {
                     title="Bấm để đổi sắp xếp theo số lượng tồn kho (Nhiều → Ít / Ít → Nhiều)"
                   >
                     Tồn kho{' '}
-                    {variantSort === 'stock_desc' ? (
+                    {appliedSort === 'stock_desc' ? (
                       <span style={{ color: '#059669', fontWeight: 'bold' }}>▼</span>
-                    ) : variantSort === 'stock_asc' ? (
+                    ) : appliedSort === 'stock_asc' ? (
                       <span style={{ color: '#059669', fontWeight: 'bold' }}>▲</span>
                     ) : (
                       <span className="muted" style={{ fontSize: 12 }}>↕</span>

@@ -99,26 +99,13 @@ export default function CheckoutScreen() {
         note: note.trim() || undefined,
       };
 
-      if (method !== 'COD' && method !== 'CASH' && preview && preview.amountPayable > 0) {
-        router.push({
-          pathname: '/orders/payment/[id]',
-          params: {
-            id: 'draft',
-            addressId: String(addressId),
-            methodCode: method,
-            amount: String(preview.amountPayable),
-            ...(payload.voucherCode ? { voucherCode: payload.voucherCode } : {}),
-            ...(payload.note ? { note: payload.note } : {}),
-          },
-        });
-        return;
-      }
-
       const order = await orderService.create(payload);
       useCartStore.getState().reset(); // giỏ đã được đóng ở server
       if (method === 'COD' || method === 'CASH' || preview?.amountPayable === 0) {
         Alert.alert('Đặt hàng thành công', `Mã đơn #${order.invoiceId}. Cửa hàng sẽ sớm giao hàng đến bạn.`);
         router.replace(`/orders/${order.invoiceId}`);
+      } else {
+        router.replace(`/orders/payment/${order.invoiceId}`);
       }
     } catch (e) {
       Alert.alert('Không thể đặt hàng', getErrorMessage(e));
@@ -127,6 +114,25 @@ export default function CheckoutScreen() {
       setPlacing(false);
     }
   }
+
+  const headerOptions = {
+    headerShown: true,
+    title: 'Xác nhận đơn hàng',
+    headerStyle: { backgroundColor: '#FFFFFF' },
+    headerTintColor: colors.text,
+    headerTitleStyle: { fontWeight: '800' as const, fontSize: 18 },
+    headerBackTitle: 'Giỏ hàng',
+    headerShadowVisible: false,
+    headerLeft: () => (
+      <TouchableOpacity
+        onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)/cart'))}
+        style={{ paddingRight: 12, paddingVertical: 4 }}
+        hitSlop={8}
+      >
+        <Ionicons name="arrow-back" size={22} color={colors.text} />
+      </TouchableOpacity>
+    ),
+  };
 
   if (loading || !preview) {
     return (
@@ -278,8 +284,8 @@ export default function CheckoutScreen() {
                 <Text style={styles.modalLabel}>Hình thức:</Text>
                 <Text style={[styles.modalVal, { color: colors.primaryDark, fontWeight: '700' }]}>
                   {method === 'CASH' || method === 'COD'
-                    ? '💵 Tiền mặt khi nhận hàng'
-                    : '📱 Quét mã QR (Ngân hàng / MoMo)'}
+                    ? 'Tiền mặt khi nhận hàng'
+                    : 'Quét mã QR (Ngân hàng / MoMo)'}
                 </Text>
               </View>
 
@@ -369,16 +375,6 @@ function Row({ label, value, big }: { label: string; value: string; big?: boolea
     </View>
   );
 }
-
-const headerOptions = {
-  headerShown: true,
-  title: 'Xác nhận đơn hàng',
-  headerStyle: { backgroundColor: '#FFFFFF' },
-  headerTintColor: colors.text,
-  headerTitleStyle: { fontWeight: '800' as const, fontSize: 18 },
-  headerBackTitle: 'Giỏ hàng',
-  headerShadowVisible: false,
-};
 
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },

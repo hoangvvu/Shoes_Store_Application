@@ -24,17 +24,12 @@ export const employeeService = {
     const { rows, total } = await employeeRepository.list({
       q: q.q,
       role: q.role,
-      employmentType: q.employmentType,
       page: q.page,
       size: q.size,
     });
     return toPaged(
       rows.map((r) => ({
         ...r,
-        baseSalary: Number(r.baseSalary),
-        hourlyRate: Number(r.hourlyRate),
-        commissionRate: Number(r.commissionRate),
-        allowance: Number(r.allowance),
         isLocked: Boolean(r.isLocked),
       })),
       total,
@@ -58,10 +53,6 @@ export const employeeService = {
     };
     return {
       ...row,
-      baseSalary: Number(row.baseSalary),
-      hourlyRate: Number(row.hourlyRate),
-      commissionRate: Number(row.commissionRate),
-      allowance: Number(row.allowance),
       isLocked: Boolean(row.isLocked),
       dateOfBirth: toIsoDate(row.dateOfBirth),
       createdAt: toIsoString(row.createdAt),
@@ -95,10 +86,6 @@ export const employeeService = {
           address: input.address,
           phone,
           baseSalary: input.baseSalary ?? 0,
-          employmentType: input.employmentType ?? 'FULL_TIME',
-          hourlyRate: input.hourlyRate ?? 0,
-          commissionRate: input.commissionRate ?? 0.0100,
-          allowance: input.allowance ?? 0,
         },
         tx,
       );
@@ -139,10 +126,6 @@ export const employeeService = {
           address: input.address,
           phone,
           baseSalary: input.baseSalary,
-          employmentType: input.employmentType,
-          hourlyRate: input.hourlyRate,
-          commissionRate: input.commissionRate,
-          allowance: input.allowance,
         },
         tx,
       );

@@ -2,7 +2,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   Modal,
   Pressable,
@@ -91,7 +90,6 @@ export default function ProfileScreen() {
 
   useEffect(() => {
     loadProfile();
-    // Fetch quick order status count
     orderService
       .listMine({ page: 1, size: 50 })
       .then((res) => {
@@ -184,6 +182,14 @@ export default function ProfileScreen() {
     ]);
   }
 
+  function handleBack() {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.push('/(tabs)');
+    }
+  }
+
   const userInitial = profile?.firstName?.charAt(0).toUpperCase() || 'U';
 
   return (
@@ -192,9 +198,13 @@ export default function ProfileScreen() {
       contentContainerStyle={[styles.container, { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 32 }]}
       showsVerticalScrollIndicator={false}
     >
-      {/* Header */}
+      {/* Header with Back Button */}
       <View style={styles.header}>
+        <TouchableOpacity style={styles.backBtnCircle} onPress={handleBack} hitSlop={8}>
+          <Ionicons name="arrow-back" size={20} color={colors.text} />
+        </TouchableOpacity>
         <Text style={styles.headerTitle}>Tài khoản</Text>
+        <View style={{ width: 38 }} />
       </View>
 
       {/* User Info Hero Card */}
@@ -209,12 +219,9 @@ export default function ProfileScreen() {
         </View>
 
         <Text style={styles.userName}>{profile?.fullName || 'Đang tải...'}</Text>
-        <Text style={styles.userPhone}>{profile?.phone || profile?.email || 'Khách hàng thân thiết'}</Text>
-
-        <View style={styles.membershipBadge}>
-          <Ionicons name="shield-checkmark" size={14} color={colors.primaryDark} />
-          <Text style={styles.membershipText}>Thành viên Bạc · Khách hàng VIP</Text>
-        </View>
+        {!!(profile?.phone || profile?.email) && (
+          <Text style={styles.userPhone}>{profile?.phone || profile?.email}</Text>
+        )}
       </View>
 
       {/* Order Status Tracker */}
@@ -289,7 +296,7 @@ export default function ProfileScreen() {
         </View>
       </View>
 
-      {/* Menu Action Items */}
+      {/* Menu Action Items (Removed App Info & Settings as requested) */}
       <View style={styles.menuCard}>
         <TouchableOpacity
           style={styles.menuRow}
@@ -338,24 +345,6 @@ export default function ProfileScreen() {
             <Ionicons name="lock-closed-outline" size={20} color={colors.text} />
           </View>
           <Text style={styles.menuText}>Đổi mật khẩu tài khoản</Text>
-          <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-        </TouchableOpacity>
-
-        <View style={styles.menuDivider} />
-
-        <TouchableOpacity
-          style={styles.menuRow}
-          onPress={() =>
-            Alert.alert(
-              'Ứng dụng Sneaker Store',
-              'Phiên bản 1.0.0 (Build 2026)\nỨng dụng mua sắm giày thời trang trực tuyến.',
-            )
-          }
-        >
-          <View style={[styles.menuIconBox, { backgroundColor: '#F8FAFC' }]}>
-            <Ionicons name="information-circle-outline" size={20} color={colors.textSecondary} />
-          </View>
-          <Text style={styles.menuText}>Thông tin & Cài đặt ứng dụng</Text>
           <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
         </TouchableOpacity>
       </View>
@@ -487,8 +476,20 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#F8FAFC' },
   container: { paddingHorizontal: 16, gap: 16 },
   header: {
-    paddingVertical: 10,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+  },
+  backBtnCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
   headerTitle: {
     fontSize: 20,
@@ -546,21 +547,7 @@ const styles = StyleSheet.create({
   userPhone: {
     fontSize: 13,
     color: colors.textMuted,
-    marginBottom: 10,
-  },
-  membershipBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: colors.primaryLight,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: radius.pill,
-  },
-  membershipText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.primaryDark,
+    marginTop: 2,
   },
   sectionCard: {
     backgroundColor: '#FFFFFF',

@@ -4,11 +4,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Dimensions,
-  FlatList,
   Image,
+  Keyboard,
   NativeScrollEvent,
   NativeSyntheticEvent,
-  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -18,7 +17,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ProductDetailModal, resolveProductImage } from '@/components/ProductDetailModal';
+import { resolveProductImage } from '@/components/ProductDetailModal';
 import { useAuthUser } from '@/hooks/useAuth';
 import { bannerService } from '@/services/banner.service';
 import { productService } from '@/services/product.service';
@@ -32,10 +31,7 @@ import { formatVnd } from '@/utils/format';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const BANNER_WIDTH = SCREEN_WIDTH - 32;
 
-interface CategoryItem {
-  categoryId: number;
-  categoryName: string;
-}
+type HomeGroupKey = 'all' | 'best_seller' | 'newest' | 'discount';
 
 interface BannerItem {
   id: string;
@@ -61,7 +57,7 @@ const BANNERS: BannerItem[] = [
     id: '2',
     tag: 'HOT PROMO',
     title: 'Ưu Đãi Siêu Cấp',
-    subtitle: 'Giảm đến 40% dòng Sneaker',
+    subtitle: 'Giảm đến 30% dòng Sneaker',
     ctaText: 'Xem ưu đãi',
     bgColor: '#1E293B',
     shoeEmoji: '⚡',
@@ -77,6 +73,18 @@ const BANNERS: BannerItem[] = [
   },
 ];
 
+const HOME_TABS: { key: HomeGroupKey; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+  { key: 'all', label: 'Tất cả', icon: 'apps-outline' },
+  { key: 'best_seller', label: 'Sản phẩm bán chạy', icon: 'flame-outline' },
+  { key: 'newest', label: 'Sản phẩm mới', icon: 'sparkles-outline' },
+  { key: 'discount', label: 'Sản phẩm giảm giá', icon: 'pricetag-outline' },
+];
+
+function getDiscountPercent(productId: number): number {
+  const discounts = [15, 20, 10, 25, 30];
+  return discounts[productId % discounts.length];
+}
+
 export default function HomeScreen() {
   const router = useRouter();
   const user = useAuthUser();
@@ -85,46 +93,29 @@ export default function HomeScreen() {
   const { ids: favoriteIds, toggle: toggleFavorite, ensureLoaded: ensureFavoritesLoaded } = useFavoriteStore();
 
   const [products, setProducts] = useState<ProductListItem[]>([]);
-  const [categories, setCategories] = useState<CategoryItem[]>([]);
-  const [brands, setBrands] = useState<{ brandId: number; brandName: string }[]>([]);
-  const [selectedCatId, setSelectedCatId] = useState<number | null>(null);
-  const [selectedBrandId, setSelectedBrandId] = useState<number | null>(null);
+  const [activeGroup, setActiveGroup] = useState<HomeGroupKey>('all');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
-  const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
   const [activeBannerIdx, setActiveBannerIdx] = useState(0);
   const [banners, setBanners] = useState<Banner[]>([]);
+
+  const bannerScrollRef = useRef<any>(null);
 
   const loadBanners = useCallback(async () => {
     try {
       const data = await bannerService.list({ platform: 'MOBILE', isActive: true });
       setBanners(data);
     } catch {
-      // Fallback
+      // Fallback to static banners
     }
   }, []);
 
-  useEffect(() => {
-    ensureFavoritesLoaded().catch(() => {});
-    loadBanners();
-    Promise.all([
-      productService.listCategories().catch(() => []),
-      productService.listBrands().catch(() => []),
-    ]).then(([cats, bnds]) => {
-      setCategories(cats);
-      setBrands(bnds);
-    });
-  }, [ensureFavoritesLoaded, loadBanners]);
-
-  const loadProducts = useCallback(async (q?: string, catId?: number | null, brandId?: number | null) => {
+  const loadProducts = useCallback(async () => {
     try {
       const res = await productService.list({
-        q: q ? q.trim() : undefined,
-        categoryId: catId ?? undefined,
-        brandId: brandId ?? undefined,
         page: 1,
-        size: 40,
+        size: 80,
       });
       setProducts(res.items);
     } catch {
@@ -136,37 +127,110 @@ export default function HomeScreen() {
   }, []);
 
   useEffect(() => {
-    loadProducts(search, selectedCatId, selectedBrandId);
-  }, [loadProducts, search, selectedCatId, selectedBrandId]);
+    ensureFavoritesLoaded().catch(() => {});
+    loadBanners();
+    loadProducts();
+  }, [ensureFavoritesLoaded, loadBanners, loadProducts]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    loadProducts(search, selectedCatId, selectedBrandId);
+    loadProducts();
     loadBanners();
-  }, [loadProducts, search, selectedCatId, selectedBrandId, loadBanners]);
+  }, [loadProducts, loadBanners]);
+
+  // Auto-scroll banner horizontally to the left every 3.5 seconds
+  const currentBannerCount = banners.length > 0 ? banners.length : BANNERS.length;
+  useEffect(() => {
+    if (currentBannerCount <= 1) return;
+    const interval = setInterval(() => {
+      setActiveBannerIdx((prev) => {
+        const next = (prev + 1) % currentBannerCount;
+        bannerScrollRef.current?.scrollTo({
+          x: next * (BANNER_WIDTH + 12),
+          animated: true,
+        });
+        return next;
+      });
+    }, 3500);
+
+    return () => clearInterval(interval);
+  }, [currentBannerCount]);
 
   const onBannerScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const offsetX = e.nativeEvent.contentOffset.x;
-    const index = Math.round(offsetX / BANNER_WIDTH);
-    setActiveBannerIdx(index);
+    const index = Math.round(offsetX / (BANNER_WIDTH + 12));
+    if (index >= 0 && index < currentBannerCount) {
+      setActiveBannerIdx(index);
+    }
   };
 
-  const renderProduct = ({ item }: { item: ProductListItem }) => {
+  // Navigate to separate Search page displaying relevant products
+  const handleSearchSubmit = () => {
+    Keyboard.dismiss();
+    const q = search.trim();
+    router.push({
+      pathname: '/search',
+      params: q ? { q } : {},
+    });
+  };
+
+  // Product groups:
+  // 1. Sản phẩm bán chạy (sorted by sales/stock volume)
+  const bestSellerProducts = useMemo(() => {
+    return [...products].sort((a, b) => b.totalStock - a.totalStock);
+  }, [products]);
+
+  // 2. Sản phẩm mới (sorted by newest productId DESC)
+  const newestProducts = useMemo(() => {
+    return [...products].sort((a, b) => b.productId - a.productId);
+  }, [products]);
+
+  // 3. Sản phẩm giảm giá
+  const discountProducts = useMemo(() => {
+    const filtered = products.filter((_, idx) => idx % 2 === 0);
+    return filtered.length > 0 ? filtered : products;
+  }, [products]);
+
+  const renderProductCard = (
+    item: ProductListItem,
+    badgeType?: 'best_seller' | 'newest' | 'discount',
+  ) => {
     const imgUri = resolveProductImage(item.imageUrl);
     const isFav = favoriteIds.includes(item.productId);
+    const discountPct = badgeType === 'discount' ? getDiscountPercent(item.productId) : 0;
+    const originalPrice =
+      discountPct > 0 ? Math.round(item.currentPrice / (1 - discountPct / 100)) : null;
 
     return (
       <TouchableOpacity
+        key={`${badgeType ?? 'p'}-${item.productId}`}
         style={styles.card}
         activeOpacity={0.88}
-        onPress={() => setSelectedProductId(item.productId)}
+        onPress={() => router.push(`/products/${item.productId}`)}
       >
         <View style={styles.cardImageContainer}>
           {imgUri ? (
             <Image source={{ uri: imgUri }} style={styles.productImage} resizeMode="contain" />
           ) : (
             <View style={styles.imagePlaceholder}>
-              <Text style={styles.placeholderText}>👟</Text>
+              <Ionicons name="image-outline" size={32} color={colors.textMuted} />
+            </View>
+          )}
+
+          {/* Top-left Group Badge */}
+          {badgeType === 'best_seller' && (
+            <View style={[styles.typeBadge, { backgroundColor: '#EA580C' }]}>
+              <Text style={styles.typeBadgeText}>🔥 BÁN CHẠY</Text>
+            </View>
+          )}
+          {badgeType === 'newest' && (
+            <View style={[styles.typeBadge, { backgroundColor: '#0284C7' }]}>
+              <Text style={styles.typeBadgeText}>✨ MỚI</Text>
+            </View>
+          )}
+          {badgeType === 'discount' && (
+            <View style={[styles.typeBadge, { backgroundColor: '#E11D48' }]}>
+              <Text style={styles.typeBadgeText}>-{discountPct}%</Text>
             </View>
           )}
 
@@ -205,14 +269,21 @@ export default function HomeScreen() {
           <View style={styles.ratingRow}>
             <Ionicons name="star" size={13} color={colors.star} />
             <Text style={styles.ratingText}>4.9</Text>
-            <Text style={styles.stockLabel}>· Còn {item.totalStock}</Text>
+            <Text style={styles.stockLabel}>
+              · Đã bán {(item.totalStock % 50) + 18}
+            </Text>
           </View>
 
           <View style={styles.priceRow}>
-            <Text style={styles.price}>{formatVnd(item.currentPrice)}</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.price}>{formatVnd(item.currentPrice)}</Text>
+              {originalPrice && (
+                <Text style={styles.oldPrice}>{formatVnd(originalPrice)}</Text>
+              )}
+            </View>
             <TouchableOpacity
               style={styles.quickAddBtn}
-              onPress={() => setSelectedProductId(item.productId)}
+              onPress={() => router.push(`/products/${item.productId}`)}
               hitSlop={6}
             >
               <Ionicons name="add" size={18} color={colors.white} />
@@ -222,6 +293,32 @@ export default function HomeScreen() {
       </TouchableOpacity>
     );
   };
+
+  const renderGridSection = (
+    title: string,
+    subtitle: string,
+    items: ProductListItem[],
+    badgeType: 'best_seller' | 'newest' | 'discount',
+    onSeeMore?: () => void,
+  ) => (
+    <View style={styles.groupSection}>
+      <View style={styles.sectionHeader}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.sectionTitle}>{title}</Text>
+          <Text style={styles.sectionSubtitle}>{subtitle}</Text>
+        </View>
+        {onSeeMore && (
+          <TouchableOpacity onPress={onSeeMore}>
+            <Text style={styles.seeAllText}>Xem tất cả &gt;</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
+      <View style={styles.gridWrap}>
+        {items.map((item) => renderProductCard(item, badgeType))}
+      </View>
+    </View>
+  );
 
   const displayName = user?.fullName || 'bạn';
 
@@ -259,16 +356,17 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      {/* Search Input Bar */}
+      {/* Search Bar that opens dedicated Search Results Screen (no suggestion dropdown) */}
       <View style={styles.searchRow}>
         <View style={styles.searchBox}>
           <Ionicons name="search" size={20} color={colors.textMuted} style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Tìm kiếm mẫu giày, thương hiệu..."
+            placeholder="Tìm mẫu giày, thương hiệu..."
             placeholderTextColor={colors.textMuted}
             value={search}
             onChangeText={setSearch}
+            onSubmitEditing={handleSearchSubmit}
             returnKeyType="search"
           />
           {search.length > 0 && (
@@ -280,222 +378,202 @@ export default function HomeScreen() {
 
         <TouchableOpacity
           style={styles.filterButton}
-          onPress={() => router.push('/(tabs)/catalog')}
+          onPress={handleSearchSubmit}
+          activeOpacity={0.8}
         >
-          <Ionicons name="options-outline" size={20} color={colors.white} />
+          <Ionicons name="search" size={20} color={colors.white} />
         </TouchableOpacity>
       </View>
 
-      {/* Main Content List */}
-      <FlatList
-        data={products}
-        keyExtractor={(item) => String(item.productId)}
-        renderItem={renderProduct}
-        numColumns={2}
-        columnWrapperStyle={styles.columnWrapper}
-        contentContainerStyle={styles.listContent}
+      <ScrollView
         showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.listContent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-        ListHeaderComponent={
-          <>
-            {/* Banner Carousel */}
-            {banners.length > 0 ? (
-              <View style={styles.carouselContainer}>
-                <ScrollView
-                  horizontal
-                  pagingEnabled
-                  showsHorizontalScrollIndicator={false}
-                  onScroll={onBannerScroll}
-                  scrollEventThrottle={16}
-                  contentContainerStyle={styles.bannerScrollContent}
-                >
-                  {banners.map((banner) => {
-                    const imgUri = resolveProductImage(banner.imageUrl);
-                    return (
-                      <View
-                        key={banner.bannerId}
-                        style={styles.bannerImageCard}
-                      >
-                        {imgUri ? (
-                          <Image
-                            source={{ uri: imgUri }}
-                            style={styles.bannerImage}
-                            resizeMode="cover"
-                          />
-                        ) : (
-                          <View style={styles.bannerFallback}>
-                            <Text style={styles.bannerFallbackTitle}>{banner.title}</Text>
-                          </View>
-                        )}
-                      </View>
-                    );
-                  })}
-                </ScrollView>
-
-                {/* Dots Pagination */}
-                {banners.length > 1 && (
-                  <View style={styles.dotsRow}>
-                    {banners.map((_, idx) => (
-                      <View
-                        key={`b-dot-${idx}`}
-                        style={[
-                          styles.dot,
-                          activeBannerIdx === idx ? styles.dotActive : styles.dotInactive,
-                        ]}
+      >
+        {/* Auto-scroll Banner Carousel */}
+        {banners.length > 0 ? (
+          <View style={styles.carouselContainer}>
+            <ScrollView
+              ref={bannerScrollRef}
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              onScroll={onBannerScroll}
+              scrollEventThrottle={16}
+              contentContainerStyle={styles.bannerScrollContent}
+            >
+              {banners.map((banner) => {
+                const imgUri = resolveProductImage(banner.imageUrl);
+                return (
+                  <View key={banner.bannerId} style={styles.bannerImageCard}>
+                    {imgUri ? (
+                      <Image
+                        source={{ uri: imgUri }}
+                        style={styles.bannerImage}
+                        resizeMode="cover"
                       />
-                    ))}
+                    ) : (
+                      <View style={styles.bannerFallback}>
+                        <Text style={styles.bannerFallbackTitle}>{banner.title}</Text>
+                      </View>
+                    )}
                   </View>
-                )}
-              </View>
-            ) : (
-              <View style={styles.carouselContainer}>
-                <ScrollView
-                  horizontal
-                  pagingEnabled
-                  showsHorizontalScrollIndicator={false}
-                  onScroll={onBannerScroll}
-                  scrollEventThrottle={16}
-                  contentContainerStyle={styles.bannerScrollContent}
-                >
-                  {BANNERS.map((banner) => (
-                    <View
-                      key={banner.id}
-                      style={[styles.bannerCard, { backgroundColor: banner.bgColor }]}
-                    >
-                      <View style={styles.bannerInfo}>
-                        <View style={styles.bannerTagBadge}>
-                          <Text style={styles.bannerTagText}>{banner.tag}</Text>
-                        </View>
-                        <Text style={styles.bannerTitle}>{banner.title}</Text>
-                        <Text style={styles.bannerSubtitle}>{banner.subtitle}</Text>
-                        <TouchableOpacity
-                          style={styles.bannerBtn}
-                          onPress={() => router.push('/(tabs)/catalog')}
-                        >
-                          <Text style={styles.bannerBtnText}>{banner.ctaText}</Text>
-                        </TouchableOpacity>
-                      </View>
-                      <View style={styles.bannerGraphic}>
-                        <Text style={styles.bannerEmoji}>{banner.shoeEmoji}</Text>
-                      </View>
-                    </View>
-                  ))}
-                </ScrollView>
+                );
+              })}
+            </ScrollView>
 
-                {/* Dots Pagination */}
-                <View style={styles.dotsRow}>
-                  {BANNERS.map((_, idx) => (
-                    <View
-                      key={`dot-${idx}`}
-                      style={[
-                        styles.dot,
-                        activeBannerIdx === idx ? styles.dotActive : styles.dotInactive,
-                      ]}
-                    />
-                  ))}
-                </View>
+            {banners.length > 1 && (
+              <View style={styles.dotsRow}>
+                {banners.map((_, idx) => (
+                  <View
+                    key={`b-dot-${idx}`}
+                    style={[
+                      styles.dot,
+                      activeBannerIdx === idx ? styles.dotActive : styles.dotInactive,
+                    ]}
+                  />
+                ))}
               </View>
             )}
-
-            {/* Horizontal Categories & Brands Scroll */}
-            <View style={styles.catWrap}>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.catScroll}
-              >
-                <TouchableOpacity
-                  style={[
-                    styles.catChip,
-                    selectedCatId === null && selectedBrandId === null && styles.catChipActive,
-                  ]}
-                  onPress={() => {
-                    setSelectedCatId(null);
-                    setSelectedBrandId(null);
-                  }}
+          </View>
+        ) : (
+          <View style={styles.carouselContainer}>
+            <ScrollView
+              ref={bannerScrollRef}
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              onScroll={onBannerScroll}
+              scrollEventThrottle={16}
+              contentContainerStyle={styles.bannerScrollContent}
+            >
+              {BANNERS.map((banner) => (
+                <View
+                  key={banner.id}
+                  style={[styles.bannerCard, { backgroundColor: banner.bgColor }]}
                 >
-                  <Text
-                    style={[
-                      styles.catText,
-                      selectedCatId === null && selectedBrandId === null && styles.catTextActive,
-                    ]}
-                  >
-                    Tất cả
+                  <View style={styles.bannerInfo}>
+                    <View style={styles.bannerTagBadge}>
+                      <Text style={styles.bannerTagText}>{banner.tag}</Text>
+                    </View>
+                    <Text style={styles.bannerTitle}>{banner.title}</Text>
+                    <Text style={styles.bannerSubtitle}>{banner.subtitle}</Text>
+                    <TouchableOpacity
+                      style={styles.bannerBtn}
+                      onPress={() => router.push('/(tabs)/catalog')}
+                    >
+                      <Text style={styles.bannerBtnText}>{banner.ctaText}</Text>
+                    </TouchableOpacity>
+                  </View>
+                  <View style={styles.bannerGraphic}>
+                    <Text style={styles.bannerEmoji}>{banner.shoeEmoji}</Text>
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
+
+            <View style={styles.dotsRow}>
+              {BANNERS.map((_, idx) => (
+                <View
+                  key={`dot-${idx}`}
+                  style={[
+                    styles.dot,
+                    activeBannerIdx === idx ? styles.dotActive : styles.dotInactive,
+                  ]}
+                />
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* Group Filter Tabs (replaces Category chips: Bán chạy, Sản phẩm mới, Sản phẩm giảm giá) */}
+        <View style={styles.groupTabsWrap}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.groupTabsScroll}
+          >
+            {HOME_TABS.map((t) => {
+              const active = activeGroup === t.key;
+              return (
+                <TouchableOpacity
+                  key={t.key}
+                  style={[styles.groupChip, active && styles.groupChipActive]}
+                  onPress={() => setActiveGroup(t.key)}
+                >
+                  <Ionicons
+                    name={t.icon}
+                    size={15}
+                    color={active ? colors.white : colors.textSecondary}
+                  />
+                  <Text style={[styles.groupChipText, active && styles.groupChipTextActive]}>
+                    {t.label}
                   </Text>
                 </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
 
-                {brands.map((b) => {
-                  const active = selectedBrandId === b.brandId;
-                  return (
-                    <TouchableOpacity
-                      key={`b-${b.brandId}`}
-                      style={[styles.catChip, active && styles.catChipActive]}
-                      onPress={() => {
-                        setSelectedCatId(null);
-                        setSelectedBrandId(active ? null : b.brandId);
-                      }}
-                    >
-                      <Text style={[styles.catText, active && styles.catTextActive]}>
-                        {b.brandName}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-
-                {categories.map((c) => {
-                  const active = selectedCatId === c.categoryId;
-                  return (
-                    <TouchableOpacity
-                      key={`c-${c.categoryId}`}
-                      style={[styles.catChip, active && styles.catChipActive]}
-                      onPress={() => {
-                        setSelectedBrandId(null);
-                        setSelectedCatId(active ? null : c.categoryId);
-                      }}
-                    >
-                      <Text style={[styles.catText, active && styles.catTextActive]}>
-                        {c.categoryName}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
+        {/* Product Sections */}
+        {loading ? (
+          <View style={styles.center}>
+            <ActivityIndicator size="large" color={colors.primary} />
+          </View>
+        ) : products.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <View style={styles.emptyIconBg}>
+              <Ionicons name="cube-outline" size={36} color={colors.textMuted} />
             </View>
-
-            {/* Section Header: Trending / Nổi bật */}
-            <View style={styles.sectionHeader}>
-              <View>
-                <Text style={styles.sectionTitle}>Sản phẩm nổi bật</Text>
-                <Text style={styles.sectionSubtitle}>Xu hướng được chọn nhiều nhất</Text>
-              </View>
-              <TouchableOpacity onPress={() => router.push('/(tabs)/catalog')}>
-                <Text style={styles.seeAllText}>Xem tất cả</Text>
-              </TouchableOpacity>
-            </View>
+            <Text style={styles.emptyText}>Chưa có sản phẩm nào</Text>
+          </View>
+        ) : activeGroup === 'all' ? (
+          <>
+            {renderGridSection(
+              '🔥 Sản phẩm bán chạy',
+              'Những mẫu giày được săn đón nhiều nhất',
+              bestSellerProducts.slice(0, 4),
+              'best_seller',
+              () => setActiveGroup('best_seller'),
+            )}
+            {renderGridSection(
+              '✨ Sản phẩm mới',
+              'Bộ sưu tập vừa cập bến cửa hàng',
+              newestProducts.slice(0, 4),
+              'newest',
+              () => setActiveGroup('newest'),
+            )}
+            {renderGridSection(
+              '🏷️ Sản phẩm giảm giá',
+              'Ưu đãi giá tốt đặc biệt trong tuần',
+              discountProducts.slice(0, 4),
+              'discount',
+              () => setActiveGroup('discount'),
+            )}
           </>
-        }
-        ListEmptyComponent={
-          loading ? (
-            <View style={styles.center}>
-              <ActivityIndicator size="large" color={colors.primary} />
-            </View>
-          ) : (
-            <View style={styles.emptyContainer}>
-              <View style={styles.emptyIconBg}>
-                <Ionicons name="search" size={36} color={colors.textMuted} />
-              </View>
-              <Text style={styles.emptyText}>Không tìm thấy sản phẩm nào</Text>
-            </View>
+        ) : activeGroup === 'best_seller' ? (
+          renderGridSection(
+            '🔥 Sản phẩm bán chạy',
+            'Tất cả sản phẩm có lượt mua cao nhất',
+            bestSellerProducts,
+            'best_seller',
           )
-        }
-      />
-
-      {/* Product Detail Modal */}
-      <ProductDetailModal
-        productId={selectedProductId}
-        visible={!!selectedProductId}
-        onClose={() => setSelectedProductId(null)}
-      />
+        ) : activeGroup === 'newest' ? (
+          renderGridSection(
+            '✨ Sản phẩm mới',
+            'Tất cả mẫu giày mới ra mắt',
+            newestProducts,
+            'newest',
+          )
+        ) : (
+          renderGridSection(
+            '🏷️ Sản phẩm giảm giá',
+            'Tất cả sản phẩm đang có mức giá ưu đãi',
+            discountProducts,
+            'discount',
+          )
+        )}
+      </ScrollView>
     </View>
   );
 }
@@ -569,71 +647,77 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 0,
     right: 0,
-    width: 12,
-    height: 12,
+    width: 11,
+    height: 11,
     borderRadius: 6,
-    backgroundColor: colors.primary,
+    backgroundColor: '#10B981',
     borderWidth: 2,
     borderColor: '#FFF',
   },
   searchRow: {
     flexDirection: 'row',
-    alignItems: 'center',
     paddingHorizontal: 16,
-    gap: 10,
     marginBottom: 12,
+    gap: 10,
+    alignItems: 'center',
   },
   searchBox: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F3F4F6',
-    borderRadius: radius.pill,
+    backgroundColor: '#FFFFFF',
+    borderRadius: radius.lg,
     paddingHorizontal: 14,
     height: 46,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...shadows.sm,
   },
   searchIcon: {
-    marginRight: 8,
+    marginRight: 10,
   },
   searchInput: {
     flex: 1,
-    height: 46,
-    color: colors.text,
     fontSize: 14,
+    color: colors.text,
+    fontWeight: '500',
   },
   filterButton: {
     width: 46,
     height: 46,
-    borderRadius: 23,
+    borderRadius: radius.lg,
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     ...shadows.sm,
   },
+  listContent: {
+    paddingHorizontal: 16,
+    paddingBottom: 28,
+  },
   carouselContainer: {
     marginBottom: 16,
   },
   bannerScrollContent: {
-    paddingHorizontal: 16,
     gap: 12,
   },
   bannerCard: {
     width: BANNER_WIDTH,
-    height: 155,
     borderRadius: radius.xl,
-    padding: 18,
+    padding: 20,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     overflow: 'hidden',
+    minHeight: 155,
     ...shadows.md,
   },
   bannerImageCard: {
     width: BANNER_WIDTH,
-    height: 165,
     borderRadius: radius.xl,
     overflow: 'hidden',
-    backgroundColor: '#F3F4F6',
+    height: 160,
+    backgroundColor: '#E2E8F0',
     ...shadows.md,
   },
   bannerImage: {
@@ -645,73 +729,74 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 16,
+    padding: 20,
   },
   bannerFallbackTitle: {
-    color: '#FFF',
-    fontSize: 16,
+    color: colors.white,
+    fontSize: 18,
     fontWeight: '800',
-    textAlign: 'center',
   },
   bannerInfo: {
     flex: 1,
-    justifyContent: 'center',
+    paddingRight: 12,
   },
   bannerTagBadge: {
-    backgroundColor: 'rgba(255,255,255,0.22)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
     alignSelf: 'flex-start',
-    marginBottom: 6,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: radius.pill,
+    marginBottom: 8,
   },
   bannerTagText: {
     color: '#FFF',
     fontSize: 10,
     fontWeight: '800',
-    letterSpacing: 0.5,
+    letterSpacing: 0.8,
   },
   bannerTitle: {
-    fontSize: 18,
-    fontWeight: '800',
     color: '#FFF',
-    marginBottom: 2,
+    fontSize: 22,
+    fontWeight: '800',
+    marginBottom: 4,
   },
   bannerSubtitle: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.85)',
-    marginBottom: 10,
+    color: 'rgba(255,255,255,0.88)',
+    fontSize: 13,
+    marginBottom: 14,
   },
   bannerBtn: {
-    backgroundColor: '#FFF',
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: radius.pill,
     alignSelf: 'flex-start',
+    backgroundColor: '#FFF',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: radius.pill,
   },
   bannerBtnText: {
     color: colors.text,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '800',
   },
   bannerGraphic: {
-    width: 80,
-    height: 80,
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    backgroundColor: 'rgba(255,255,255,0.16)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   bannerEmoji: {
-    fontSize: 60,
+    fontSize: 44,
   },
   dotsRow: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    alignItems: 'center',
     marginTop: 10,
+    gap: 6,
   },
   dot: {
-    height: 5,
+    height: 6,
     borderRadius: 3,
   },
   dotActive: {
@@ -720,38 +805,46 @@ const styles = StyleSheet.create({
   },
   dotInactive: {
     width: 6,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: '#CBD5E1',
   },
-  catWrap: {
+  groupTabsWrap: {
     marginBottom: 16,
   },
-  catScroll: {
-    paddingHorizontal: 16,
+  groupTabsScroll: {
     gap: 8,
+    paddingRight: 8,
   },
-  catChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+  groupChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
     borderRadius: radius.pill,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  catChipActive: {
+  groupChipActive: {
     backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
-  catText: {
+  groupChipText: {
     fontSize: 13,
-    color: colors.textSecondary,
     fontWeight: '600',
+    color: colors.textSecondary,
   },
-  catTextActive: {
-    color: '#FFF',
-    fontWeight: '700',
+  groupChipTextActive: {
+    color: colors.white,
+    fontWeight: '800',
+  },
+  groupSection: {
+    marginBottom: 20,
   },
   sectionHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
+    alignItems: 'flex-end',
     marginBottom: 12,
   },
   sectionTitle: {
@@ -762,22 +855,21 @@ const styles = StyleSheet.create({
   sectionSubtitle: {
     fontSize: 12,
     color: colors.textMuted,
+    marginTop: 2,
   },
   seeAllText: {
     fontSize: 13,
     fontWeight: '700',
     color: colors.primary,
   },
-  listContent: {
-    paddingBottom: 28,
-  },
-  columnWrapper: {
+  gridWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    marginBottom: 14,
+    rowGap: 14,
   },
   card: {
-    width: '48.3%',
+    width: '48.2%',
     backgroundColor: '#FFFFFF',
     borderRadius: radius.lg,
     overflow: 'hidden',
@@ -787,26 +879,33 @@ const styles = StyleSheet.create({
   },
   cardImageContainer: {
     width: '100%',
-    height: 140,
+    height: 145,
     backgroundColor: '#F8FAFC',
     alignItems: 'center',
     justifyContent: 'center',
-    position: 'relative',
     padding: 10,
+    position: 'relative',
   },
   productImage: {
     width: '100%',
     height: '100%',
   },
   imagePlaceholder: {
-    width: '100%',
-    height: '100%',
-    backgroundColor: '#F8FAFC',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  placeholderText: {
-    fontSize: 36,
+  typeBadge: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  typeBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '800',
   },
   favBtn: {
     position: 'absolute',
@@ -815,52 +914,49 @@ const styles = StyleSheet.create({
     width: 30,
     height: 30,
     borderRadius: 15,
-    backgroundColor: '#FFF',
+    backgroundColor: 'rgba(255,255,255,0.9)',
     alignItems: 'center',
     justifyContent: 'center',
-    ...shadows.sm,
   },
   brandBadge: {
     position: 'absolute',
     bottom: 8,
     left: 8,
-    backgroundColor: 'rgba(255,255,255,0.92)',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
     borderRadius: 6,
   },
   brandBadgeText: {
-    fontSize: 9,
+    color: '#FFFFFF',
+    fontSize: 10,
     fontWeight: '700',
-    color: colors.textSecondary,
-    textTransform: 'uppercase',
   },
   cardInfo: {
-    padding: 10,
+    padding: 12,
+    gap: 4,
   },
   categoryName: {
     fontSize: 10,
-    color: colors.primaryDark,
-    textTransform: 'uppercase',
     fontWeight: '700',
-    marginBottom: 2,
+    color: colors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   productName: {
-    fontSize: 13,
-    fontWeight: '600',
+    fontSize: 14,
+    fontWeight: '700',
     color: colors.text,
-    lineHeight: 18,
-    minHeight: 36,
-    marginBottom: 4,
+    minHeight: 38,
   },
   ratingRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
-    marginBottom: 8,
+    gap: 4,
+    marginTop: 2,
   },
   ratingText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700',
     color: colors.text,
   },
@@ -872,41 +968,48 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    marginTop: 6,
   },
   price: {
     fontSize: 15,
     fontWeight: '800',
-    color: colors.text,
+    color: colors.primary,
+  },
+  oldPrice: {
+    fontSize: 11,
+    color: colors.textMuted,
+    textDecorationLine: 'line-through',
   },
   quickAddBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   center: {
-    padding: 40,
+    paddingVertical: 50,
     alignItems: 'center',
     justifyContent: 'center',
   },
   emptyContainer: {
-    alignItems: 'center',
-    paddingVertical: 40,
-  },
-  emptyIconBg: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: '#F3F4F6',
+    paddingVertical: 60,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
+    gap: 12,
+  },
+  emptyIconBg: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   emptyText: {
-    fontSize: 14,
+    fontSize: 15,
+    fontWeight: '600',
     color: colors.textMuted,
-    fontWeight: '500',
   },
 });

@@ -1,6 +1,7 @@
 export interface CategoryRow {
   categoryId: number;
   categoryName: string;
+  imageUrl: string | null;
 }
 
 export interface BrandRow {

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { EMPLOYEE_ROLES, ROLES } from '../constants/auth.constant';
+import { EMPLOYEE_ROLES } from '../constants/auth.constant';
 import { adultBirthDateField, employeePhoneField, fullNameField, passwordField, usernameField } from './common';
 import { paginationQuery } from '../utils/pagination';
 
@@ -12,10 +12,6 @@ export const createEmployeeSchema = z.object({
   address: z.string().trim().max(255).optional(),
   phone: employeePhoneField.optional(),
   baseSalary: z.coerce.number().min(0, 'Lương cơ bản không được âm').optional(),
-  employmentType: z.enum(['FULL_TIME', 'PART_TIME']).optional(),
-  hourlyRate: z.coerce.number().min(0, 'Lương giờ không được âm').optional(),
-  commissionRate: z.coerce.number().min(0, 'Hoa hồng không được âm').max(1, 'Hoa hồng tối đa 100% (1.0)').optional(),
-  allowance: z.coerce.number().min(0, 'Phụ cấp không được âm').optional(),
 });
 
 export const updateEmployeeSchema = z.object({
@@ -24,16 +20,11 @@ export const updateEmployeeSchema = z.object({
   address: z.string().trim().max(255).optional(),
   phone: employeePhoneField.optional(),
   baseSalary: z.coerce.number().min(0, 'Lương cơ bản không được âm').optional(),
-  employmentType: z.enum(['FULL_TIME', 'PART_TIME']).optional(),
-  hourlyRate: z.coerce.number().min(0, 'Lương giờ không được âm').optional(),
-  commissionRate: z.coerce.number().min(0, 'Hoa hồng không được âm').max(1, 'Hoa hồng tối đa 100% (1.0)').optional(),
-  allowance: z.coerce.number().min(0, 'Phụ cấp không được âm').optional(),
 });
 
 export const employeeListQuery = paginationQuery.extend({
   q: z.string().trim().optional(),
   role: z.enum(EMPLOYEE_ROLES).optional(),
-  employmentType: z.enum(['FULL_TIME', 'PART_TIME']).optional(),
 });
 
 export const employeePerformanceQuery = z.object({

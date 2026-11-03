@@ -54,37 +54,16 @@ export function EmployeeDetailView({ basePath }: Props) {
 
       <div className="grid-2">
         <div className="card">
-          <h3>Thông tin cá nhân & công việc</h3>
+          <h3>Thông tin cá nhân</h3>
           <dl className="kv">
             <dt>Họ và tên</dt>
             <dd><strong>{employee.fullName}</strong></dd>
-            <dt>Hình thức làm việc</dt>
-            <dd>
-              <span className={`badge ${employee.employmentType === 'PART_TIME' ? 'badge--info' : 'badge--ok'}`}>
-                {employee.employmentType === 'PART_TIME' ? 'Part-time (Bán thời gian)' : 'Full-time (Toàn thời gian)'}
-              </span>
-            </dd>
             <dt>Số điện thoại</dt>
             <dd>{employee.phone || '—'}</dd>
             <dt>Ngày sinh</dt>
             <dd>{formatYmdVn(employee.dateOfBirth)}</dd>
             <dt>Địa chỉ</dt>
             <dd>{employee.address || '—'}</dd>
-            {employee.employmentType === 'PART_TIME' ? (
-              <>
-                <dt>Lương theo giờ</dt>
-                <dd><strong style={{ color: '#059669' }}>{formatVnd(employee.hourlyRate)}</strong> / giờ</dd>
-              </>
-            ) : (
-              <>
-                <dt>Lương cơ bản</dt>
-                <dd><strong style={{ color: '#059669' }}>{formatVnd(employee.baseSalary)}</strong> / tháng</dd>
-                <dt>Phụ cấp tháng</dt>
-                <dd>{employee.allowance > 0 ? formatVnd(employee.allowance) : '0 đ'}</dd>
-              </>
-            )}
-            <dt>Hoa hồng doanh số</dt>
-            <dd><strong>{Number((employee.commissionRate * 100).toFixed(1))}%</strong></dd>
           </dl>
         </div>
 

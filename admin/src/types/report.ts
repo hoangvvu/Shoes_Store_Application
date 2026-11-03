@@ -78,8 +78,68 @@ export interface ReturnRate {
   ratePercent: number;
 }
 
+export interface LocationReport {
+  province: string;
+  orders: number;
+  revenue: number;
+  percentage: number;
+}
+
+export interface FinancialMatrixRow {
+  label: string;
+  q1: number;
+  q2: number;
+  q3: number;
+  q4: number;
+  total: number;
+}
+
+export interface FinancialMatrixReport {
+  year: number;
+  rows: FinancialMatrixRow[];
+}
+
+export interface EmployeeMatrixRow {
+  employeeId: number;
+  fullName: string;
+  q1: number;
+  q2: number;
+  q3: number;
+  q4: number;
+  total: number;
+}
+
+export interface CustomerMatrixRow {
+  customerId: number;
+  fullName: string;
+  phone: string | null;
+  years: { [year: string]: number };
+  total: number;
+}
+
+export interface CustomerMatrixReport {
+  years: number[];
+  rows: CustomerMatrixRow[];
+}
+
+export interface ProductMatrixRow {
+  productId: number;
+  productName: string;
+  imageUrl: string | null;
+  q1: number;
+  q2: number;
+  q3: number;
+  q4: number;
+  total: number;
+}
+
 export type ReportKey =
   | 'revenue'
+  | 'financial-matrix'
+  | 'locations'
+  | 'employee-matrix'
+  | 'customer-matrix'
+  | 'product-matrix'
   | 'top-products'
   | 'orders'
   | 'stock'

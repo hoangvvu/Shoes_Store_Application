@@ -11,6 +11,12 @@ export interface ProductListParams {
   size?: number;
 }
 
+export interface CategoryItem {
+  categoryId: number;
+  categoryName: string;
+  imageUrl?: string | null;
+}
+
 export interface BrandItem {
   brandId: number;
   brandName: string;
@@ -39,8 +45,8 @@ export const productService = {
     return data;
   },
 
-  async listCategories(): Promise<{ categoryId: number; categoryName: string }[]> {
-    const { data } = await api.get<{ categoryId: number; categoryName: string }[]>('/categories');
+  async listCategories(): Promise<CategoryItem[]> {
+    const { data } = await api.get<CategoryItem[]>('/categories');
     return data;
   },
 
@@ -59,4 +65,3 @@ export const productService = {
     return data;
   },
 };
-

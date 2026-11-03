@@ -1,4 +1,5 @@
-import { type FormEvent, useState, useMemo } from 'react';
+import { type ChangeEvent, type FormEvent, useRef, useState, useMemo } from 'react';
+import { api } from '../../services/api';
 import { catalogService } from '../../services/product.service';
 import type { Brand, Category, Color, Size } from '../../types/product';
 import { useSearchFilters } from '../../hooks/useSearchFilters';
@@ -8,7 +9,7 @@ import { validateHex } from '../../utils/validators';
 import { Modal } from '../common/Modal';
 import { PageHeader } from '../common/PageHeader';
 import { SearchBar } from '../common/SearchBar';
-import { ColorDot, LoadState, Tabs } from '../common/Widgets';
+import { ColorDot, LoadState, Tabs, Thumb } from '../common/Widgets';
 
 type TabKey = 'categories' | 'brands' | 'sizes' | 'colors';
 
@@ -175,6 +176,7 @@ export function CatalogManager() {
                   <thead>
                     <tr>
                       <th style={{ width: 80 }}>Mã</th>
+                      <th style={{ width: 90 }}>Hình ảnh</th>
                       <th>Tên danh mục</th>
                       <th className="actions-col" />
                     </tr>
@@ -183,6 +185,9 @@ export function CatalogManager() {
                     {filteredCategories.map((c: Category) => (
                       <tr key={c.categoryId}>
                         <td>#{c.categoryId}</td>
+                        <td>
+                          <Thumb src={c.imageUrl ?? null} alt={c.categoryName} />
+                        </td>
                         <td><strong>{c.categoryName}</strong></td>
                         <td className="actions">
                           <button className="btn btn--ghost" onClick={() => setModal({ kind: 'categories', item: c })}>Sửa</button>
@@ -336,14 +341,55 @@ interface ItemModalProps {
 
 function CatalogItemModal({ kind, item, onClose, onSaved }: ItemModalProps) {
   const isEdit = !!item;
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [name, setName] = useState(item?.categoryName || item?.brandName || item?.sizeLabel || item?.colorName || '');
+  const [imageUrl, setImageUrl] = useState<string>(item?.imageUrl || '');
   const [sortOrder, setSortOrder] = useState(String(item?.sortOrder ?? 0));
   const [hexCode, setHexCode] = useState(item?.hexCode || '#000000');
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const title = `${isEdit ? 'Sửa' : 'Thêm'} ${kind === 'categories' ? 'danh mục' : kind === 'brands' ? 'thương hiệu' : kind === 'sizes' ? 'kích cỡ (size)' : 'màu sắc'
-    }`;
+  const title = `${isEdit ? 'Sửa' : 'Thêm'} ${
+    kind === 'categories'
+      ? 'danh mục'
+      : kind === 'brands'
+        ? 'thương hiệu'
+        : kind === 'sizes'
+          ? 'kích cỡ (size)'
+          : 'màu sắc'
+  }`;
+
+  async function handleFileUpload(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      setError(`Tệp ${file.name} vượt quá dung lượng 5MB`);
+      return;
+    }
+
+    setUploading(true);
+    setError('');
+    try {
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = () => reject(new Error('Lỗi đọc tệp từ thiết bị'));
+        reader.readAsDataURL(file);
+      });
+
+      const { data } = await api.post<{ url: string }>('/uploads', {
+        filename: file.name,
+        data: dataUrl,
+      });
+      setImageUrl(data.url);
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  }
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -358,7 +404,7 @@ function CatalogItemModal({ kind, item, onClose, onSaved }: ItemModalProps) {
       let payload: any = {};
       let id = 0;
       if (kind === 'categories') {
-        payload = { categoryName: name.trim() };
+        payload = { categoryName: name.trim(), imageUrl: imageUrl.trim() || null };
         id = item?.categoryId;
       } else if (kind === 'brands') {
         payload = { brandName: name.trim() };
@@ -391,6 +437,50 @@ function CatalogItemModal({ kind, item, onClose, onSaved }: ItemModalProps) {
           <span>{kind === 'sizes' ? 'Nhãn kích cỡ (ví dụ 39, 40, 41) *' : 'Tên gọi *'}</span>
           <input value={name} onChange={(e) => setName(e.target.value)} autoFocus />
         </label>
+
+        {kind === 'categories' && (
+          <div className="field">
+            <span>Hình ảnh danh mục</span>
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 6 }}>
+              <input
+                value={imageUrl}
+                onChange={(e) => setImageUrl(e.target.value)}
+                placeholder="Dán link ảnh hoặc bấm tải ảnh lên..."
+                style={{ flex: 1 }}
+              />
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                style={{ display: 'none' }}
+                onChange={handleFileUpload}
+              />
+              <button
+                type="button"
+                className="btn btn--ghost"
+                disabled={uploading}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                {uploading ? 'Đang tải…' : '📁 Tải ảnh lên'}
+              </button>
+              {imageUrl && (
+                <button
+                  type="button"
+                  className="btn btn--danger"
+                  onClick={() => setImageUrl('')}
+                >
+                  Xóa ảnh
+                </button>
+              )}
+            </div>
+            {imageUrl && (
+              <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 12 }}>
+                <Thumb src={imageUrl} alt={name || 'Danh mục'} />
+                <span className="muted small">{imageUrl}</span>
+              </div>
+            )}
+          </div>
+        )}
 
         {kind === 'sizes' && (
           <label className="field">

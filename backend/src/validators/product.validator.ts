@@ -3,6 +3,7 @@ import { paginationQuery } from '../utils/pagination';
 
 export const createCategorySchema = z.object({
   categoryName: z.string({ required_error: 'Vui lòng nhập tên danh mục' }).trim().min(1, 'Tên danh mục không được để trống').max(100),
+  imageUrl: z.string().trim().max(500).optional().nullable(),
 });
 export const updateCategorySchema = createCategorySchema;
 

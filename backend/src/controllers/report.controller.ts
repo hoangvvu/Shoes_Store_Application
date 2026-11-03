@@ -2,10 +2,12 @@ import type { Request, Response } from 'express';
 import { reportService } from '../services/report.service';
 import type {
   DateRangeQuery,
+  LocationReportQuery,
   RevenueQuery,
   StockReportQuery,
   TopCustomersQuery,
   TopProductsQuery,
+  YearQuery,
 } from '../validators/report.validator';
 
 async function sendExcelOrJson<T>(
@@ -70,6 +72,40 @@ export const reportController = {
   async returns(req: Request, res: Response) {
     await sendExcelOrJson(req, res, 'returns', () =>
       reportService.getReturns(req.query as unknown as DateRangeQuery),
+    );
+  },
+
+  async locations(req: Request, res: Response) {
+    await sendExcelOrJson(req, res, 'locations', () =>
+      reportService.getLocationReport(req.query as unknown as LocationReportQuery),
+    );
+  },
+
+  async financialMatrix(req: Request, res: Response) {
+    const year = Number(req.query.year) || new Date().getFullYear();
+    await sendExcelOrJson(req, res, 'financial-matrix', () =>
+      reportService.getFinancialMatrix(year),
+    );
+  },
+
+  async employeeMatrix(req: Request, res: Response) {
+    const year = Number(req.query.year) || new Date().getFullYear();
+    await sendExcelOrJson(req, res, 'employee-matrix', () =>
+      reportService.getEmployeeSalesMatrix(year),
+    );
+  },
+
+  async customerMatrix(req: Request, res: Response) {
+    const year = Number(req.query.year) || new Date().getFullYear();
+    await sendExcelOrJson(req, res, 'customer-matrix', () =>
+      reportService.getCustomerSalesMatrix(year),
+    );
+  },
+
+  async productMatrix(req: Request, res: Response) {
+    const year = Number(req.query.year) || new Date().getFullYear();
+    await sendExcelOrJson(req, res, 'product-matrix', () =>
+      reportService.getProductSalesMatrix(year),
     );
   },
 

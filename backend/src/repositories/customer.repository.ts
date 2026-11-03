@@ -98,6 +98,16 @@ export const customerRepository = {
     return r.recordset.length > 0;
   },
 
+  async findByPhone(phone: string, exec?: Executor): Promise<CustomerRow | null> {
+    const r = await query<CustomerRow>(
+      `SELECT ${COLS} FROM customers c WHERE c.phone = @phone AND c.is_deleted = 0`,
+      { phone: [sql.VarChar(20), phone] },
+      exec,
+    );
+    const row = r.recordset[0];
+    return row ? { ...row, totalPurchased: Number(row.totalPurchased) } : null;
+  },
+
   async findById(customerId: number, exec?: Executor): Promise<CustomerRow | null> {
     const r = await query<CustomerRow>(
       `SELECT ${COLS} FROM customers c WHERE c.customer_id = @id AND c.is_deleted = 0`,

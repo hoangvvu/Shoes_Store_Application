@@ -8,8 +8,13 @@ export const catalogRepository = {
   // Categories
   async listCategories(exec?: Executor): Promise<CategoryRow[]> {
     const r = await query<CategoryRow>(
-      `SELECT category_id AS categoryId, category_name AS categoryName
-       FROM categories WHERE is_deleted = 0 ORDER BY category_name ASC`,
+      `SELECT c.category_id AS categoryId, c.category_name AS categoryName,
+              COALESCE(c.image_url, (
+                SELECT TOP 1 p.image_url FROM products p
+                WHERE p.category_id = c.category_id AND p.image_url IS NOT NULL AND p.is_deleted = 0
+                ORDER BY p.product_id ASC
+              )) AS imageUrl
+       FROM categories c WHERE c.is_deleted = 0 ORDER BY c.category_name ASC`,
       {},
       exec,
     );
@@ -18,7 +23,7 @@ export const catalogRepository = {
 
   async findCategoryById(id: number, exec?: Executor): Promise<CategoryRow | null> {
     const r = await query<CategoryRow>(
-      `SELECT category_id AS categoryId, category_name AS categoryName
+      `SELECT category_id AS categoryId, category_name AS categoryName, image_url AS imageUrl
        FROM categories WHERE category_id = @id AND is_deleted = 0`,
       { id: [sql.Int, id] },
       exec,
@@ -45,23 +50,31 @@ export const catalogRepository = {
     return r.recordset.length > 0;
   },
 
-  async insertCategory(name: string, exec?: Executor): Promise<CategoryRow> {
+  async insertCategory(name: string, imageUrl?: string | null, exec?: Executor): Promise<CategoryRow> {
     const r = await query<CategoryRow>(
-      `INSERT INTO categories (category_name) VALUES (@name);
-       SELECT category_id AS categoryId, category_name AS categoryName
+      `INSERT INTO categories (category_name, image_url) VALUES (@name, @imageUrl);
+       SELECT category_id AS categoryId, category_name AS categoryName, image_url AS imageUrl
        FROM categories WHERE category_id = SCOPE_IDENTITY();`,
-      { name: [sql.NVarChar(100), name] },
+      { name: [sql.NVarChar(100), name], imageUrl: [sql.VarChar(500), imageUrl ?? null] },
       exec,
     );
     return r.recordset[0];
   },
 
-  async updateCategory(id: number, name: string, exec?: Executor): Promise<CategoryRow> {
+  async updateCategory(id: number, name: string, imageUrl?: string | null, exec?: Executor): Promise<CategoryRow> {
     const r = await query<CategoryRow>(
-      `UPDATE categories SET category_name = @name WHERE category_id = @id AND is_deleted = 0;
-       SELECT category_id AS categoryId, category_name AS categoryName
+      `UPDATE categories
+       SET category_name = @name,
+           image_url = CASE WHEN @hasImg = 1 THEN @imageUrl ELSE image_url END
+       WHERE category_id = @id AND is_deleted = 0;
+       SELECT category_id AS categoryId, category_name AS categoryName, image_url AS imageUrl
        FROM categories WHERE category_id = @id;`,
-      { id: [sql.Int, id], name: [sql.NVarChar(100), name] },
+      {
+        id: [sql.Int, id],
+        name: [sql.NVarChar(100), name],
+        hasImg: [sql.Bit, imageUrl !== undefined ? 1 : 0],
+        imageUrl: [sql.VarChar(500), imageUrl ?? null],
+      },
       exec,
     );
     return r.recordset[0];

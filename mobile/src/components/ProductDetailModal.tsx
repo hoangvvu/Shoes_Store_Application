@@ -35,9 +35,16 @@ interface Props {
 
 export function resolveProductImage(url: string | null | undefined): string | null {
   if (!url) return null;
-  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  let target = url.trim();
+  if (!target.startsWith('data:') && target.includes(',')) {
+    target = target.split(',')[0].trim();
+  }
+  if (!target) return null;
+  if (target.startsWith('http://') || target.startsWith('https://') || target.startsWith('data:')) {
+    return target;
+  }
   const base = API_URL.replace(/\/api\/v1\/?$/, '');
-  return `${base}${url.startsWith('/') ? '' : '/'}${url}`;
+  return `${base}${target.startsWith('/') ? '' : '/'}${target}`;
 }
 
 export function ProductDetailModal({ productId, visible, onClose }: Props) {

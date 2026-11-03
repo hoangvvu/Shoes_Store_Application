@@ -1,7 +1,5 @@
 import type { Gender } from '../validators/common';
 
-export type EmploymentType = 'FULL_TIME' | 'PART_TIME';
-
 export interface EmployeeRow {
   employeeId: number;
   lastName: string;
@@ -14,22 +12,13 @@ export interface EmployeeRow {
   gender: Gender | null;
   email: string | null;
   hireDate: Date | null;
-  baseSalary: number;
-  employmentType: EmploymentType;
-  hourlyRate: number;
-  commissionRate: number;
-  allowance: number;
+  baseSalary?: number;
 }
 
 export interface EmployeeListItemRow {
   employeeId: number;
   fullName: string;
   phone: string | null;
-  baseSalary: number;
-  employmentType: EmploymentType;
-  hourlyRate: number;
-  commissionRate: number;
-  allowance: number;
   userId: number | null;
   username: string | null;
   role: string | null;
@@ -41,4 +30,3 @@ export interface EmployeeDetailRow extends EmployeeListItemRow {
   address: string | null;
   createdAt: Date | null;
 }
-

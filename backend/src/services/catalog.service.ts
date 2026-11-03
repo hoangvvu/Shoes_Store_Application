@@ -19,7 +19,7 @@ export const catalogService = {
     if (await catalogRepository.categoryNameExists(input.categoryName)) {
       throw AppError.conflict('Tên danh mục đã tồn tại', 'CATEGORY_NAME_TAKEN');
     }
-    return catalogRepository.insertCategory(input.categoryName);
+    return catalogRepository.insertCategory(input.categoryName, input.imageUrl);
   },
 
   async updateCategory(id: number, input: CreateCategoryInput) {
@@ -29,7 +29,7 @@ export const catalogService = {
     if (await catalogRepository.categoryNameExists(input.categoryName, id)) {
       throw AppError.conflict('Tên danh mục đã tồn tại', 'CATEGORY_NAME_TAKEN');
     }
-    return catalogRepository.updateCategory(id, input.categoryName);
+    return catalogRepository.updateCategory(id, input.categoryName, input.imageUrl);
   },
 
   async removeCategory(id: number) {

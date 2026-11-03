@@ -1,4 +1,4 @@
--- Migration 004: Thêm supplier_id vào bảng products để gắn sản phẩm với nhà cung cấp
+-- Migration 003: Thêm supplier_id vào bảng products để gắn sản phẩm với nhà cung cấp
 -- Phục vụ luồng: Khi lập phiếu nhập kho, chọn NCC nào thì chỉ hiển thị sản phẩm của NCC đó,
 -- và khi thêm sản phẩm vào phiếu nhập hiển thị rõ nhà cung cấp của sản phẩm.
 

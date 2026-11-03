@@ -451,3 +451,71 @@ h3 { margin: 0 0 12px; font-size: 16px; }
 .banner-preview-box { background: #f8fafc; border-radius: 8px; padding: 10px; border: 1px solid #e2e8f0; }
 .banner-form-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px; }
 .banner-form-error { padding: 10px 14px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; color: #dc2626; font-size: 13px; font-weight: 600; }
+
+
+/* ==========================================================================
+   PRINT STYLES (In ấn báo cáo & Xuất PDF)
+   ========================================================================== */
+.print-only {
+  display: none;
+}
+
+@media print {
+  /* Ẩn thanh bên, thanh điều hướng, nút bấm, bộ lọc */
+  aside,
+  .sidebar,
+  .sidebar-layout__sidebar,
+  .page-header__actions,
+  .search-bar,
+  .tabs,
+  .pagination,
+  .btn,
+  .no-print {
+    display: none !important;
+  }
+
+  body, html {
+    background: #fff !important;
+    color: #000 !important;
+    font-size: 10pt !important;
+  }
+
+  .main, .content, .card {
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+  }
+
+  .table-wrap {
+    overflow: visible !important;
+  }
+
+  table.table {
+    border-collapse: collapse !important;
+    width: 100% !important;
+  }
+
+  table.table th,
+  table.table td {
+    border: 1px solid #333 !important;
+    padding: 5px 8px !important;
+    font-size: 9.5pt !important;
+  }
+
+  table.table th {
+    background-color: #f2f2f2 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+
+  @page {
+    size: A4 landscape;
+    margin: 12mm;
+  }
+}
