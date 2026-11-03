@@ -50,7 +50,11 @@ export interface OrderPayment {
   status: 'PENDING' | 'SUCCESS' | 'FAILED';
   paidAt: string | null;
   transactionCode?: string | null;
+<<<<<<< HEAD
+  proofUrl?: string | null;
+=======
   proofUrl?: string;
+>>>>>>> 84991577c771ab296e8d62431b571716233afc5c
 }
 
 export interface OrderRefund {
@@ -64,7 +68,10 @@ export interface OrderRefund {
   requestedAt: string;
   completedAt: string | null;
   processedByName: string | null;
+<<<<<<< HEAD
+=======
   proofUrl?: string | null;
+>>>>>>> 84991577c771ab296e8d62431b571716233afc5c
 }
 
 export interface OrderDetail extends OrderListItem {

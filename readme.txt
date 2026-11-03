@@ -60,4 +60,4 @@ npm run dev
 
 Ở cd mobile (Tải expo go)
 npm install
-npx expo run --tunnel
+npx expo start --tunnel
