@@ -17,7 +17,6 @@ const PHONE_TAKEN = () => AppError.conflict('Số điện thoại đã được 
 const NOT_FOUND = () => AppError.notFound('Không tìm thấy khách hàng', 'CUSTOMER_NOT_FOUND');
 
 export const customerService = {
-  /** Tìm kiếm nâng cao: đổi tuổi → khoảng ngày sinh (khách chưa có ngày sinh bị loại khi lọc tuổi). */
   async list(q: CustomerListQuery) {
     const { rows, total } = await customerRepository.list({
       q: q.q || undefined,
