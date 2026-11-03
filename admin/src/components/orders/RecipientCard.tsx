@@ -25,11 +25,6 @@ export function RecipientCard({ order }: { order: Props }) {
             <InfoItem label="Điện thoại">{isOnline ? order.receiverPhone : order.customerPhone}</InfoItem>
             <InfoItem label="Địa chỉ" wide>{isOnline ? order.shippingAddress : order.customerAddress}</InfoItem>
           </InfoGrid>
-          <p className="muted">
-            {isOnline
-              ? 'Địa chỉ được chụp lại lúc đặt hàng, không đổi khi khách sửa sổ địa chỉ.'
-              : 'Đơn mua tại quầy: hiển thị thông tin đã lưu của khách hàng, mục chưa có để trống.'}
-          </p>
         </>
       )}
     </section>
