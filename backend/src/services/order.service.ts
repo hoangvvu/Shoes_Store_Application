@@ -142,7 +142,20 @@ export const orderService = {
 
   async listMine(auth: AuthUser, q: MyOrdersQuery) {
     const { rows, total } = await orderRepository.list({ customerId: customerIdOf(auth), status: q.status, page: q.page, size: q.size });
-    return toPaged(rows, total, q.page, q.size);
+    const lines = await Promise.all(rows.map((r) => orderRepository.listLines(r.invoiceId)));
+    const items = rows.map((r, i) => ({
+      ...r,
+      items: lines[i].map((l) => ({
+        variantId: l.variantId,
+        productId: l.productId,
+        productName: l.productName,
+        imageUrl: l.imageUrl,
+        sizeLabel: l.sizeLabel,
+        colorName: l.colorName,
+        quantity: l.quantity,
+      })),
+    }));
+    return toPaged(items, total, q.page, q.size);
   },
 
   /** Mua lại: thêm sản phẩm của đơn cũ vào giỏ (chỉ còn bán và còn hàng; số lượng giảm xuống bằng tồn nếu thiếu). */
@@ -261,7 +274,7 @@ export const orderService = {
   },
 
   confirm(auth: AuthUser, id: number, note?: string) {
-    return this.transition(auth, id, 'PENDING', 'CONFIRMED', 'xác nhận', note); // trừ kho (SALE) do trigger
+    return this.transition(auth, id, 'PENDING', 'CONFIRMED', 'xác nhận', note);
   },
   ship(auth: AuthUser, id: number, note?: string) {
     return this.transition(auth, id, 'CONFIRMED', 'SHIPPING', 'bàn giao vận chuyển', note);
