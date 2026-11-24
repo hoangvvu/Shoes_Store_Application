@@ -35,19 +35,50 @@ export default function AdminPromotionsPage() {
   const [filterType, setFilterType] = useState<string>('');
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
   const [search, setSearch] = useState('');
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [filterIsActive, setFilterIsActive] = useState<string>('');
+  const [filterFromDate, setFilterFromDate] = useState<string>('');
+  const [filterToDate, setFilterToDate] = useState<string>('');
+  const [filterMinDiscount, setFilterMinDiscount] = useState<string>('');
+  const [filterMaxDiscount, setFilterMaxDiscount] = useState<string>('');
+  const [filterSortBy, setFilterSortBy] = useState<string>('newest');
 
   // Bộ lọc đã ấn Tìm kiếm (Applied)
   const [appliedFilters, setAppliedFilters] = useState({
     promoType: '',
     status: 'ALL',
     search: '',
+    isActive: '',
+    fromDate: '',
+    toDate: '',
+    minDiscount: '',
+    maxDiscount: '',
+    sortBy: 'newest',
   });
 
   const handleSearch = () => {
+    if (filterFromDate && filterToDate && filterFromDate > filterToDate) {
+      alert('"Từ ngày" phải trước hoặc bằng "Đến ngày"');
+      return;
+    }
+    if (
+      filterMinDiscount !== '' &&
+      filterMaxDiscount !== '' &&
+      Number(filterMinDiscount) > Number(filterMaxDiscount)
+    ) {
+      alert('Mức giảm tối thiểu không được lớn hơn mức giảm tối đa');
+      return;
+    }
     setAppliedFilters({
       promoType: filterType,
       status: filterStatus,
       search: search.trim(),
+      isActive: filterIsActive,
+      fromDate: filterFromDate,
+      toDate: filterToDate,
+      minDiscount: filterMinDiscount,
+      maxDiscount: filterMaxDiscount,
+      sortBy: filterSortBy,
     });
   };
 
@@ -55,12 +86,48 @@ export default function AdminPromotionsPage() {
     setSearch('');
     setFilterType('');
     setFilterStatus('ALL');
+    setFilterIsActive('');
+    setFilterFromDate('');
+    setFilterToDate('');
+    setFilterMinDiscount('');
+    setFilterMaxDiscount('');
+    setFilterSortBy('newest');
     setAppliedFilters({
       promoType: '',
       status: 'ALL',
       search: '',
+      isActive: '',
+      fromDate: '',
+      toDate: '',
+      minDiscount: '',
+      maxDiscount: '',
+      sortBy: 'newest',
     });
   };
+
+  const advancedFilterCount = [
+    filterIsActive !== '',
+    filterFromDate !== '',
+    filterToDate !== '',
+    filterMinDiscount !== '',
+    filterMaxDiscount !== '',
+    filterSortBy !== 'newest',
+  ].filter(Boolean).length;
+
+  const hasAnyFilter =
+    search !== '' ||
+    filterType !== '' ||
+    filterStatus !== 'ALL' ||
+    advancedFilterCount > 0 ||
+    appliedFilters.search !== '' ||
+    appliedFilters.promoType !== '' ||
+    appliedFilters.status !== 'ALL' ||
+    appliedFilters.isActive !== '' ||
+    appliedFilters.fromDate !== '' ||
+    appliedFilters.toDate !== '' ||
+    appliedFilters.minDiscount !== '' ||
+    appliedFilters.maxDiscount !== '' ||
+    appliedFilters.sortBy !== 'newest';
 
   // Modal Thêm/Sửa CTKM
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -110,8 +177,41 @@ export default function AdminPromotionsPage() {
         promoType: appliedFilters.promoType || undefined,
         status: appliedFilters.status !== 'ALL' ? appliedFilters.status : undefined,
         search: appliedFilters.search || undefined,
+        isActive: appliedFilters.isActive !== '' ? appliedFilters.isActive === 'true' : undefined,
+        fromDate: appliedFilters.fromDate || undefined,
+        toDate: appliedFilters.toDate || undefined,
+        minDiscount: appliedFilters.minDiscount !== '' ? Number(appliedFilters.minDiscount) : undefined,
+        maxDiscount: appliedFilters.maxDiscount !== '' ? Number(appliedFilters.maxDiscount) : undefined,
+        sortBy: appliedFilters.sortBy || undefined,
       });
-      setPromotions(res.items);
+
+      let list = [...(res.items || [])];
+
+      // Đảm bảo lọc & sắp xếp hoạt động chính xác cả ở phía Client
+      if (appliedFilters.isActive !== '') {
+        const wantActive = appliedFilters.isActive === 'true';
+        list = list.filter((p) => Boolean(p.isActive) === wantActive);
+      }
+      if (appliedFilters.fromDate) {
+        list = list.filter((p) => p.endDate >= appliedFilters.fromDate);
+      }
+      if (appliedFilters.toDate) {
+        list = list.filter((p) => p.startDate <= appliedFilters.toDate);
+      }
+
+      if (appliedFilters.sortBy === 'oldest') {
+        list.sort((a, b) => a.promotionId - b.promotionId);
+      } else if (appliedFilters.sortBy === 'end_asc') {
+        list.sort((a, b) => a.endDate.localeCompare(b.endDate) || b.promotionId - a.promotionId);
+      } else if (appliedFilters.sortBy === 'start_asc') {
+        list.sort((a, b) => a.startDate.localeCompare(b.startDate) || b.promotionId - a.promotionId);
+      } else if (appliedFilters.sortBy === 'name_asc') {
+        list.sort((a, b) => a.promotionName.localeCompare(b.promotionName, 'vi') || b.promotionId - a.promotionId);
+      } else {
+        list.sort((a, b) => b.promotionId - a.promotionId);
+      }
+
+      setPromotions(list);
     } catch (err: any) {
       alert(err.response?.data?.message || 'Lỗi khi tải danh sách khuyến mãi');
     } finally {
@@ -399,7 +499,7 @@ export default function AdminPromotionsPage() {
         </div>
       </div>
 
-      {/* 3. BỘ LỌC TÌM KIẾM */}
+      {/* 3. BỘ LỌC TÌM KIẾM & TÌM KIẾM NÂNG CAO */}
       <div
         style={{
           background: '#fff',
@@ -407,141 +507,343 @@ export default function AdminPromotionsPage() {
           border: '1px solid #e3e8f2',
           padding: '16px',
           display: 'flex',
-          gap: '12px',
-          flexWrap: 'wrap',
-          alignItems: 'center',
-          justifyContent: 'space-between',
+          flexDirection: 'column',
+          gap: '14px',
         }}
       >
-        <div style={{ display: 'flex', gap: '12px', flex: 1, minWidth: '320px', flexWrap: 'wrap', alignItems: 'center' }}>
-          {/* Ô tìm kiếm */}
-          <div style={{ flex: 1, minWidth: '220px', position: 'relative' }}>
-            <input
-              type="text"
-              placeholder="Tìm theo tên chương trình..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+        {/* Hàng 1: Tìm kiếm chính & Bộ lọc nhanh */}
+        <div
+          style={{
+            display: 'flex',
+            gap: '12px',
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <div style={{ display: 'flex', gap: '12px', flex: 1, minWidth: '320px', flexWrap: 'wrap', alignItems: 'center' }}>
+            {/* Ô tìm kiếm đa năng */}
+            <div style={{ flex: 1, minWidth: '250px', position: 'relative' }}>
+              <input
+                type="text"
+                placeholder="Tìm kiếm"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                style={{
+                  width: '100%',
+                  padding: search ? '9px 32px 9px 14px' : '9px 14px',
+                  border: '1px solid #d9deea',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  outline: 'none',
+                }}
+              />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => setSearch('')}
+                  style={{
+                    position: 'absolute',
+                    right: '10px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none',
+                    border: 'none',
+                    color: '#8a93a7',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    padding: '2px 4px',
+                  }}
+                  title="Xóa từ khóa"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+
+            {/* Dropdown hình thức khuyến mãi */}
+            <select
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value)}
               style={{
-                width: '100%',
-                padding: search ? '9px 32px 9px 14px' : '9px 14px',
+                padding: '9px 12px',
                 border: '1px solid #d9deea',
                 borderRadius: '8px',
                 fontSize: '14px',
+                background: '#fff',
                 outline: 'none',
-              }}
-            />
-            {search && (
-              <button
-                type="button"
-                onClick={() => setSearch('')}
-                style={{
-                  position: 'absolute',
-                  right: '10px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  background: 'none',
-                  border: 'none',
-                  color: '#8a93a7',
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                  padding: '2px 4px',
-                }}
-                title="Xóa từ khóa"
-              >
-                ✕
-              </button>
-            )}
-          </div>
-
-          {/* Dropdown hình thức khuyến mãi */}
-          <select
-            value={filterType}
-            onChange={(e) => setFilterType(e.target.value)}
-            style={{
-              padding: '9px 12px',
-              border: '1px solid #d9deea',
-              borderRadius: '8px',
-              fontSize: '14px',
-              background: '#fff',
-              outline: 'none',
-              cursor: 'pointer',
-            }}
-          >
-            <option value="">Tất cả hình thức</option>
-            <option value="PRODUCT">Giảm theo sản phẩm</option>
-            <option value="INVOICE">Bậc hóa đơn</option>
-            <option value="VOUCHER">Mã Voucher</option>
-          </select>
-
-          {/* Tab pills trạng thái */}
-          <div style={{ display: 'flex', gap: '6px', background: '#f1f3f9', padding: '4px', borderRadius: '8px' }}>
-            {[
-              { id: 'ALL', label: 'Tất cả' },
-              { id: 'RUNNING', label: 'Đang chạy' },
-              { id: 'UPCOMING', label: 'Sắp tới' },
-              { id: 'EXPIRED', label: 'Kết thúc' },
-            ].map((st) => (
-              <button
-                key={st.id}
-                type="button"
-                onClick={() => setFilterStatus(st.id)}
-                style={{
-                  border: 0,
-                  padding: '6px 12px',
-                  borderRadius: '6px',
-                  fontSize: '13px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  background: filterStatus === st.id ? '#fff' : 'transparent',
-                  color: filterStatus === st.id ? '#1d2433' : '#6b7488',
-                  boxShadow: filterStatus === st.id ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                {st.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Nút ngoài cùng bên phải: Đặt lại & Tìm kiếm */}
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          {(search || filterType || filterStatus !== 'ALL' || appliedFilters.search || appliedFilters.promoType || appliedFilters.status !== 'ALL') && (
-            <button
-              type="button"
-              onClick={handleResetFilters}
-              className="btn btn--outline"
-              style={{
-                padding: '9px 14px',
-                borderRadius: '8px',
-                fontSize: '14px',
-                color: '#6b7488',
-                borderColor: '#d9deea',
                 cursor: 'pointer',
-                whiteSpace: 'nowrap',
               }}
             >
-              Đặt lại
-            </button>
-          )}
+              <option value="">Tất cả hình thức</option>
+              <option value="PRODUCT">Giảm theo sản phẩm</option>
+              <option value="INVOICE">Bậc hóa đơn</option>
+              <option value="VOUCHER">Mã Voucher</option>
+            </select>
 
-          <button
-            type="button"
-            onClick={handleSearch}
-            className="btn btn--primary"
+            {/* Tab pills trạng thái */}
+            <div style={{ display: 'flex', gap: '6px', background: '#f1f3f9', padding: '4px', borderRadius: '8px' }}>
+              {[
+                { id: 'ALL', label: 'Tất cả' },
+                { id: 'RUNNING', label: 'Đang chạy' },
+                { id: 'UPCOMING', label: 'Sắp tới' },
+                { id: 'EXPIRED', label: 'Kết thúc' },
+              ].map((st) => (
+                <button
+                  key={st.id}
+                  type="button"
+                  onClick={() => setFilterStatus(st.id)}
+                  style={{
+                    border: 0,
+                    padding: '6px 12px',
+                    borderRadius: '6px',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    background: filterStatus === st.id ? '#fff' : 'transparent',
+                    color: filterStatus === st.id ? '#1d2433' : '#6b7488',
+                    boxShadow: filterStatus === st.id ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  {st.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Nút ngoài cùng bên phải: Bộ lọc nâng cao, Đặt lại & Tìm kiếm */}
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              onClick={() => setShowAdvancedFilters((prev) => !prev)}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '9px 14px',
+                borderRadius: '8px',
+                fontSize: '13.5px',
+                fontWeight: 600,
+                border: showAdvancedFilters || advancedFilterCount > 0 ? '1px solid #3b5bdb' : '1px solid #d9deea',
+                background: showAdvancedFilters || advancedFilterCount > 0 ? '#eef2ff' : '#fff',
+                color: showAdvancedFilters || advancedFilterCount > 0 ? '#3b5bdb' : '#475066',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <span>Bộ lọc nâng cao</span>
+              {advancedFilterCount > 0 && (
+                <span
+                  style={{
+                    background: '#3b5bdb',
+                    color: '#fff',
+                    borderRadius: '999px',
+                    padding: '1px 7px',
+                    fontSize: '11.5px',
+                    fontWeight: 700,
+                  }}
+                >
+                  {advancedFilterCount}
+                </span>
+              )}
+              <span style={{ fontSize: '11px' }}>{showAdvancedFilters ? '▲' : '▼'}</span>
+            </button>
+
+            {hasAnyFilter && (
+              <button
+                type="button"
+                onClick={handleResetFilters}
+                className="btn btn--outline"
+                style={{
+                  padding: '9px 14px',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  color: '#6b7488',
+                  borderColor: '#d9deea',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                Đặt lại
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={handleSearch}
+              className="btn btn--primary"
+              style={{
+                padding: '9px 20px',
+                borderRadius: '8px',
+                fontSize: '14px',
+                fontWeight: 600,
+                whiteSpace: 'nowrap',
+                cursor: 'pointer',
+              }}
+            >
+              Tìm kiếm
+            </button>
+          </div>
+        </div>
+
+        {/* Hàng 2: Khu vực Tìm kiếm nâng cao (Mở rộng) */}
+        {showAdvancedFilters && (
+          <div
             style={{
-              padding: '9px 20px',
-              borderRadius: '8px',
-              fontSize: '14px',
-              fontWeight: 600,
-              whiteSpace: 'nowrap',
-              cursor: 'pointer',
+              background: '#f8f9fc',
+              borderRadius: '10px',
+              border: '1px solid #e3e8f2',
+              padding: '14px 16px',
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
+              gap: '14px',
+              alignItems: 'end',
             }}
           >
-            Tìm kiếm
-          </button>
-        </div>
+            {/* Lọc trạng thái kích hoạt (Bật / Tắt) */}
+            <div>
+              <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 600, color: '#475066', marginBottom: '6px' }}>
+                Trạng thái kích hoạt
+              </label>
+              <select
+                value={filterIsActive}
+                onChange={(e) => setFilterIsActive(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  border: '1px solid #d9deea',
+                  borderRadius: '8px',
+                  fontSize: '13.5px',
+                  background: '#fff',
+                  outline: 'none',
+                  cursor: 'pointer',
+                }}
+              >
+                <option value="">Tất cả (Bật & Tắt)</option>
+                <option value="true">Đang bật (Kích hoạt)</option>
+                <option value="false">Đang tắt (Tạm ngưng)</option>
+              </select>
+            </div>
+
+            {/* Lọc khoảng ngày hiệu lực: Từ ngày */}
+            <div>
+              <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 600, color: '#475066', marginBottom: '6px' }}>
+                Hiệu lực từ ngày
+              </label>
+              <input
+                type="date"
+                value={filterFromDate}
+                onChange={(e) => setFilterFromDate(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  border: '1px solid #d9deea',
+                  borderRadius: '8px',
+                  fontSize: '13.5px',
+                  background: '#fff',
+                  outline: 'none',
+                }}
+              />
+            </div>
+
+            {/* Lọc khoảng ngày hiệu lực: Đến ngày */}
+            <div>
+              <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 600, color: '#475066', marginBottom: '6px' }}>
+                Hiệu lực đến ngày
+              </label>
+              <input
+                type="date"
+                value={filterToDate}
+                onChange={(e) => setFilterToDate(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  border: '1px solid #d9deea',
+                  borderRadius: '8px',
+                  fontSize: '13.5px',
+                  background: '#fff',
+                  outline: 'none',
+                }}
+              />
+            </div>
+
+            {/* Khoảng mức giảm giá (%) */}
+            <div>
+              <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 600, color: '#475066', marginBottom: '6px' }}>
+                Mức chiết khấu (%)
+              </label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <input
+                  type="number"
+                  min="1"
+                  max="100"
+                  placeholder="Từ %"
+                  value={filterMinDiscount}
+                  onChange={(e) => setFilterMinDiscount(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                  style={{
+                    width: '100%',
+                    padding: '8px 10px',
+                    border: '1px solid #d9deea',
+                    borderRadius: '8px',
+                    fontSize: '13.5px',
+                    background: '#fff',
+                    outline: 'none',
+                  }}
+                />
+                <span style={{ color: '#8a93a7', fontWeight: 600 }}>–</span>
+                <input
+                  type="number"
+                  min="1"
+                  max="100"
+                  placeholder="Đến %"
+                  value={filterMaxDiscount}
+                  onChange={(e) => setFilterMaxDiscount(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                  style={{
+                    width: '100%',
+                    padding: '8px 10px',
+                    border: '1px solid #d9deea',
+                    borderRadius: '8px',
+                    fontSize: '13.5px',
+                    background: '#fff',
+                    outline: 'none',
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Sắp xếp */}
+            <div>
+              <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 600, color: '#475066', marginBottom: '6px' }}>
+                Sắp xếp theo
+              </label>
+              <select
+                value={filterSortBy}
+                onChange={(e) => setFilterSortBy(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  border: '1px solid #d9deea',
+                  borderRadius: '8px',
+                  fontSize: '13.5px',
+                  background: '#fff',
+                  outline: 'none',
+                  cursor: 'pointer',
+                }}
+              >
+                <option value="newest">Mới tạo nhất</option>
+                <option value="oldest">Cũ nhất trước</option>
+                <option value="end_asc">Sắp hết hạn trước</option>
+                <option value="start_asc">Ngày bắt đầu sớm nhất</option>
+                <option value="name_asc">Tên chương trình (A → Z)</option>
+              </select>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* 4. BẢNG DANH SÁCH CHƯƠNG TRÌNH KHUYẾN MÃI */}
@@ -720,96 +1022,110 @@ export default function AdminPromotionsPage() {
         </div>
       </div>
 
-      {/* 5. KHU VỰC CẤU HÌNH CHI TIẾT (PANEL EXPANDABLE) */}
-      {selectedPromoId && detailData && (
+      {/* 5. MODAL CẤU HÌNH CHI TIẾT CHƯƠNG TRÌNH */}
+      {selectedPromoId && (
         <div
-          style={{
-            background: '#fff',
-            borderRadius: '16px',
-            border: '1px solid #d0d7e6',
-            boxShadow: '0 8px 30px rgba(29, 36, 51, 0.08)',
-            padding: '24px',
-            animation: 'fadeIn 0.2s ease',
+          className="modal-overlay"
+          onClick={() => {
+            setSelectedPromoId(null);
+            setDetailData(null);
           }}
         >
-          {/* Header Panel */}
           <div
+            className="modal"
+            onClick={(e) => e.stopPropagation()}
             style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              paddingBottom: '16px',
-              borderBottom: '1px solid #eef1f7',
-              marginBottom: '20px',
-              flexWrap: 'wrap',
-              gap: '12px',
+              maxWidth: '880px',
+              width: '95%',
+              maxHeight: '88vh',
+              overflowY: 'auto',
+              background: '#fff',
+              borderRadius: '16px',
+              border: '1px solid #d0d7e6',
+              boxShadow: '0 12px 40px rgba(29, 36, 51, 0.18)',
+              padding: '24px',
             }}
           >
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <h2 style={{ fontSize: '18px', fontWeight: 800, margin: 0, color: '#1d2433' }}>
-                  Cấu hình: {detailData.promotion.promotionName}
-                </h2>
-                <span
+            {detailLoading || !detailData ? (
+              <div style={{ padding: '40px', textAlign: 'center', color: '#8a93a7', fontWeight: 600 }}>
+                Đang nạp cấu hình chương trình khuyến mãi...
+              </div>
+            ) : (
+              <>
+                {/* Header Modal */}
+                <div
                   style={{
-                    padding: '3px 10px',
-                    borderRadius: '999px',
-                    fontSize: '12px',
-                    fontWeight: 600,
-                    background: PROMO_TYPE_CONFIG[detailData.promotion.promoType].bg,
-                    color: PROMO_TYPE_CONFIG[detailData.promotion.promoType].text,
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    paddingBottom: '16px',
+                    borderBottom: '1px solid #eef1f7',
+                    marginBottom: '20px',
+                    flexWrap: 'wrap',
+                    gap: '12px',
                   }}
                 >
-                  {PROMO_TYPE_CONFIG[detailData.promotion.promoType].label}
-                </span>
-              </div>
-              <div style={{ fontSize: '13px', color: '#8a93a7', marginTop: '4px' }}>
-                Hiệu lực từ <strong>{formatDate(detailData.promotion.startDate)}</strong> đến{' '}
-                <strong>{formatDate(detailData.promotion.endDate)}</strong>
-              </div>
-            </div>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      <h2 style={{ fontSize: '18px', fontWeight: 800, margin: 0, color: '#1d2433' }}>
+                        Cấu hình: {detailData.promotion.promotionName}
+                      </h2>
+                      <span
+                        style={{
+                          padding: '3px 10px',
+                          borderRadius: '999px',
+                          fontSize: '12px',
+                          fontWeight: 600,
+                          background: PROMO_TYPE_CONFIG[detailData.promotion.promoType].bg,
+                          color: PROMO_TYPE_CONFIG[detailData.promotion.promoType].text,
+                        }}
+                      >
+                        {PROMO_TYPE_CONFIG[detailData.promotion.promoType].label}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '13px', color: '#8a93a7', marginTop: '4px' }}>
+                      Hiệu lực từ <strong>{formatDate(detailData.promotion.startDate)}</strong> đến{' '}
+                      <strong>{formatDate(detailData.promotion.endDate)}</strong>
+                    </div>
+                  </div>
 
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedPromoId(null);
-                setDetailData(null);
-              }}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '8px 16px',
-                borderRadius: '8px',
-                fontSize: '13px',
-                fontWeight: 700,
-                background: '#f1f3f9',
-                color: '#475066',
-                border: '1px solid #d9deea',
-                cursor: 'pointer',
-                boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-                transition: 'all 0.15s ease',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = '#ffe3e3';
-                e.currentTarget.style.color = '#c92a2a';
-                e.currentTarget.style.borderColor = '#ffa8a8';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = '#f1f3f9';
-                e.currentTarget.style.color = '#475066';
-                e.currentTarget.style.borderColor = '#d9deea';
-              }}
-            >
-              ✕ Đóng panel
-            </button>
-          </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedPromoId(null);
+                      setDetailData(null);
+                    }}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '8px 16px',
+                      borderRadius: '8px',
+                      fontSize: '13px',
+                      fontWeight: 700,
+                      background: '#f1f3f9',
+                      color: '#475066',
+                      border: '1px solid #d9deea',
+                      cursor: 'pointer',
+                      boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                      transition: 'all 0.15s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = '#ffe3e3';
+                      e.currentTarget.style.color = '#c92a2a';
+                      e.currentTarget.style.borderColor = '#ffa8a8';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = '#f1f3f9';
+                      e.currentTarget.style.color = '#475066';
+                      e.currentTarget.style.borderColor = '#d9deea';
+                    }}
+                  >
+                    ✕ Đóng
+                  </button>
+                </div>
 
-          {detailLoading ? (
-            <div style={{ padding: '30px', textAlign: 'center', color: '#8a93a7' }}>Đang nạp chi tiết...</div>
-          ) : (
-            <>
-              {/* TAB 1: PRODUCT */}
+                {/* TAB 1: PRODUCT */}
               {detailData.promotion.promoType === 'PRODUCT' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                   {/* Form thêm sản phẩm */}
@@ -1327,6 +1643,7 @@ export default function AdminPromotionsPage() {
               )}
             </>
           )}
+          </div>
         </div>
       )}
 

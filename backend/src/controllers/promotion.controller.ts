@@ -3,14 +3,20 @@ import { promotionService } from '../services/promotion.service';
 
 export const promotionController = {
   async listPromotions(req: Request, res: Response) {
-    const { page, size, promoType, isActive, status, search } = req.query;
+    const { page, size, promoType, isActive, status, search, fromDate, toDate, minDiscount, maxDiscount, sortBy } =
+      req.query;
     const result = await promotionService.listPromotions({
       page: page ? Number(page) : undefined,
       size: size ? Number(size) : undefined,
       promoType: promoType ? String(promoType) : undefined,
-      isActive: isActive !== undefined ? isActive === 'true' : undefined,
+      isActive: isActive !== undefined && isActive !== '' ? isActive === 'true' : undefined,
       status: status as any,
       search: search ? String(search) : undefined,
+      fromDate: fromDate ? String(fromDate) : undefined,
+      toDate: toDate ? String(toDate) : undefined,
+      minDiscount: minDiscount !== undefined && minDiscount !== '' ? Number(minDiscount) : undefined,
+      maxDiscount: maxDiscount !== undefined && maxDiscount !== '' ? Number(maxDiscount) : undefined,
+      sortBy: sortBy as any,
     });
     res.json({ success: true, data: result });
   },

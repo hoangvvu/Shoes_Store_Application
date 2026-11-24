@@ -17,6 +17,11 @@ export const promotionService = {
     isActive?: boolean;
     status?: string;
     search?: string;
+    fromDate?: string;
+    toDate?: string;
+    minDiscount?: number;
+    maxDiscount?: number;
+    sortBy?: string;
   }): Promise<{ items: Promotion[]; total: number; page: number; size: number }> {
     const { data } = await api.get('/promotions', { params });
     return data.data;

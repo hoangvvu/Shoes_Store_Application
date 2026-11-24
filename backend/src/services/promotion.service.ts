@@ -26,6 +26,11 @@ export const promotionService = {
     isActive?: boolean;
     status?: 'UPCOMING' | 'RUNNING' | 'EXPIRED' | 'ALL';
     search?: string;
+    fromDate?: string;
+    toDate?: string;
+    minDiscount?: number;
+    maxDiscount?: number;
+    sortBy?: 'newest' | 'oldest' | 'start_asc' | 'end_asc' | 'name_asc';
   }): Promise<{ items: PromotionRow[]; total: number; page: number; size: number }> {
     const page = params.page ?? 1;
     const size = params.size ?? 20;

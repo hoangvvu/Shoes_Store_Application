@@ -50,6 +50,11 @@ export const promotionRepository = {
     isActive?: boolean;
     status?: 'UPCOMING' | 'RUNNING' | 'EXPIRED' | 'ALL';
     search?: string;
+    fromDate?: string;
+    toDate?: string;
+    minDiscount?: number;
+    maxDiscount?: number;
+    sortBy?: 'newest' | 'oldest' | 'start_asc' | 'end_asc' | 'name_asc';
   }): Promise<{ items: PromotionRow[]; total: number }> {
     const page = Math.max(1, params.page ?? 1);
     const size = Math.max(1, Math.min(100, params.size ?? 20));
@@ -69,8 +74,30 @@ export const promotionRepository = {
     }
 
     if (params.search) {
-      conditions.push('p.promotion_name COLLATE SQL_Latin1_General_CP1_CI_AI LIKE @search COLLATE SQL_Latin1_General_CP1_CI_AI');
-      sqlParams.search = [sql.NVarChar(200), `%${params.search}%`];
+      const cleanSearch = params.search.trim();
+      const idMatch = cleanSearch.replace(/^#/, '');
+      const searchId = /^\d+$/.test(idMatch) ? Number(idMatch) : null;
+
+      sqlParams.search = [sql.NVarChar(200), `%${cleanSearch}%`];
+      if (searchId !== null) {
+        sqlParams.searchId = [sql.Int, searchId];
+      }
+
+      conditions.push(`(
+        p.promotion_name COLLATE SQL_Latin1_General_CP1_CI_AI LIKE @search COLLATE SQL_Latin1_General_CP1_CI_AI
+        ${searchId !== null ? 'OR p.promotion_id = @searchId' : ''}
+        OR EXISTS (
+          SELECT 1 FROM promotion_vouchers pv
+          WHERE pv.promotion_id = p.promotion_id AND pv.is_deleted = 0
+            AND pv.voucher_code LIKE @search
+        )
+        OR EXISTS (
+          SELECT 1 FROM promotion_products pp
+          JOIN products pr ON pr.product_id = pp.product_id
+          WHERE pp.promotion_id = p.promotion_id
+            AND pr.product_name COLLATE SQL_Latin1_General_CP1_CI_AI LIKE @search COLLATE SQL_Latin1_General_CP1_CI_AI
+        )
+      )`);
     }
 
     if (params.status === 'RUNNING') {
@@ -81,7 +108,46 @@ export const promotionRepository = {
       conditions.push(`p.end_date < ${TODAY}`);
     }
 
+    if (params.fromDate) {
+      conditions.push('p.end_date >= @fromDate');
+      sqlParams.fromDate = [sql.Date, params.fromDate];
+    }
+
+    if (params.toDate) {
+      conditions.push('p.start_date <= @toDate');
+      sqlParams.toDate = [sql.Date, params.toDate];
+    }
+
+    if (params.minDiscount !== undefined && !Number.isNaN(params.minDiscount)) {
+      sqlParams.minDiscount = [sql.Decimal(5, 2), params.minDiscount];
+      conditions.push(`(
+        EXISTS (SELECT 1 FROM promotion_products pp WHERE pp.promotion_id = p.promotion_id AND pp.discount_percent >= @minDiscount)
+        OR EXISTS (SELECT 1 FROM promotion_invoice_tiers pt WHERE pt.promotion_id = p.promotion_id AND pt.discount_percent >= @minDiscount)
+        OR EXISTS (SELECT 1 FROM promotion_vouchers pv WHERE pv.promotion_id = p.promotion_id AND pv.is_deleted = 0 AND pv.discount_percent >= @minDiscount)
+      )`);
+    }
+
+    if (params.maxDiscount !== undefined && !Number.isNaN(params.maxDiscount)) {
+      sqlParams.maxDiscount = [sql.Decimal(5, 2), params.maxDiscount];
+      conditions.push(`(
+        EXISTS (SELECT 1 FROM promotion_products pp WHERE pp.promotion_id = p.promotion_id AND pp.discount_percent <= @maxDiscount)
+        OR EXISTS (SELECT 1 FROM promotion_invoice_tiers pt WHERE pt.promotion_id = p.promotion_id AND pt.discount_percent <= @maxDiscount)
+        OR EXISTS (SELECT 1 FROM promotion_vouchers pv WHERE pv.promotion_id = p.promotion_id AND pv.is_deleted = 0 AND pv.discount_percent <= @maxDiscount)
+      )`);
+    }
+
     const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    let orderByClause = 'ORDER BY p.promotion_id DESC';
+    if (params.sortBy === 'oldest') {
+      orderByClause = 'ORDER BY p.promotion_id ASC';
+    } else if (params.sortBy === 'start_asc') {
+      orderByClause = 'ORDER BY p.start_date ASC, p.promotion_id DESC';
+    } else if (params.sortBy === 'end_asc') {
+      orderByClause = 'ORDER BY p.end_date ASC, p.promotion_id DESC';
+    } else if (params.sortBy === 'name_asc') {
+      orderByClause = 'ORDER BY p.promotion_name ASC, p.promotion_id DESC';
+    }
 
     const countRes = await query<{ total: number }>(
       `SELECT COUNT(*) AS total FROM promotions p ${whereClause}`,
@@ -122,7 +188,7 @@ export const promotionRepository = {
               END AS [status]
        FROM promotions p
        ${whereClause}
-       ORDER BY p.promotion_id DESC
+       ${orderByClause}
        OFFSET ${offset} ROWS FETCH NEXT ${size} ROWS ONLY`,
       sqlParams,
     );
