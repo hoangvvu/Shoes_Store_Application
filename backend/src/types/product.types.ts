@@ -6,6 +6,11 @@ export interface ProductListItemRow {
   brandId: number | null;
   brandName: string | null;
   currentPrice: number;
+  discountPercent: number;
+  finalPrice: number | null;
+  soldCount: number;
+  avgRating: number | null;
+  reviewCount: number;
   unit: string;
   imageUrl: string | null;
   isActive: boolean;
@@ -17,8 +22,6 @@ export interface ProductListItemRow {
 
 export interface ProductDetailRow extends ProductListItemRow {
   description: string | null;
-  avgRating: number | null;
-  reviewCount: number;
 }
 
 export interface VariantRow {

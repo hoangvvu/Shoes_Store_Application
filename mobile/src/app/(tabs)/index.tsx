@@ -80,11 +80,6 @@ const HOME_TABS: { key: HomeGroupKey; label: string; icon: keyof typeof Ionicons
   { key: 'discount', label: 'Sản phẩm giảm giá', icon: 'pricetag-outline' },
 ];
 
-function getDiscountPercent(productId: number): number {
-  const discounts = [15, 20, 10, 25, 30];
-  return discounts[productId % discounts.length];
-}
-
 export default function HomeScreen() {
   const router = useRouter();
   const user = useAuthUser();
@@ -117,7 +112,35 @@ export default function HomeScreen() {
         page: 1,
         size: 80,
       });
-      setProducts(res.items);
+      let items = res.items;
+
+      // Nếu backend đang chạy bản cũ chưa restart sau khi build (chưa trả về discountPercent ở /products),
+      // tự động lấy finalPrice thực tế từ /products/:id (bảng promotion_products)
+      if (items.length > 0 && items[0].discountPercent === undefined) {
+        items = await Promise.all(
+          items.map(async (it) => {
+            try {
+              const detail = await productService.getDetail(it.productId);
+              const finalPrice = detail.finalPrice ?? null;
+              const discountPercent =
+                finalPrice != null && detail.currentPrice > 0 && finalPrice < detail.currentPrice
+                  ? Math.round(((detail.currentPrice - finalPrice) / detail.currentPrice) * 100)
+                  : 0;
+              return {
+                ...it,
+                finalPrice,
+                discountPercent,
+                avgRating: detail.avgRating ?? null,
+                reviewCount: detail.reviewCount ?? 0,
+              };
+            } catch {
+              return it;
+            }
+          }),
+        );
+      }
+
+      setProducts(items);
     } catch {
       // Ignore network errors
     } finally {
@@ -175,20 +198,30 @@ export default function HomeScreen() {
   };
 
   // Product groups:
-  // 1. Sản phẩm bán chạy (sorted by sales/stock volume)
+  // 1. Sản phẩm bán chạy: Dựa vào số lượng đã bán thực tế (soldCount > 0) từ các đơn hàng không bị hủy
   const bestSellerProducts = useMemo(() => {
-    return [...products].sort((a, b) => b.totalStock - a.totalStock);
+    const withSold = products.filter((p) => (p.soldCount ?? 0) > 0);
+    if (withSold.length > 0) {
+      return [...withSold].sort((a, b) => (b.soldCount ?? 0) - (a.soldCount ?? 0) || b.productId - a.productId);
+    }
+    // Fallback nếu backend chưa restart (dựa trên lượt đánh giá / đơn hàng đã mua)
+    const withReviews = products.filter((p) => (p.reviewCount ?? 0) > 0);
+    if (withReviews.length > 0) {
+      return [...withReviews].sort((a, b) => (b.reviewCount ?? 0) - (a.reviewCount ?? 0));
+    }
+    return [...products].slice(0, 6);
   }, [products]);
 
-  // 2. Sản phẩm mới (sorted by newest productId DESC)
+  // 2. Sản phẩm mới: Lấy các sản phẩm mới ra mắt (sắp xếp theo productId mới nhất giảm dần, tối đa 8 mẫu mới nhất)
   const newestProducts = useMemo(() => {
-    return [...products].sort((a, b) => b.productId - a.productId);
+    return [...products].sort((a, b) => b.productId - a.productId).slice(0, 8);
   }, [products]);
 
-  // 3. Sản phẩm giảm giá
+  // 3. Sản phẩm giảm giá: Chỉ lấy các sản phẩm đang có chương trình khuyến mãi giảm giá hiệu lực (discountPercent > 0)
   const discountProducts = useMemo(() => {
-    const filtered = products.filter((_, idx) => idx % 2 === 0);
-    return filtered.length > 0 ? filtered : products;
+    return [...products]
+      .filter((p) => (p.discountPercent ?? 0) > 0)
+      .sort((a, b) => (b.discountPercent ?? 0) - (a.discountPercent ?? 0) || b.productId - a.productId);
   }, [products]);
 
   const renderProductCard = (
@@ -197,9 +230,12 @@ export default function HomeScreen() {
   ) => {
     const imgUri = resolveProductImage(item.imageUrl);
     const isFav = favoriteIds.includes(item.productId);
-    const discountPct = badgeType === 'discount' ? getDiscountPercent(item.productId) : 0;
-    const originalPrice =
-      discountPct > 0 ? Math.round(item.currentPrice / (1 - discountPct / 100)) : null;
+    const discountPct = item.discountPercent ?? 0;
+    const displayPrice =
+      discountPct > 0 && item.finalPrice != null ? item.finalPrice : item.currentPrice;
+    const originalPrice = discountPct > 0 ? item.currentPrice : null;
+    const soldCount = item.soldCount ?? 0;
+    const ratingLabel = item.avgRating != null ? item.avgRating.toFixed(1) : '5.0';
 
     return (
       <TouchableOpacity
@@ -218,21 +254,19 @@ export default function HomeScreen() {
           )}
 
           {/* Top-left Group Badge */}
-          {badgeType === 'best_seller' && (
-            <View style={[styles.typeBadge, { backgroundColor: '#EA580C' }]}>
-              <Text style={styles.typeBadgeText}>🔥 BÁN CHẠY</Text>
-            </View>
-          )}
-          {badgeType === 'newest' && (
-            <View style={[styles.typeBadge, { backgroundColor: '#0284C7' }]}>
-              <Text style={styles.typeBadgeText}>✨ MỚI</Text>
-            </View>
-          )}
-          {badgeType === 'discount' && (
+          {badgeType === 'discount' || discountPct > 0 ? (
             <View style={[styles.typeBadge, { backgroundColor: '#E11D48' }]}>
               <Text style={styles.typeBadgeText}>-{discountPct}%</Text>
             </View>
-          )}
+          ) : badgeType === 'best_seller' ? (
+            <View style={[styles.typeBadge, { backgroundColor: '#EA580C' }]}>
+              <Text style={styles.typeBadgeText}>🔥 BÁN CHẠY</Text>
+            </View>
+          ) : badgeType === 'newest' ? (
+            <View style={[styles.typeBadge, { backgroundColor: '#0284C7' }]}>
+              <Text style={styles.typeBadgeText}>✨ MỚI</Text>
+            </View>
+          ) : null}
 
           {/* Favorite heart button */}
           <TouchableOpacity
@@ -268,16 +302,16 @@ export default function HomeScreen() {
 
           <View style={styles.ratingRow}>
             <Ionicons name="star" size={13} color={colors.star} />
-            <Text style={styles.ratingText}>4.9</Text>
+            <Text style={styles.ratingText}>{ratingLabel}</Text>
             <Text style={styles.stockLabel}>
-              · Đã bán {(item.totalStock % 50) + 18}
+              · Đã bán {soldCount}
             </Text>
           </View>
 
           <View style={styles.priceRow}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.price}>{formatVnd(item.currentPrice)}</Text>
-              {originalPrice && (
+              <Text style={styles.price}>{formatVnd(displayPrice)}</Text>
+              {originalPrice != null && (
                 <Text style={styles.oldPrice}>{formatVnd(originalPrice)}</Text>
               )}
             </View>

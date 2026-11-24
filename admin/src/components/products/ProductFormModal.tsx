@@ -2,14 +2,14 @@ import { type ChangeEvent, type FormEvent, useRef, useState, useMemo } from 'rea
 import { api } from '../../services/api';
 import { catalogService, productService } from '../../services/product.service';
 import { supplierService } from '../../services/inventory.service';
-import type { Brand, Category, ProductDetail } from '../../types/product';
+import type { Brand, Category, Color, ProductDetail, Size } from '../../types/product';
 import type { Supplier } from '../../types/inventory';
 import type { Paged } from '../../types/customer';
 import { getErrorMessage } from '../../utils/error';
 import { useAsync } from '../../utils/useAsync';
 import { validateImageUrl } from '../../utils/validators';
 import { Modal } from '../common/Modal';
-import { Thumb } from '../common/Widgets';
+import { ColorDot, Thumb } from '../common/Widgets';
 
 interface Props {
   product?: ProductDetail;
@@ -30,6 +30,8 @@ export function ProductFormModal({ product, onClose, onSaved }: Props) {
     description: product?.description ?? '',
     imageUrl: product?.imageUrl ?? '',
   });
+  const [selectedSizes, setSelectedSizes] = useState<number[]>([]);
+  const [selectedColors, setSelectedColors] = useState<number[]>([]);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -37,8 +39,16 @@ export function ProductFormModal({ product, onClose, onSaved }: Props) {
   const { data: categories } = useAsync<Category[]>(() => catalogService.list('categories'), []);
   const { data: brands } = useAsync<Brand[]>(() => catalogService.list('brands'), []);
   const { data: suppliers } = useAsync<Paged<Supplier>>(() => supplierService.list({ page: 1, size: 100 }), []);
+  const { data: sizes } = useAsync<Size[]>(() => catalogService.list('sizes'), []);
+  const { data: colors } = useAsync<Color[]>(() => catalogService.list('colors'), []);
 
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF((s) => ({ ...s, [k]: e.target.value }));
+
+  const toggleSize = (id: number) =>
+    setSelectedSizes((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+
+  const toggleColor = (id: number) =>
+    setSelectedColors((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
   const imageUrls = useMemo(() => {
     return f.imageUrl
@@ -132,8 +142,14 @@ export function ProductFormModal({ product, onClose, onSaved }: Props) {
       imageUrl: f.imageUrl.trim() || '',
     };
     try {
-      if (isEdit) await productService.update(product.productId, payload);
-      else await productService.create(payload as any);
+      if (isEdit) {
+        await productService.update(product.productId, payload);
+      } else {
+        const created = await productService.create(payload as any);
+        if (created?.productId && selectedSizes.length > 0 && selectedColors.length > 0) {
+          await productService.bulkVariants(created.productId, selectedSizes, selectedColors);
+        }
+      }
       onSaved();
     } catch (err) {
       setError(getErrorMessage(err));
@@ -197,6 +213,82 @@ export function ProductFormModal({ product, onClose, onSaved }: Props) {
             <span>Đơn vị tính *</span>
             <input value={f.unit} onChange={set('unit')} placeholder="Đôi" />
           </label>
+
+          {!isEdit && (
+            <div className="field span-2" style={{ background: '#F8FAFC', padding: 12, borderRadius: 8, border: '1px solid #E2E8F0' }}>
+              <span style={{ fontWeight: 700, color: '#1E293B' }}>
+                Khởi tạo nhanh biến thể (Size × Màu) để sẵn sàng nhập kho
+              </span>
+              {sizes && (
+                <div style={{ marginTop: 8 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                    <span className="small muted">Chọn kích cỡ (Size):</span>
+                    <button
+                      type="button"
+                      className="btn btn--ghost small"
+                      onClick={() =>
+                        setSelectedSizes(selectedSizes.length === sizes.length ? [] : sizes.map((s) => s.sizeId))
+                      }
+                    >
+                      {selectedSizes.length === sizes.length ? 'Bỏ chọn tất cả' : 'Chọn tất cả Size'}
+                    </button>
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                    {sizes.map((s) => {
+                      const checked = selectedSizes.includes(s.sizeId);
+                      return (
+                        <button
+                          type="button"
+                          key={s.sizeId}
+                          className={`btn small ${checked ? 'btn--primary' : 'btn--ghost'}`}
+                          onClick={() => toggleSize(s.sizeId)}
+                        >
+                          Size {s.sizeLabel}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {colors && (
+                <div style={{ marginTop: 10 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                    <span className="small muted">Chọn màu sắc:</span>
+                    <button
+                      type="button"
+                      className="btn btn--ghost small"
+                      onClick={() =>
+                        setSelectedColors(selectedColors.length === colors.length ? [] : colors.map((c) => c.colorId))
+                      }
+                    >
+                      {selectedColors.length === colors.length ? 'Bỏ chọn tất cả' : 'Chọn tất cả Màu'}
+                    </button>
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                    {colors.map((c) => {
+                      const checked = selectedColors.includes(c.colorId);
+                      return (
+                        <button
+                          type="button"
+                          key={c.colorId}
+                          className={`btn small ${checked ? 'btn--primary' : 'btn--ghost'}`}
+                          onClick={() => toggleColor(c.colorId)}
+                        >
+                          <ColorDot hex={c.hexCode} name={c.colorName} />
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+              {selectedSizes.length > 0 && selectedColors.length > 0 && (
+                <p className="muted small" style={{ marginTop: 8, marginBottom: 0, color: '#059669', fontWeight: 600 }}>
+                  Sẽ tự động tạo {selectedSizes.length * selectedColors.length} biến thể với mã SKU tiếng Anh chuẩn ngay khi lưu.
+                </p>
+              )}
+            </div>
+          )}
 
           <div className="field span-2">
             <span>Hình ảnh sản phẩm (hỗ trợ nhiều ảnh)</span>

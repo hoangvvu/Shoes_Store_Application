@@ -1,11 +1,13 @@
 import { type FormEvent, useMemo, useState } from 'react';
 import { inventoryService, receiptService, supplierService } from '../../services/inventory.service';
+import { catalogService, productService } from '../../services/product.service';
 import type { StockItem, Supplier } from '../../types/inventory';
+import type { Color, ProductListItem, Size } from '../../types/product';
 import { getErrorMessage } from '../../utils/error';
 import { formatNumber, formatVnd } from '../../utils/format';
 import { useAsync } from '../../utils/useAsync';
 import { Modal } from '../common/Modal';
-import { LoadState } from '../common/Widgets';
+import { ColorDot, LoadState } from '../common/Widgets';
 
 interface Props {
   onClose: () => void;
@@ -41,26 +43,58 @@ export function ReceiptCreateModal({ onClose, onSaved }: Props) {
   const [batchQty, setBatchQty] = useState('10');
   const [matrixDraft, setMatrixDraft] = useState<Record<number, { qty: number; price: number }>>({});
 
+  // State khởi tạo nhanh biến thể ngay trong phiếu nhập nếu sản phẩm mới thêm chưa có biến thể
+  const [quickSizes, setQuickSizes] = useState<number[]>([]);
+  const [quickColors, setQuickColors] = useState<number[]>([]);
+  const [creatingVariants, setCreatingVariants] = useState(false);
+  const [showAddVariantBox, setShowAddVariantBox] = useState(false);
+
   const { data: suppliers, loading: supLoading, error: supErr } = useAsync(
     () => supplierService.list({ page: 1, size: 100 }),
     [],
   );
 
-  // Chỉ tải biến thể kho của nhà cung cấp được chọn
-  const { data: stockData, loading: stLoading, error: stErr } = useAsync(
-    () =>
-      supplierId
-        ? inventoryService.list({ page: 1, size: 500, supplierId: Number(supplierId) })
-        : Promise.resolve({ items: [], total: 0, page: 1, size: 500, totalPages: 0 }),
+  const { data: allSizes } = useAsync<Size[]>(() => catalogService.list('sizes'), []);
+  const { data: allColors } = useAsync<Color[]>(() => catalogService.list('colors'), []);
+
+  // Tải cả danh sách sản phẩm thuộc nhà cung cấp (kể cả sản phẩm mới chưa tạo biến thể) và danh sách biến thể tồn kho
+  const {
+    data: supplierBundle,
+    loading: stLoading,
+    error: stErr,
+    reload: reloadSupplierBundle,
+  } = useAsync(
+    async () => {
+      if (!supplierId) {
+        return { products: [] as ProductListItem[], variants: [] as StockItem[] };
+      }
+      const supIdNum = Number(supplierId);
+      const [prodPaged, stockPaged] = await Promise.all([
+        productService.list({ page: 1, size: 100, supplierId: supIdNum }),
+        inventoryService.list({ page: 1, size: 500, supplierId: supIdNum }),
+      ]);
+      return {
+        products: prodPaged.items,
+        variants: stockPaged.items,
+      };
+    },
     [supplierId],
   );
 
   const selectedSupplier = suppliers?.items.find((s: Supplier) => s.supplierId === supplierId);
-  const variants = stockData?.items || [];
+  const variants = supplierBundle?.variants || [];
+  const supplierProducts = supplierBundle?.products || [];
 
-  // Danh sách các mẫu sản phẩm thuộc nhà cung cấp (được gom nhóm từ variants)
+  // Danh sách các mẫu sản phẩm thuộc nhà cung cấp (bao gồm cả sản phẩm mới có 0 biến thể)
   const productOptions = useMemo(() => {
     const map = new Map<number, { productId: number; productName: string; variantCount: number }>();
+    for (const p of supplierProducts) {
+      map.set(p.productId, {
+        productId: p.productId,
+        productName: p.productName,
+        variantCount: 0,
+      });
+    }
     for (const v of variants) {
       if (!map.has(v.productId)) {
         map.set(v.productId, { productId: v.productId, productName: v.productName, variantCount: 0 });
@@ -68,7 +102,7 @@ export function ReceiptCreateModal({ onClose, onSaved }: Props) {
       map.get(v.productId)!.variantCount++;
     }
     return Array.from(map.values());
-  }, [variants]);
+  }, [supplierProducts, variants]);
 
   // Các biến thể của mẫu sản phẩm đang chọn trong chế độ Matrix
   const activeMatrixVariants = useMemo(() => {
@@ -76,14 +110,7 @@ export function ReceiptCreateModal({ onClose, onSaved }: Props) {
     return variants.filter((v: StockItem) => v.productId === matrixProductId);
   }, [variants, matrixProductId]);
 
-  // Khi chọn mẫu sản phẩm mới: khởi tạo bảng số lượng và giá cho tất cả size của mẫu đó
-  const handleSelectMatrixProduct = (prodId: number | '') => {
-    setMatrixProductId(prodId);
-    if (!prodId) {
-      setMatrixDraft({});
-      return;
-    }
-    const curVariants = variants.filter((v: StockItem) => v.productId === prodId);
+  const initDraftForVariants = (curVariants: StockItem[]) => {
     const initialDraft: Record<number, { qty: number; price: number }> = {};
     const defaultP = Number(batchPrice) || 500000;
     const defaultQ = Number(batchQty) || 10;
@@ -91,6 +118,48 @@ export function ReceiptCreateModal({ onClose, onSaved }: Props) {
       initialDraft[v.variantId] = { qty: defaultQ, price: defaultP };
     }
     setMatrixDraft(initialDraft);
+  };
+
+  // Khi chọn mẫu sản phẩm mới: khởi tạo bảng số lượng và giá cho tất cả size của mẫu đó
+  const handleSelectMatrixProduct = (prodId: number | '') => {
+    setMatrixProductId(prodId);
+    setShowAddVariantBox(false);
+    setError('');
+    if (!prodId) {
+      setMatrixDraft({});
+      return;
+    }
+    const curVariants = variants.filter((v: StockItem) => v.productId === prodId);
+    initDraftForVariants(curVariants);
+  };
+
+  const toggleQuickSize = (id: number) =>
+    setQuickSizes((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+
+  const toggleQuickColor = (id: number) =>
+    setQuickColors((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+
+  const handleGenerateQuickVariants = async () => {
+    if (!matrixProductId) return;
+    if (quickSizes.length === 0) return setError('Vui lòng chọn ít nhất 1 kích cỡ (Size)');
+    if (quickColors.length === 0) return setError('Vui lòng chọn ít nhất 1 màu sắc');
+    setError('');
+    setCreatingVariants(true);
+    try {
+      await productService.bulkVariants(Number(matrixProductId), quickSizes, quickColors);
+      const supIdNum = Number(supplierId);
+      const freshStock = await inventoryService.list({ page: 1, size: 500, supplierId: supIdNum });
+      await reloadSupplierBundle();
+      const curVariants = freshStock.items.filter((v: StockItem) => v.productId === Number(matrixProductId));
+      initDraftForVariants(curVariants);
+      setQuickSizes([]);
+      setQuickColors([]);
+      setShowAddVariantBox(false);
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setCreatingVariants(false);
+    }
   };
 
   // Áp dụng giá chung cho tất cả các size của mẫu đang chọn
@@ -215,6 +284,9 @@ export function ReceiptCreateModal({ onClose, onSaved }: Props) {
     setMatrixProductId('');
     setMatrixDraft({});
     setVariantSearch('');
+    setQuickSizes([]);
+    setQuickColors([]);
+    setShowAddVariantBox(false);
     setError('');
   };
 
@@ -384,7 +456,7 @@ export function ReceiptCreateModal({ onClose, onSaved }: Props) {
                     <option value="">-- Chọn mẫu sản phẩm cần nhập --</option>
                     {productOptions.map((p) => (
                       <option key={p.productId} value={p.productId}>
-                        {p.productName} ({p.variantCount} kích cỡ/màu)
+                        {p.productName} ({p.variantCount > 0 ? `${p.variantCount} kích cỡ/màu` : 'Mới - Chưa tạo size/màu'})
                       </option>
                     ))}
                   </select>
@@ -405,7 +477,7 @@ export function ReceiptCreateModal({ onClose, onSaved }: Props) {
                       className="btn btn--ghost"
                       onClick={applyBatchPriceToAll}
                       title="Gán giá này cho tất cả kích cỡ"
-                      disabled={!matrixProductId}
+                      disabled={!matrixProductId || activeMatrixVariants.length === 0}
                     >
                       Áp dụng
                     </button>
@@ -426,7 +498,7 @@ export function ReceiptCreateModal({ onClose, onSaved }: Props) {
                       className="btn btn--ghost"
                       onClick={applyBatchQtyToAll}
                       title="Gán số lượng này cho tất cả kích cỡ"
-                      disabled={!matrixProductId}
+                      disabled={!matrixProductId || activeMatrixVariants.length === 0}
                     >
                       Điền tất cả
                     </button>
@@ -434,8 +506,130 @@ export function ReceiptCreateModal({ onClose, onSaved }: Props) {
                 </label>
               </div>
 
+              {/* Nếu sản phẩm mới thêm chưa có biến thể nào hoặc người dùng bấm thêm size/màu mới */}
+              {matrixProductId && (activeMatrixVariants.length === 0 || showAddVariantBox) && (
+                <div
+                  style={{
+                    background: '#FFFFFF',
+                    border: '1px dashed #6366F1',
+                    borderRadius: 8,
+                    padding: 14,
+                    marginBottom: 12,
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                    <div style={{ fontWeight: 700, color: '#312E81', fontSize: 14 }}>
+                      {activeMatrixVariants.length === 0
+                        ? 'Mẫu sản phẩm này chưa có biến thể (Size × Màu). Chọn nhanh Size và Màu để khởi tạo & nhập kho ngay:'
+                        : 'Thêm bổ sung tổ hợp Size × Màu mới cho mẫu giày này:'}
+                    </div>
+                    {activeMatrixVariants.length > 0 && (
+                      <button
+                        type="button"
+                        className="btn btn--ghost small"
+                        onClick={() => setShowAddVariantBox(false)}
+                      >
+                        Đóng
+                      </button>
+                    )}
+                  </div>
+
+                  {allSizes && (
+                    <div style={{ marginBottom: 10 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                        <span style={{ fontSize: 13, fontWeight: 600 }}>1. Chọn kích cỡ (Size):</span>
+                        <button
+                          type="button"
+                          className="btn btn--ghost small"
+                          onClick={() =>
+                            setQuickSizes(
+                              quickSizes.length === allSizes.length ? [] : allSizes.map((s) => s.sizeId),
+                            )
+                          }
+                        >
+                          {quickSizes.length === allSizes.length ? 'Bỏ chọn tất cả' : 'Chọn tất cả Size'}
+                        </button>
+                      </div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                        {allSizes.map((s) => {
+                          const checked = quickSizes.includes(s.sizeId);
+                          return (
+                            <button
+                              type="button"
+                              key={s.sizeId}
+                              className={`btn small ${checked ? 'btn--primary' : 'btn--ghost'}`}
+                              onClick={() => toggleQuickSize(s.sizeId)}
+                            >
+                              Size {s.sizeLabel}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {allColors && (
+                    <div style={{ marginBottom: 12 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                        <span style={{ fontSize: 13, fontWeight: 600 }}>2. Chọn màu sắc:</span>
+                        <button
+                          type="button"
+                          className="btn btn--ghost small"
+                          onClick={() =>
+                            setQuickColors(
+                              quickColors.length === allColors.length ? [] : allColors.map((c) => c.colorId),
+                            )
+                          }
+                        >
+                          {quickColors.length === allColors.length ? 'Bỏ chọn tất cả' : 'Chọn tất cả Màu'}
+                        </button>
+                      </div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                        {allColors.map((c) => {
+                          const checked = quickColors.includes(c.colorId);
+                          return (
+                            <button
+                              type="button"
+                              key={c.colorId}
+                              className={`btn small ${checked ? 'btn--primary' : 'btn--ghost'}`}
+                              onClick={() => toggleQuickColor(c.colorId)}
+                            >
+                              <ColorDot hex={c.hexCode} name={c.colorName} />
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                    <button
+                      type="button"
+                      className="btn btn--primary"
+                      onClick={handleGenerateQuickVariants}
+                      disabled={creatingVariants || quickSizes.length === 0 || quickColors.length === 0}
+                    >
+                      {creatingVariants
+                        ? 'Đang khởi tạo biến thể…'
+                        : `+ Tạo ${quickSizes.length * quickColors.length} biến thể để nhập kho`}
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {matrixProductId && activeMatrixVariants.length > 0 && (
                 <div>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+                    {!showAddVariantBox && (
+                      <button
+                        type="button"
+                        className="btn btn--ghost small"
+                        onClick={() => setShowAddVariantBox(true)}
+                      >
+                        + Thêm kích cỡ / màu sắc khác cho mẫu này
+                      </button>
+                    )}
+                  </div>
                   <div style={{ maxHeight: 280, overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: 6, background: '#fff' }}>
                     <table className="table" style={{ margin: 0 }}>
                       <thead>
@@ -543,7 +737,7 @@ export function ReceiptCreateModal({ onClose, onSaved }: Props) {
                     disabled={variants.length === 0}
                   >
                     {variants.length === 0 ? (
-                      <option value="">-- Nhà cung cấp này chưa có sản phẩm nào trong hệ thống --</option>
+                      <option value="">-- Chưa có biến thể nào (chuyển sang tab Nhập nhanh theo mẫu giày để tạo) --</option>
                     ) : (
                       <>
                         <option value="">-- Chọn biến thể giày ({filteredVariants.length} lựa chọn) --</option>

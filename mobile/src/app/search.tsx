@@ -156,18 +156,18 @@ export default function SearchScreen() {
       });
     }
 
-    if (minRating === 5) {
-      list = list.filter((p) => p.productId % 2 === 0);
+    if (minRating > 0) {
+      list = list.filter((p) => (p.avgRating ?? 5) >= minRating);
     }
 
     if (sortBy === 'best_seller') {
-      list.sort((a, b) => b.totalStock - a.totalStock);
+      list.sort((a, b) => (b.soldCount ?? 0) - (a.soldCount ?? 0) || b.productId - a.productId);
     } else if (sortBy === 'newest') {
       list.sort((a, b) => b.productId - a.productId);
     } else if (sortBy === 'price_asc') {
-      list.sort((a, b) => a.currentPrice - b.currentPrice);
+      list.sort((a, b) => (a.finalPrice ?? a.currentPrice) - (b.finalPrice ?? b.currentPrice));
     } else if (sortBy === 'price_desc') {
-      list.sort((a, b) => b.currentPrice - a.currentPrice);
+      list.sort((a, b) => (b.finalPrice ?? b.currentPrice) - (a.finalPrice ?? a.currentPrice));
     }
 
     return list;
@@ -224,12 +224,12 @@ export default function SearchScreen() {
 
           <View style={styles.ratingRow}>
             <Ionicons name="star" size={13} color={colors.star} />
-            <Text style={styles.ratingText}>4.9</Text>
-            <Text style={styles.stockLabel}>· Đã bán {(item.totalStock % 40) + 15}</Text>
+            <Text style={styles.ratingText}>{item.avgRating != null ? item.avgRating.toFixed(1) : '5.0'}</Text>
+            <Text style={styles.stockLabel}>· Đã bán {item.soldCount ?? 0}</Text>
           </View>
 
           <View style={styles.priceRow}>
-            <Text style={styles.price}>{formatVnd(item.currentPrice)}</Text>
+            <Text style={styles.price}>{formatVnd(item.finalPrice ?? item.currentPrice)}</Text>
             <View style={styles.quickAddBtn}>
               <Ionicons name="add" size={18} color={colors.white} />
             </View>
