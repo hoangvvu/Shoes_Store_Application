@@ -6,12 +6,12 @@ import type { EmployeeRole } from '../../types/auth';
 import type { EmployeeDetail } from '../../types/employee';
 import { useSearchFilters } from '../../hooks/useSearchFilters';
 import { getErrorMessage } from '../../utils/error';
-import { formatVnd } from '../../utils/format';
 import { useAsync } from '../../utils/useAsync';
 import { PageHeader } from '../common/PageHeader';
 import { SearchBar } from '../common/SearchBar';
 import { Pagination } from '../tables/Pagination';
 import { EmployeeFormModal } from './EmployeeFormModal';
+import { ResetPasswordModal } from './ResetPasswordModal';
 import { RoleBadge } from './RoleBadge';
 
 const SIZE = 10;
@@ -26,9 +26,20 @@ const EMPTY_FILTERS: EmployeeFilters = { q: '', role: '' };
 export function EmployeeManager({ basePath }: { basePath: string }) {
   const { draft, applied, page, setPage, set, apply } = useSearchFilters<EmployeeFilters>(EMPTY_FILTERS);
   const [modal, setModal] = useState<{ employee?: EmployeeDetail } | null>(null);
+  const [resetTarget, setResetTarget] = useState<{
+    employeeId: number;
+    fullName: string;
+    username?: string | null;
+    userId?: number | null;
+  } | null>(null);
 
   const { data, loading, error, reload } = useAsync(
-    () => employeeService.list({ q: applied.q.trim() || undefined, role: applied.role || undefined, page, size: SIZE }),
+    () => employeeService.list({
+      q: applied.q.trim() || undefined,
+      role: applied.role || undefined,
+      page,
+      size: SIZE,
+    }),
     [applied, page],
   );
 
@@ -65,7 +76,6 @@ export function EmployeeManager({ basePath }: { basePath: string }) {
         title="Tài khoản nhân viên"
         actions={
           <div style={{ display: 'flex', gap: 10 }}>
-            <Link to="/admin/reports" className="btn btn--ghost">Báo cáo doanh số</Link>
             <button className="btn btn--primary" onClick={() => setModal({})}>+ Thêm nhân viên</button>
           </div>
         }
@@ -96,35 +106,56 @@ export function EmployeeManager({ basePath }: { basePath: string }) {
             <thead>
               <tr>
                 <th>Họ tên</th>
-                <th>Số điện thoại</th>
-                <th>Tài khoản</th>
                 <th>Vai trò</th>
-                <th className="num">Lương cơ bản</th>
+                <th>Tài khoản</th>
                 <th>Trạng thái</th>
                 <th className="actions-col" />
               </tr>
             </thead>
             <tbody>
-              {loading && <tr><td colSpan={7} className="muted center">Đang tải…</td></tr>}
-              {!loading && data?.items.length === 0 && <tr><td colSpan={7} className="muted center">Không có nhân viên nào</td></tr>}
+              {loading && <tr><td colSpan={5} className="muted center">Đang tải…</td></tr>}
+              {!loading && data?.items.length === 0 && <tr><td colSpan={5} className="muted center">Không có nhân viên nào</td></tr>}
               {!loading &&
                 data?.items.map((e) => (
                   <tr key={e.employeeId}>
-                    <td><Link to={`${basePath}/${e.employeeId}`} className="link">{e.fullName}</Link></td>
-                    <td>{e.phone ?? '—'}</td>
-                    <td>{e.username ?? <span className="muted">Chưa có</span>}</td>
+                    <td>
+                      <div>
+                        <Link to={`${basePath}/${e.employeeId}`} className="link" style={{ fontWeight: 600 }}>{e.fullName}</Link>
+                        <div className="muted small">{e.phone ?? 'Chưa có SĐT'}</div>
+                      </div>
+                    </td>
                     <td>{e.role ? <RoleBadge role={e.role} /> : '—'}</td>
-                    <td className="num">{formatVnd(e.baseSalary)}</td>
+                    <td>{e.username ?? <span className="muted">Chưa có</span>}</td>
                     <td>
                       <span className={`badge ${e.isLocked ? 'badge--danger' : 'badge--ok'}`}>{e.isLocked ? 'Đã khóa' : 'Hoạt động'}</span>
                     </td>
                     <td className="actions">
-                      <Link to={`${basePath}/${e.employeeId}`} className="btn btn--ghost">Chi tiết</Link>
-                      <button className="btn btn--ghost" onClick={() => openEdit(e.employeeId)}>Sửa</button>
-                      {e.userId && (
-                        <button className="btn btn--ghost" onClick={() => toggleLock(e.userId!, e.isLocked)}>{e.isLocked ? 'Mở khóa' : 'Khóa'}</button>
-                      )}
-                      <button className="btn btn--danger" onClick={() => remove(e.employeeId, e.fullName)}>Xóa</button>
+                      <div className="actions-group">
+                        <Link to={`${basePath}/${e.employeeId}`} className="btn btn--ghost">Chi tiết</Link>
+                        <button className="btn btn--ghost" onClick={() => openEdit(e.employeeId)}>Sửa</button>
+                        {e.userId && (
+                          <>
+                            <button
+                              type="button"
+                              className="btn btn--ghost"
+                              onClick={() =>
+                                setResetTarget({
+                                  employeeId: e.employeeId,
+                                  fullName: e.fullName,
+                                  username: e.username,
+                                  userId: e.userId,
+                                })
+                              }
+                            >
+                              Cấp lại MK
+                            </button>
+                            <button className="btn btn--ghost" onClick={() => toggleLock(e.userId!, e.isLocked)}>
+                              {e.isLocked ? 'Mở khóa' : 'Khóa'}
+                            </button>
+                          </>
+                        )}
+                        <button className="btn btn--danger" onClick={() => remove(e.employeeId, e.fullName)}>Xóa</button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -142,6 +173,14 @@ export function EmployeeManager({ basePath }: { basePath: string }) {
             setModal(null);
             void reload();
           }}
+        />
+      )}
+
+      {resetTarget && (
+        <ResetPasswordModal
+          employee={resetTarget}
+          onClose={() => setResetTarget(null)}
+          onSuccess={() => void reload()}
         />
       )}
     </>

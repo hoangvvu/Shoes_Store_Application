@@ -15,4 +15,8 @@ export const userController = {
     await userService.softDelete(req.user!.userId, Number(req.params.id));
     res.status(204).end();
   },
+  async adminResetPassword(req: Request, res: Response) {
+    const data = await userService.adminResetPassword(req.user!.userId, Number(req.params.id), req.body.newPassword);
+    res.json({ success: true, message: 'Cấp lại mật khẩu thành công', data });
+  },
 };

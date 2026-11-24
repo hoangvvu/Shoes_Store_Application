@@ -5,8 +5,6 @@ export interface EmployeeListItem {
   employeeId: number;
   fullName: string;
   phone: string | null;
-  /** Chỉ Admin mới nhận được lương; backend không trả trường này cho vai trò khác. */
-  baseSalary: number;
   userId: number | null;
   username: string | null;
   role: EmployeeRole | null;
@@ -27,7 +25,6 @@ export interface EmployeeCreateValues {
   dateOfBirth?: string;
   address?: string;
   phone?: string;
-  baseSalary?: number;
 }
 
 export interface EmployeeUpdateValues {
@@ -35,7 +32,6 @@ export interface EmployeeUpdateValues {
   dateOfBirth?: string;
   address?: string;
   phone?: string;
-  baseSalary?: number;
 }
 
 /** M3 #6 – doanh số theo nhân viên trong khoảng thời gian. */

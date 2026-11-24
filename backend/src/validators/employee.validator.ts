@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { EMPLOYEE_ROLES, ROLES } from '../constants/auth.constant';
+import { EMPLOYEE_ROLES } from '../constants/auth.constant';
 import { adultBirthDateField, employeePhoneField, fullNameField, passwordField, usernameField } from './common';
 import { paginationQuery } from '../utils/pagination';
 

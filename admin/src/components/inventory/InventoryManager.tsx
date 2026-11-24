@@ -63,7 +63,7 @@ export function InventoryManager({ canAdjust = true }: Props) {
               className={`btn ${isLowStockActive ? 'btn--primary' : 'btn--ghost'}`}
               onClick={toggleLowStockHeader}
             >
-              ⚠️ Cảnh báo sắp hết hàng ({lowStockItems.length})
+              Cảnh báo sắp hết hàng ({lowStockItems.length})
             </button>
           ) : undefined
         }

@@ -58,10 +58,9 @@ export function CustomerDetailView({ basePath, canDelete }: Props) {
     <>
       <PageHeader
         title={data.fullName}
-        subtitle="Chi tiết khách hàng"
         actions={
           <>
-            <Link to={basePath} className="btn btn--ghost">← Danh sách</Link>
+            <Link to={basePath} className="btn btn--ghost">Danh sách</Link>
             <button className="btn btn--primary" onClick={() => setEditing(true)}>Sửa thông tin</button>
             {canDelete && <button className="btn btn--danger" onClick={remove}>Xóa mềm</button>}
           </>

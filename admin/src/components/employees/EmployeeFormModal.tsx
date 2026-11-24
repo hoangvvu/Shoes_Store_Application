@@ -8,13 +8,13 @@ import { latestBirthDate, validateBirthDate, validatePassword, validatePhone } f
 import { Modal } from '../common/Modal';
 
 interface Props {
-  /** Không truyền = thêm mới (kèm tài khoản); có truyền = sửa hồ sơ và lương. */
+  /** Không truyền = thêm mới (kèm tài khoản); có truyền = sửa hồ sơ. */
   employee?: EmployeeDetail;
   onClose: () => void;
   onSaved: () => void;
 }
 
-/** M3 #3, #4, #7 – Thêm/sửa nhân viên. Kiểm tra SĐT (10–11 số, bắt đầu 0) và tuổi ≥ 18 ở client; backend kiểm tra lại. */
+/** Thêm/sửa nhân viên. */
 export function EmployeeFormModal({ employee, onClose, onSaved }: Props) {
   const isEdit = !!employee;
   const [f, setF] = useState({
@@ -22,7 +22,6 @@ export function EmployeeFormModal({ employee, onClose, onSaved }: Props) {
     phone: employee?.phone ?? '',
     dateOfBirth: employee?.dateOfBirth?.slice(0, 10) ?? '',
     address: employee?.address ?? '',
-    baseSalary: String(employee?.baseSalary ?? 0),
     username: '',
     password: '',
     role: 'SALES' as EmployeeRole,
@@ -41,8 +40,7 @@ export function EmployeeFormModal({ employee, onClose, onSaved }: Props) {
       const m = validateBirthDate(f.dateOfBirth);
       if (m) return m;
     }
-    const salary = Number(f.baseSalary);
-    if (!Number.isFinite(salary) || salary < 0) return 'Lương cơ bản không được âm';
+
     if (!isEdit) {
       if (!/^[A-Za-z0-9_.]{4,50}$/.test(f.username.trim())) return 'Tên đăng nhập 4–50 ký tự, chỉ gồm chữ, số, dấu _ hoặc .';
       const m = validatePassword(f.password);
@@ -62,7 +60,6 @@ export function EmployeeFormModal({ employee, onClose, onSaved }: Props) {
       phone: f.phone.trim() || undefined,
       dateOfBirth: f.dateOfBirth || undefined,
       address: f.address.trim() || undefined,
-      baseSalary: Number(f.baseSalary),
     };
     try {
       if (isEdit) await employeeService.update(employee.employeeId, common);
@@ -92,10 +89,6 @@ export function EmployeeFormModal({ employee, onClose, onSaved }: Props) {
             <input type="date" value={f.dateOfBirth} max={latestBirthDate()} onChange={set('dateOfBirth')} />
           </label>
           <label className="field">
-            <span>Lương cơ bản (VND)</span>
-            <input type="number" min={0} step={100000} value={f.baseSalary} onChange={set('baseSalary')} />
-          </label>
-          <label className="field span-2">
             <span>Địa chỉ</span>
             <input value={f.address} onChange={set('address')} maxLength={255} />
           </label>

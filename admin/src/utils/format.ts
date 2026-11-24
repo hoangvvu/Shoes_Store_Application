@@ -61,3 +61,20 @@ export function thisMonth(): { from: string; to: string } {
 /** Ngưỡng mặc định "sắp hết hàng" (M6 #4). */
 export const LOW_STOCK_THRESHOLD = 5;
 
+import { API_URL } from '../config/env';
+
+/**
+ * Chuyển đổi đường dẫn ảnh (tương đối như /uploads/... hoặc tuyệt đối) thành URL hoàn chỉnh
+ * để hiển thị chính xác trên giao diện (hỗ trợ cả POS, bảng sản phẩm, xem trước).
+ */
+export function resolveImageUrl(src?: string | null): string {
+  if (!src) return '';
+  const trimmed = src.trim();
+  if (!trimmed) return '';
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('data:')) {
+    return trimmed;
+  }
+  const backendBase = API_URL.replace(/\/api\/v1\/?$/, '');
+  return trimmed.startsWith('/') ? `${backendBase}${trimmed}` : `${backendBase}/${trimmed}`;
+}
+

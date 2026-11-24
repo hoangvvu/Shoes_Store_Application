@@ -56,15 +56,22 @@ export function SidebarLayout({ role, title, accent }: Props) {
     navigate('/login', { replace: true });
   }
 
-  const home = MENUS[role][0].path;
+  const navItems = MENUS[role];
+  const home = navItems[0]?.path ?? `/${role.toLowerCase()}`;
 
   return (
     <div className={`shell ${open ? '' : 'shell--closed'}`} style={{ ['--accent-role' as string]: accent }}>
       <aside className="sidebar" aria-hidden={!open}>
         <div className="sidebar__brand">{title}</div>
         <nav className="sidebar__nav">
-          {MENUS[role].map((m) => (
-            <NavLink key={m.path} to={m.path} end={m.path === home} tabIndex={open ? 0 : -1} className={({ isActive }) => `sidebar__link ${isActive ? 'active' : ''}`}>
+          {navItems.map((m) => (
+            <NavLink
+              key={m.path}
+              to={m.path}
+              end={m.path === home}
+              tabIndex={open ? 0 : -1}
+              className={({ isActive }) => `sidebar__link ${isActive ? 'active' : ''}`}
+            >
               <NavIcon name={m.icon} />
               <span>{m.label}</span>
             </NavLink>

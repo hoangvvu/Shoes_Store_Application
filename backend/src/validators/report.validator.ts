@@ -25,8 +25,19 @@ export const topCustomersQuery = dateRangeQuery.extend({
   limit: z.coerce.number().int().min(1).max(100).default(10).optional(),
 });
 
+export const locationReportQuery = dateRangeQuery.extend({
+  limit: z.coerce.number().int().min(1).max(100).default(50).optional(),
+});
+
+export const yearQuery = z.object({
+  year: z.coerce.number().int().min(2000).max(2100).default(new Date().getFullYear()).optional(),
+  format: z.enum(['json', 'xlsx']).optional(),
+});
+
 export type DateRangeQuery = z.infer<typeof dateRangeQuery>;
 export type RevenueQuery = z.infer<typeof revenueQuery>;
 export type TopProductsQuery = z.infer<typeof topProductsQuery>;
 export type StockReportQuery = z.infer<typeof stockReportQuery>;
 export type TopCustomersQuery = z.infer<typeof topCustomersQuery>;
+export type LocationReportQuery = z.infer<typeof locationReportQuery>;
+export type YearQuery = z.infer<typeof yearQuery>;

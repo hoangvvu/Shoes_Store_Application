@@ -3,6 +3,7 @@ import { paginationQuery } from '../utils/pagination';
 
 export const createCategorySchema = z.object({
   categoryName: z.string({ required_error: 'Vui lòng nhập tên danh mục' }).trim().min(1, 'Tên danh mục không được để trống').max(100),
+  imageUrl: z.string().trim().max(500).optional().nullable(),
 });
 export const updateCategorySchema = createCategorySchema;
 
@@ -62,6 +63,7 @@ export const createProductSchema = z.object({
   productName: z.string({ required_error: 'Vui lòng nhập tên sản phẩm' }).trim().min(1, 'Tên sản phẩm không được để trống').max(200),
   categoryId: optionalNullableId,
   brandId: optionalNullableId,
+  supplierId: optionalNullableId,
   currentPrice: z.coerce.number({ required_error: 'Vui lòng nhập giá' }).min(0, 'Giá không được âm'),
   unit: z.string().trim().max(20).default('Đôi'),
   description: z.string().trim().max(4000).optional().nullable(),
@@ -72,6 +74,7 @@ export const updateProductSchema = z.object({
   productName: z.string().trim().min(1, 'Tên sản phẩm không được để trống').max(200).optional(),
   categoryId: optionalNullableId,
   brandId: optionalNullableId,
+  supplierId: optionalNullableId,
   currentPrice: z.coerce.number().min(0, 'Giá không được âm').optional(),
   unit: z.string().trim().max(20).optional(),
   description: z.string().trim().max(4000).optional().nullable(),
@@ -86,6 +89,7 @@ export const productListQuery = paginationQuery.extend({
   q: z.string().trim().optional(),
   categoryId: optionalQueryId,
   brandId: optionalQueryId,
+  supplierId: optionalQueryId,
   isActive: optionalQueryBool,
   minPrice: z.coerce.number().min(0).optional(),
   maxPrice: z.coerce.number().min(0).optional(),

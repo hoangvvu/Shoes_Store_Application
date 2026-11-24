@@ -5,12 +5,15 @@ import type { ProductListItemRow, ProductDetailRow, VariantRow } from '../types/
 /** Giữ re-export để các file cũ import kiểu từ repository vẫn chạy; có thể bỏ sau khi đổi import. */
 export type { ProductListItemRow, ProductDetailRow, VariantRow } from '../types/product.types';
 
+const TODAY_GMT7 = `CAST(SYSDATETIMEOFFSET() AT TIME ZONE 'SE Asia Standard Time' AS DATE)`;
+
 export const productRepository = {
   async list(
     p: {
       q?: string;
       categoryId?: number;
       brandId?: number;
+      supplierId?: number;
       isActive?: boolean;
       minPrice?: number;
       maxPrice?: number;
@@ -29,6 +32,7 @@ export const productRepository = {
          AND (@q IS NULL OR p.product_name COLLATE Vietnamese_CI_AI LIKE @qLike)
          AND (@catId IS NULL OR p.category_id = @catId)
          AND (@brandId IS NULL OR p.brand_id = @brandId)
+         AND (@supId IS NULL OR p.supplier_id = @supId)
          AND (@isActive IS NULL OR p.is_active = @isActive)
          AND (@minPrice IS NULL OR p.current_price >= @minPrice)
          AND (@maxPrice IS NULL OR p.current_price <= @maxPrice)`,
@@ -37,6 +41,7 @@ export const productRepository = {
         qLike: [sql.NVarChar(202), qLike],
         catId: [sql.Int, p.categoryId ?? null],
         brandId: [sql.Int, p.brandId ?? null],
+        supId: [sql.Int, p.supplierId ?? null],
         isActive: [sql.Bit, p.isActive !== undefined ? (p.isActive ? 1 : 0) : null],
         minPrice: [sql.Decimal(18, 2), p.minPrice ?? null],
         maxPrice: [sql.Decimal(18, 2), p.maxPrice ?? null],
@@ -48,23 +53,56 @@ export const productRepository = {
       `SELECT p.product_id AS productId, p.product_name AS productName,
               p.category_id AS categoryId, c.category_name AS categoryName,
               p.brand_id AS brandId, b.brand_name AS brandName,
+              p.supplier_id AS supplierId, s.supplier_name AS supplierName,
               p.current_price AS currentPrice, p.unit, p.image_url AS imageUrl,
               p.is_active AS isActive,
-              ISNULL(SUM(v.stock_quantity), 0) AS totalStock,
-              COUNT(v.variant_id) AS variantCount
+              ISNULL(v.totalStock, 0) AS totalStock,
+              ISNULL(v.variantCount, 0) AS variantCount,
+              ISNULL(sold.soldCount, 0) AS soldCount,
+              ISNULL(promo.discountPercent, 0) AS discountPercent,
+              pr.avgRating,
+              ISNULL(pr.reviewCount, 0) AS reviewCount
        FROM products p
        LEFT JOIN categories c ON c.category_id = p.category_id
        LEFT JOIN brands b ON b.brand_id = p.brand_id
-       LEFT JOIN product_variants v ON v.product_id = p.product_id AND v.is_deleted = 0
+       LEFT JOIN suppliers s ON s.supplier_id = p.supplier_id
+       OUTER APPLY (
+         SELECT SUM(stock_quantity) AS totalStock, COUNT(*) AS variantCount
+         FROM product_variants
+         WHERE product_id = p.product_id AND is_deleted = 0
+       ) v
+       OUTER APPLY (
+         SELECT ISNULL(SUM(d.quantity), 0) AS soldCount
+         FROM product_variants pv
+         JOIN invoice_details d ON d.variant_id = pv.variant_id
+         JOIN invoices i ON i.invoice_id = d.invoice_id
+         WHERE pv.product_id = p.product_id
+           AND i.is_deleted = 0
+           AND i.order_status <> 'CANCELLED'
+       ) sold
+       OUTER APPLY (
+         SELECT ISNULL(MAX(pp.discount_percent), 0) AS discountPercent
+         FROM promotion_products pp
+         JOIN promotions prm ON prm.promotion_id = pp.promotion_id
+         WHERE pp.product_id = p.product_id
+           AND prm.promo_type = 'PRODUCT'
+           AND prm.is_active = 1
+           AND prm.is_deleted = 0
+           AND ${TODAY_GMT7} BETWEEN prm.start_date AND prm.end_date
+       ) promo
+       OUTER APPLY (
+         SELECT AVG(CAST(rating AS FLOAT)) AS avgRating, COUNT(*) AS reviewCount
+         FROM product_reviews
+         WHERE product_id = p.product_id AND is_deleted = 0 AND status = 'APPROVED'
+       ) pr
        WHERE p.is_deleted = 0
          AND (@q IS NULL OR p.product_name COLLATE Vietnamese_CI_AI LIKE @qLike)
          AND (@catId IS NULL OR p.category_id = @catId)
          AND (@brandId IS NULL OR p.brand_id = @brandId)
+         AND (@supId IS NULL OR p.supplier_id = @supId)
          AND (@isActive IS NULL OR p.is_active = @isActive)
          AND (@minPrice IS NULL OR p.current_price >= @minPrice)
          AND (@maxPrice IS NULL OR p.current_price <= @maxPrice)
-       GROUP BY p.product_id, p.product_name, p.category_id, c.category_name,
-                p.brand_id, b.brand_name, p.current_price, p.unit, p.image_url, p.is_active
        ORDER BY p.product_id DESC
        OFFSET @offset ROWS FETCH NEXT @size ROWS ONLY`,
       {
@@ -72,6 +110,7 @@ export const productRepository = {
         qLike: [sql.NVarChar(202), qLike],
         catId: [sql.Int, p.categoryId ?? null],
         brandId: [sql.Int, p.brandId ?? null],
+        supId: [sql.Int, p.supplierId ?? null],
         isActive: [sql.Bit, p.isActive !== undefined ? (p.isActive ? 1 : 0) : null],
         minPrice: [sql.Decimal(18, 2), p.minPrice ?? null],
         maxPrice: [sql.Decimal(18, 2), p.maxPrice ?? null],
@@ -82,13 +121,24 @@ export const productRepository = {
     );
 
     return {
-      rows: rowsRes.recordset.map((r) => ({
-        ...r,
-        currentPrice: Number(r.currentPrice),
-        isActive: Boolean(r.isActive),
-        totalStock: Number(r.totalStock),
-        variantCount: Number(r.variantCount),
-      })),
+      rows: rowsRes.recordset.map((r) => {
+        const currentPrice = Number(r.currentPrice);
+        const discountPercent = Number(r.discountPercent ?? 0);
+        const finalPrice =
+          discountPercent > 0 ? Math.round((currentPrice * (100 - discountPercent)) / 100) : null;
+        return {
+          ...r,
+          currentPrice,
+          discountPercent,
+          finalPrice,
+          soldCount: Number(r.soldCount ?? 0),
+          avgRating: r.avgRating !== null && r.avgRating !== undefined ? Math.round(Number(r.avgRating) * 10) / 10 : null,
+          reviewCount: Number(r.reviewCount ?? 0),
+          isActive: Boolean(r.isActive),
+          totalStock: Number(r.totalStock),
+          variantCount: Number(r.variantCount),
+        };
+      }),
       total: countRes.recordset[0]?.total ?? 0,
     };
   },
@@ -98,20 +148,43 @@ export const productRepository = {
       `SELECT p.product_id AS productId, p.product_name AS productName,
               p.category_id AS categoryId, c.category_name AS categoryName,
               p.brand_id AS brandId, b.brand_name AS brandName,
+              p.supplier_id AS supplierId, s.supplier_name AS supplierName,
               p.current_price AS currentPrice, p.unit, p.image_url AS imageUrl,
               p.description, p.is_active AS isActive,
               ISNULL(v.totalStock, 0) AS totalStock,
               ISNULL(v.variantCount, 0) AS variantCount,
+              ISNULL(sold.soldCount, 0) AS soldCount,
+              ISNULL(promo.discountPercent, 0) AS discountPercent,
               pr.avgRating,
               ISNULL(pr.reviewCount, 0) AS reviewCount
        FROM products p
        LEFT JOIN categories c ON c.category_id = p.category_id
        LEFT JOIN brands b ON b.brand_id = p.brand_id
+       LEFT JOIN suppliers s ON s.supplier_id = p.supplier_id
        OUTER APPLY (
          SELECT SUM(stock_quantity) AS totalStock, COUNT(*) AS variantCount
          FROM product_variants
          WHERE product_id = p.product_id AND is_deleted = 0
        ) v
+       OUTER APPLY (
+         SELECT ISNULL(SUM(d.quantity), 0) AS soldCount
+         FROM product_variants pv
+         JOIN invoice_details d ON d.variant_id = pv.variant_id
+         JOIN invoices i ON i.invoice_id = d.invoice_id
+         WHERE pv.product_id = p.product_id
+           AND i.is_deleted = 0
+           AND i.order_status <> 'CANCELLED'
+       ) sold
+       OUTER APPLY (
+         SELECT ISNULL(MAX(pp.discount_percent), 0) AS discountPercent
+         FROM promotion_products pp
+         JOIN promotions prm ON prm.promotion_id = pp.promotion_id
+         WHERE pp.product_id = p.product_id
+           AND prm.promo_type = 'PRODUCT'
+           AND prm.is_active = 1
+           AND prm.is_deleted = 0
+           AND ${TODAY_GMT7} BETWEEN prm.start_date AND prm.end_date
+       ) promo
        OUTER APPLY (
          SELECT AVG(CAST(rating AS FLOAT)) AS avgRating, COUNT(*) AS reviewCount
          FROM product_reviews
@@ -123,13 +196,20 @@ export const productRepository = {
     );
     const row = r.recordset[0];
     if (!row) return null;
+    const currentPrice = Number(row.currentPrice);
+    const discountPercent = Number(row.discountPercent ?? 0);
+    const finalPrice =
+      discountPercent > 0 ? Math.round((currentPrice * (100 - discountPercent)) / 100) : null;
     return {
       ...row,
-      currentPrice: Number(row.currentPrice),
+      currentPrice,
+      discountPercent,
+      finalPrice,
+      soldCount: Number(row.soldCount ?? 0),
       isActive: Boolean(row.isActive),
       totalStock: Number(row.totalStock),
       variantCount: Number(row.variantCount),
-      avgRating: row.avgRating !== null ? Math.round(Number(row.avgRating) * 10) / 10 : null,
+      avgRating: row.avgRating !== null && row.avgRating !== undefined ? Math.round(Number(row.avgRating) * 10) / 10 : null,
       reviewCount: Number(row.reviewCount ?? 0),
     };
   },
@@ -158,6 +238,7 @@ export const productRepository = {
       productName: string;
       categoryId?: number | null;
       brandId?: number | null;
+      supplierId?: number | null;
       currentPrice: number;
       unit?: string;
       description?: string | null;
@@ -166,13 +247,14 @@ export const productRepository = {
     exec?: Executor,
   ): Promise<number> {
     const r = await query<{ id: number }>(
-      `INSERT INTO products (product_name, category_id, brand_id, current_price, unit, description, image_url)
-       VALUES (@name, @cat, @brand, @price, @unit, @desc, @img);
+      `INSERT INTO products (product_name, category_id, brand_id, supplier_id, current_price, unit, description, image_url)
+       VALUES (@name, @cat, @brand, @sup, @price, @unit, @desc, @img);
        SELECT CAST(SCOPE_IDENTITY() AS INT) AS id;`,
       {
         name: [sql.NVarChar(200), d.productName],
         cat: [sql.Int, d.categoryId ?? null],
         brand: [sql.Int, d.brandId ?? null],
+        sup: [sql.Int, d.supplierId ?? null],
         price: [sql.Decimal(18, 2), d.currentPrice],
         unit: [sql.NVarChar(20), d.unit ?? 'Đôi'],
         desc: [sql.NVarChar(sql.MAX), d.description ?? null],
@@ -189,6 +271,7 @@ export const productRepository = {
       productName?: string;
       categoryId?: number | null;
       brandId?: number | null;
+      supplierId?: number | null;
       currentPrice?: number;
       unit?: string;
       description?: string | null;
@@ -201,6 +284,7 @@ export const productRepository = {
          product_name = COALESCE(@name, product_name),
          category_id = CASE WHEN @catProvided = 1 THEN @cat ELSE category_id END,
          brand_id = CASE WHEN @brandProvided = 1 THEN @brand ELSE brand_id END,
+         supplier_id = CASE WHEN @supProvided = 1 THEN @sup ELSE supplier_id END,
          current_price = COALESCE(@price, current_price),
          unit = COALESCE(@unit, unit),
          description = CASE WHEN @descProvided = 1 THEN @desc ELSE description END,
@@ -213,6 +297,8 @@ export const productRepository = {
         cat: [sql.Int, d.categoryId ?? null],
         brandProvided: [sql.Bit, d.brandId !== undefined ? 1 : 0],
         brand: [sql.Int, d.brandId ?? null],
+        supProvided: [sql.Bit, d.supplierId !== undefined ? 1 : 0],
+        sup: [sql.Int, d.supplierId ?? null],
         price: [sql.Decimal(18, 2), d.currentPrice ?? null],
         unit: [sql.NVarChar(20), d.unit ?? null],
         descProvided: [sql.Bit, d.description !== undefined ? 1 : 0],

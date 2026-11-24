@@ -7,10 +7,12 @@ import { validate } from '../middleware/validate.middleware';
 import { asyncHandler as h } from '../utils/asyncHandler';
 import {
   dateRangeQuery,
+  locationReportQuery,
   revenueQuery,
   stockReportQuery,
   topCustomersQuery,
   topProductsQuery,
+  yearQuery,
 } from '../validators/report.validator';
 
 const { ADMIN, SALES, WAREHOUSE } = ROLES;
@@ -25,6 +27,11 @@ r.get('/inventory-movement', requireRole(ADMIN, WAREHOUSE), validate(dateRangeQu
 r.get('/top-customers', requireRole(ADMIN), validate(topCustomersQuery, 'query'), h(c.topCustomers));
 r.get('/employees', requireRole(ADMIN), validate(dateRangeQuery, 'query'), h(c.employees));
 r.get('/returns', requireRole(ADMIN), validate(dateRangeQuery, 'query'), h(c.returns));
+r.get('/locations', requireRole(ADMIN), validate(locationReportQuery, 'query'), h(c.locations));
+r.get('/financial-matrix', requireRole(ADMIN), validate(yearQuery, 'query'), h(c.financialMatrix));
+r.get('/employee-matrix', requireRole(ADMIN), validate(yearQuery, 'query'), h(c.employeeMatrix));
+r.get('/customer-matrix', requireRole(ADMIN), validate(yearQuery, 'query'), h(c.customerMatrix));
+r.get('/product-matrix', requireRole(ADMIN), validate(yearQuery, 'query'), h(c.productMatrix));
 r.get('/:key', requireRole(ADMIN, SALES, WAREHOUSE), h(c.exportByKey));
 
 export default r;

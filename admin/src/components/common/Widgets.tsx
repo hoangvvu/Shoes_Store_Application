@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { API_URL } from '../../config/env';
+import { resolveImageUrl } from '../../utils/format';
 import { type IconName, NavIcon } from './NavIcon';
 
 interface StatCardProps {
@@ -78,8 +78,7 @@ export function ColorDot({ hex, name }: { hex: string | null; name?: string }) {
 
 /** Ảnh thu nhỏ sản phẩm, có ảnh dự phòng khi URL lỗi/trống. */
 export function Thumb({ src, alt }: { src: string | null; alt: string }) {
-  const backendBase = API_URL.replace(/\/api\/v1\/?$/, '');
-  const resolvedSrc = src?.startsWith('/') ? `${backendBase}${src}` : src;
+  const resolvedSrc = resolveImageUrl(src);
   return resolvedSrc ? (
     <img className="thumb" src={resolvedSrc} alt={alt} loading="lazy" onError={(e) => ((e.currentTarget.style.visibility = 'hidden'))} />
   ) : (

@@ -44,4 +44,7 @@ export const employeeService = {
   async changeRole(userId: number, role: EmployeeRole): Promise<void> {
     await api.patch(`/users/${userId}/role`, { role });
   },
+  async resetPassword(userId: number, newPassword: string): Promise<void> {
+    await api.patch(`/users/${userId}/reset-password`, { newPassword });
+  },
 };

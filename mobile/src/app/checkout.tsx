@@ -194,6 +194,37 @@ export default function CheckoutScreen() {
   const canPlace = !!preview?.canPlaceOrder && !!addressId && !voucherBad;
   const selectedAddress = addresses.find((a) => a.addressId === addressId);
 
+<<<<<<< HEAD
+  function handleOpenConfirm() {
+    if (!addressId) return Alert.alert('Thiếu địa chỉ', 'Vui lòng chọn địa chỉ giao hàng');
+    setShowConfirmModal(true);
+  }
+
+  async function placeOrder() {
+    if (!addressId) return Alert.alert('Thiếu địa chỉ', 'Vui lòng chọn địa chỉ giao hàng');
+    setPlacing(true);
+    try {
+      const payload = {
+        addressId,
+        methodCode: method,
+        voucherCode: appliedVoucher || undefined,
+        note: note.trim() || undefined,
+      };
+
+      const order = await orderService.create(payload);
+      useCartStore.getState().reset(); // giỏ đã được đóng ở server
+      if (method === 'COD' || method === 'CASH' || preview?.amountPayable === 0) {
+        Alert.alert('Đặt hàng thành công', `Mã đơn #${order.invoiceId}. Cửa hàng sẽ sớm giao hàng đến bạn.`);
+        router.replace(`/orders/${order.invoiceId}`);
+      } else {
+        router.replace(`/orders/payment/${order.invoiceId}`);
+      }
+    } catch (e) {
+      Alert.alert('Không thể đặt hàng', getErrorMessage(e));
+      void useCartStore.getState().refresh().catch(() => undefined);
+    } finally {
+      setPlacing(false);
+=======
     async function handleOpenConfirm() {
       if (!addressId) return Alert.alert('Thiếu địa chỉ', 'Vui lòng chọn địa chỉ giao hàng');
       setApplying(true);
@@ -206,8 +237,38 @@ export default function CheckoutScreen() {
       } finally {
         setApplying(false);
       }
+>>>>>>> origin/develop
     }
 
+<<<<<<< HEAD
+  const headerOptions = {
+    headerShown: true,
+    title: 'Xác nhận đơn hàng',
+    headerStyle: { backgroundColor: '#FFFFFF' },
+    headerTintColor: colors.text,
+    headerTitleStyle: { fontWeight: '800' as const, fontSize: 18 },
+    headerBackTitle: 'Giỏ hàng',
+    headerShadowVisible: false,
+    headerLeft: () => (
+      <TouchableOpacity
+        onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)/cart'))}
+        style={{ paddingRight: 12, paddingVertical: 4 }}
+        hitSlop={8}
+      >
+        <Ionicons name="arrow-back" size={22} color={colors.text} />
+      </TouchableOpacity>
+    ),
+  };
+
+  if (loading || !preview) {
+    return (
+      <View style={styles.center}>
+        <Stack.Screen options={headerOptions} />
+        <ActivityIndicator color={colors.primary} size="large" />
+      </View>
+    );
+  }
+=======
     async function placeOrder() {
       if (!addressId) return Alert.alert('Thiếu địa chỉ', 'Vui lòng chọn địa chỉ giao hàng');
       setPlacing(true);
@@ -215,6 +276,7 @@ export default function CheckoutScreen() {
         // Kiểm tra lại phiên voucher ngay tại thời điểm bấm xác nhận đặt hàng / quét QR
         const validSession = await revalidateSession();
         if (!validSession) return;
+>>>>>>> origin/develop
 
         const activeCode = appliedVoucherRef.current || undefined;
         const latestPreview = await orderService.preview(activeCode);
@@ -304,6 +366,16 @@ export default function CheckoutScreen() {
                 </>
               )}
 
+<<<<<<< HEAD
+              <View style={styles.modalRow}>
+                <Text style={styles.modalLabel}>Hình thức:</Text>
+                <Text style={[styles.modalVal, { color: colors.primaryDark, fontWeight: '700' }]}>
+                  {method === 'CASH' || method === 'COD'
+                    ? 'Tiền mặt khi nhận hàng'
+                    : 'Quét mã QR (Ngân hàng / MoMo)'}
+                </Text>
+              </View>
+=======
               <Text style={styles.h2}>Phương thức thanh toán</Text>
               {PAYMENT_METHODS.map((m) => (
                 <Pressable key={m.code} style={[styles.option, method === m.code && styles.optionActive]} onPress={() => setMethod(m.code)}>
@@ -312,6 +384,7 @@ export default function CheckoutScreen() {
                   <Text style={[styles.bold, { flex: 1 }]}>{m.text}</Text>
                 </Pressable>
               ))}
+>>>>>>> origin/develop
 
               <Text style={styles.h2}>Mã giảm giá</Text>
               <View style={styles.voucherRow}>
@@ -503,6 +576,30 @@ function Row({ label, value, big }: { label: string; value: string; big?: boolea
         );
       }
 
+<<<<<<< HEAD
+const styles = StyleSheet.create({
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  container: { padding: 16, gap: 10, paddingBottom: 24 },
+  h2: { fontSize: 17, fontWeight: '800', color: colors.text, marginTop: 10 },
+  bold: { color: colors.text, fontWeight: '700', fontSize: 15 },
+  muted: { color: colors.textMuted, fontSize: 14 },
+  error: { color: colors.danger, fontSize: 14, fontWeight: '600' },
+  ok: { color: '#168A4F', fontSize: 13, fontWeight: '600' },
+  link: { color: colors.primary, fontWeight: '700' },
+  option: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
+  optionActive: { borderColor: colors.primary },
+  addBox: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 14, borderRadius: radius.md, borderWidth: 1, borderStyle: 'dashed', borderColor: colors.primary },
+  voucherRow: { flexDirection: 'row', gap: 8 },
+  input: { flex: 1, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, backgroundColor: colors.surface, paddingHorizontal: 12, paddingVertical: 12, color: colors.text, fontSize: 15 },
+  applyBtn: { paddingHorizontal: 16, borderRadius: radius.md, backgroundColor: colors.primary, justifyContent: 'center', minWidth: 90, alignItems: 'center' },
+  applyText: { color: colors.white, fontWeight: '700' },
+  lineRow: { flexDirection: 'row', gap: 12, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.border },
+  totals: { gap: 6, marginTop: 8 },
+  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  bigLabel: { color: colors.text, fontSize: 17, fontWeight: '800' },
+  bigValue: { color: colors.primaryDark, fontSize: 20, fontWeight: '800' },
+  footer: { padding: 16, borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.background },
+=======
       const headerOptions = {
         headerShown: true,
         title: 'Đặt hàng',
@@ -534,6 +631,7 @@ function Row({ label, value, big }: { label: string; value: string; big?: boolea
         bigLabel: { color: colors.text, fontSize: 17, fontWeight: '800' },
         bigValue: { color: colors.primaryDark, fontSize: 20, fontWeight: '800' },
         footer: { padding: 16, borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.background },
+>>>>>>> origin/develop
 
         // Confirmation Modal
         modalBackdrop: {

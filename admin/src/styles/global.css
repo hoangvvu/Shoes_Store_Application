@@ -141,9 +141,13 @@ h3 { margin: 0 0 12px; font-size: 16px; }
 .table-wrap { overflow-x: auto; }
 .table { width: 100%; border-collapse: collapse; font-size: 14.5px; }
 .table th { text-align: left; font-size: 13px; color: #6b7488; font-weight: 600; padding: 10px 12px; border-bottom: 1px solid #e3e8f2; white-space: nowrap; }
+.table th.actions-col { text-align: right; white-space: nowrap; }
 .table td { padding: 12px; border-bottom: 1px solid #f0f2f8; vertical-align: middle; }
 .table .num { text-align: right; }
-.table td.actions { display: flex; gap: 6px; justify-content: flex-end; }
+.table td.actions { vertical-align: middle; text-align: right; white-space: nowrap; }
+.table td.actions .actions-group,
+.table td.actions > div { display: inline-flex; align-items: center; justify-content: flex-end; gap: 6px; vertical-align: middle; }
+.table td.actions:not(:has(> div)) { display: flex; align-items: center; justify-content: flex-end; gap: 6px; }
 .badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; margin-right: 6px; }
 .badge--ok { background: #e3f7ec; color: #168a4f; }
 .badge--muted { background: #eef1f7; color: #5b6479; }
@@ -435,3 +439,83 @@ h3 { margin: 0 0 12px; font-size: 16px; }
 .summary__row--strong { font-size: 17px; font-weight: 800; }
 .pos-updating { margin: 6px 0 0; font-size: 12px; text-align: center; }
 .pos-pay-btn { transition: none; }
+
+/* ===== Banner Manager Form Styles ===== */
+.banner-form-modal { display: flex; flex-direction: column; gap: 14px; }
+.banner-form-group { display: flex; flex-direction: column; gap: 6px; }
+.banner-form-label { font-size: 13px; font-weight: 700; color: #1e293b; }
+.banner-form-input { padding: 9px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; outline: none; background: #fff; }
+.banner-form-input:focus { border-color: #0bb062; box-shadow: 0 0 0 2px rgba(11, 176, 98, 0.15); }
+.banner-upload-btn { padding: 8px 14px; border: 1px dashed #0bb062; border-radius: 8px; background: #f0fdf4; color: #058a46; font-size: 13px; font-weight: 700; cursor: pointer; transition: background 0.15s; }
+.banner-upload-btn:hover { background: #dcfce7; }
+.banner-preview-box { background: #f8fafc; border-radius: 8px; padding: 10px; border: 1px solid #e2e8f0; }
+.banner-form-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px; }
+.banner-form-error { padding: 10px 14px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; color: #dc2626; font-size: 13px; font-weight: 600; }
+
+
+/* ==========================================================================
+   PRINT STYLES (In ấn báo cáo & Xuất PDF)
+   ========================================================================== */
+.print-only {
+  display: none;
+}
+
+@media print {
+  /* Ẩn thanh bên, thanh điều hướng, nút bấm, bộ lọc */
+  aside,
+  .sidebar,
+  .sidebar-layout__sidebar,
+  .page-header__actions,
+  .search-bar,
+  .tabs,
+  .pagination,
+  .btn,
+  .no-print {
+    display: none !important;
+  }
+
+  body, html {
+    background: #fff !important;
+    color: #000 !important;
+    font-size: 10pt !important;
+  }
+
+  .main, .content, .card {
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+  }
+
+  .table-wrap {
+    overflow: visible !important;
+  }
+
+  table.table {
+    border-collapse: collapse !important;
+    width: 100% !important;
+  }
+
+  table.table th,
+  table.table td {
+    border: 1px solid #333 !important;
+    padding: 5px 8px !important;
+    font-size: 9.5pt !important;
+  }
+
+  table.table th {
+    background-color: #f2f2f2 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+
+  @page {
+    size: A4 landscape;
+    margin: 12mm;
+  }
+}

@@ -12,7 +12,7 @@ app.disable('x-powered-by');
 app.set('etag', false);
 
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
-app.use(cors({ origin: env.corsOrigins, credentials: true }));
+app.use(cors({ origin: env.isProd ? env.corsOrigins : true, credentials: true }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 

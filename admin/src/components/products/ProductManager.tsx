@@ -137,7 +137,7 @@ export function ProductManager({ basePath, canEdit = true }: Props) {
                   <th className="num">Biến thể</th>
                   <th className="num">Tổng tồn</th>
                   <th>Trạng thái</th>
-                  <th className="actions-col" />
+                  <th className="actions-col" style={{ textAlign: 'right', minWidth: 260 }}>Thao tác</th>
                 </tr>
               </thead>
               <tbody>
@@ -151,6 +151,11 @@ export function ProductManager({ basePath, canEdit = true }: Props) {
                     <td>
                       <div>{p.categoryName || '—'}</div>
                       <small className="muted">{p.brandName || '—'}</small>
+                      {p.supplierName && (
+                        <div style={{ fontSize: '11px', color: '#4338CA', marginTop: 2 }}>
+                          NCC: {p.supplierName}
+                        </div>
+                      )}
                     </td>
                     <td className="num font-bold">{formatVnd(p.currentPrice)}</td>
                     <td className="num">{formatNumber(p.variantCount)}</td>
@@ -165,26 +170,28 @@ export function ProductManager({ basePath, canEdit = true }: Props) {
                       </span>
                     </td>
                     <td className="actions">
-                      <Link to={`${basePath}/${p.productId}`} className="btn btn--ghost">Chi tiết</Link>
-                      {canEdit && (
-                        <>
-                          <button
-                            className="btn btn--ghost"
-                            onClick={() => setBulkModal({ productId: p.productId, productName: p.productName })}
-                            title="Tạo tổ hợp biến thể Size × Màu cho sản phẩm"
-                          >
-                            + Biến thể
-                          </button>
-                          <button
-                            className="btn btn--ghost"
-                            onClick={() => toggleActive(p)}
-                            title={p.isActive ? 'Chuyển sang ngừng kinh doanh' : 'Bật lại kinh doanh'}
-                          >
-                            {p.isActive ? 'Ẩn' : 'Hiện'}
-                          </button>
-                          <button className="btn btn--danger" onClick={() => remove(p)}>Xóa</button>
-                        </>
-                      )}
+                      <div className="actions-group">
+                        <Link to={`${basePath}/${p.productId}`} className="btn btn--ghost">Chi tiết</Link>
+                        {canEdit && (
+                          <>
+                            <button
+                              className="btn btn--ghost"
+                              onClick={() => setBulkModal({ productId: p.productId, productName: p.productName })}
+                              title="Tạo tổ hợp biến thể Size × Màu cho sản phẩm"
+                            >
+                              Biến thể
+                            </button>
+                            <button
+                              className="btn btn--ghost"
+                              onClick={() => toggleActive(p)}
+                              title={p.isActive ? 'Chuyển sang ngừng kinh doanh' : 'Bật lại kinh doanh'}
+                            >
+                              {p.isActive ? 'Ẩn' : 'Hiện'}
+                            </button>
+                            <button className="btn btn--danger" onClick={() => remove(p)}>Xóa</button>
+                          </>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}

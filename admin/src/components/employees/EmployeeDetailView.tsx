@@ -6,6 +6,7 @@ import { useAsync } from '../../utils/useAsync';
 import { formatYmdVn } from '../../utils/validators';
 import { DateRangeFilter, LoadState, StatCard } from '../common/Widgets';
 import { EmployeeFormModal } from './EmployeeFormModal';
+import { ResetPasswordModal } from './ResetPasswordModal';
 import { RoleBadge } from './RoleBadge';
 
 interface Props {
@@ -18,6 +19,7 @@ export function EmployeeDetailView({ basePath }: Props) {
   const employeeId = Number(id);
   const [range, setRange] = useState(lastDays(30));
   const [editing, setEditing] = useState(false);
+  const [resettingPassword, setResettingPassword] = useState(false);
 
   const { data: employee, loading: empLoading, error: empError, reload: reloadEmp } = useAsync(
     () => employeeService.get(employeeId),
@@ -40,14 +42,19 @@ export function EmployeeDetailView({ basePath }: Props) {
           <h1 style={{ marginTop: 4 }}>{employee.fullName}</h1>
           <p className="muted">Mã nhân viên: #{employee.employeeId}</p>
         </div>
-        <div className="page-header__actions">
+        <div className="page-header__actions" style={{ display: 'flex', gap: 8 }}>
+          {employee.userId && (
+            <button className="btn btn--outline" onClick={() => setResettingPassword(true)}>
+              Cấp lại mật khẩu
+            </button>
+          )}
           <button className="btn btn--primary" onClick={() => setEditing(true)}>Sửa thông tin</button>
         </div>
       </div>
 
       <div className="grid-2">
         <div className="card">
-          <h3>Thông tin cá nhân & công việc</h3>
+          <h3>Thông tin cá nhân</h3>
           <dl className="kv">
             <dt>Họ và tên</dt>
             <dd><strong>{employee.fullName}</strong></dd>
@@ -57,8 +64,6 @@ export function EmployeeDetailView({ basePath }: Props) {
             <dd>{formatYmdVn(employee.dateOfBirth)}</dd>
             <dt>Địa chỉ</dt>
             <dd>{employee.address || '—'}</dd>
-            <dt>Lương cơ bản</dt>
-            <dd><strong style={{ color: '#059669' }}>{formatVnd(employee.baseSalary)}</strong></dd>
           </dl>
         </div>
 
@@ -70,10 +75,20 @@ export function EmployeeDetailView({ basePath }: Props) {
             <dt>Vai trò</dt>
             <dd>{employee.role ? <RoleBadge role={employee.role} /> : '—'}</dd>
             <dt>Trạng thái</dt>
-            <dd>
+            <dd style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span className={`badge ${employee.isLocked ? 'badge--danger' : 'badge--ok'}`}>
                 {employee.isLocked ? 'Tài khoản bị khóa' : 'Đang hoạt động'}
               </span>
+              {employee.userId && (
+                <button
+                  type="button"
+                  className="btn btn--outline small"
+                  onClick={() => setResettingPassword(true)}
+                  style={{ marginLeft: 8 }}
+                >
+                  Cấp lại mật khẩu
+                </button>
+              )}
             </dd>
             <dt>Ngày tạo</dt>
             <dd>{employee.createdAt ? formatDateTime(employee.createdAt) : '—'}</dd>
@@ -128,6 +143,22 @@ export function EmployeeDetailView({ basePath }: Props) {
             setEditing(false);
             void reloadEmp();
             void reloadPerf();
+          }}
+        />
+      )}
+
+      {resettingPassword && employee.userId && (
+        <ResetPasswordModal
+          employee={{
+            employeeId: employee.employeeId,
+            fullName: employee.fullName,
+            username: employee.username,
+            userId: employee.userId,
+          }}
+          onClose={() => setResettingPassword(false)}
+          onSuccess={() => {
+            setResettingPassword(false);
+            void reloadEmp();
           }}
         />
       )}

@@ -1,8 +1,13 @@
 import type {
+  CustomerMatrixReport,
   DateRange,
+  EmployeeMatrixRow,
   EmployeeSales,
+  FinancialMatrixReport,
   InventoryMovementRow,
+  LocationReport,
   OrdersReport,
+  ProductMatrixRow,
   ReportKey,
   ReturnRate,
   RevenuePoint,
@@ -44,6 +49,26 @@ export const reportService = {
   },
   async returns(r: DateRange): Promise<ReturnRate[]> {
     const { data } = await api.get<ReturnRate[]>('/reports/returns', { params: r });
+    return data;
+  },
+  async locations(r: DateRange & { limit?: number }): Promise<LocationReport[]> {
+    const { data } = await api.get<LocationReport[]>('/reports/locations', { params: r });
+    return data;
+  },
+  async financialMatrix(year: number): Promise<FinancialMatrixReport> {
+    const { data } = await api.get<FinancialMatrixReport>('/reports/financial-matrix', { params: { year } });
+    return data;
+  },
+  async employeeMatrix(year: number): Promise<EmployeeMatrixRow[]> {
+    const { data } = await api.get<EmployeeMatrixRow[]>('/reports/employee-matrix', { params: { year } });
+    return data;
+  },
+  async customerMatrix(year: number): Promise<CustomerMatrixReport> {
+    const { data } = await api.get<CustomerMatrixReport>('/reports/customer-matrix', { params: { year } });
+    return data;
+  },
+  async productMatrix(year: number): Promise<ProductMatrixRow[]> {
+    const { data } = await api.get<ProductMatrixRow[]>('/reports/product-matrix', { params: { year } });
     return data;
   },
   /** M15 #9 – tải Excel qua axios để kèm token (không mở URL trần vì sẽ thiếu Authorization). */

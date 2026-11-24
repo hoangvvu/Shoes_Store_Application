@@ -1,9 +1,13 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { reportService } from '../../services/report.service';
 import type { EmployeeRole } from '../../types/auth';
 import type {
+  CustomerMatrixRow,
+  EmployeeMatrixRow,
   EmployeeSales,
   InventoryMovementRow,
+  LocationReport,
+  ProductMatrixRow,
   ReportKey,
   ReturnRate,
   RevenuePoint,
@@ -15,6 +19,85 @@ import { useAsync } from '../../utils/useAsync';
 import { PageHeader } from '../common/PageHeader';
 import { SearchBar } from '../common/SearchBar';
 import { BarChart, LoadState, Meter, StatCard, Tabs, Thumb } from '../common/Widgets';
+import { Pagination } from '../tables/Pagination';
+
+/** Hook quản lý phân trang độc lập cho từng bảng báo cáo */
+function useClientPagination<T>(items: T[], defaultPageSize = 10) {
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(defaultPageSize);
+
+  useEffect(() => {
+    setPage(1);
+  }, [items]);
+
+  const total = items.length;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const safePage = Math.min(Math.max(1, page), totalPages);
+
+  const paginatedItems = useMemo(() => {
+    const start = (safePage - 1) * pageSize;
+    return items.slice(start, start + pageSize);
+  }, [items, safePage, pageSize]);
+
+  const paginationControl = total > pageSize ? (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 14, flexWrap: 'wrap', gap: 10 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span className="muted small">Hiển thị:</span>
+        <select
+          className="select small"
+          value={pageSize}
+          onChange={(e) => {
+            setPageSize(Number(e.target.value));
+            setPage(1);
+          }}
+          style={{ width: 'auto', padding: '3px 8px', fontSize: 13 }}
+        >
+          <option value="5">5 / trang</option>
+          <option value="10">10 / trang</option>
+          <option value="20">20 / trang</option>
+          <option value="50">50 / trang</option>
+        </select>
+        <span className="muted small">
+          ({(safePage - 1) * pageSize + 1} – {Math.min(safePage * pageSize, total)} trên tổng {total})
+        </span>
+      </div>
+      <Pagination
+        page={safePage}
+        totalPages={totalPages}
+        total={total}
+        onChange={setPage}
+      />
+    </div>
+  ) : total > 5 ? (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 }}>
+      <span className="muted small">Hiển thị toàn bộ {total} bản ghi</span>
+      <select
+        className="select small"
+        value={pageSize}
+        onChange={(e) => {
+          setPageSize(Number(e.target.value));
+          setPage(1);
+        }}
+        style={{ width: 'auto', padding: '2px 8px', fontSize: 12 }}
+      >
+        <option value="5">5 / trang</option>
+        <option value="10">10 / trang</option>
+        <option value="20">20 / trang</option>
+      </select>
+    </div>
+  ) : null;
+
+  return {
+    page: safePage,
+    setPage,
+    pageSize,
+    setPageSize,
+    paginatedItems,
+    totalPages,
+    total,
+    paginationControl,
+  };
+}
 
 interface Props {
   role: EmployeeRole;
@@ -23,7 +106,6 @@ interface Props {
 const PRESETS = [
   { label: 'Hôm nay', getRange: () => { const t = ymd(new Date()); return { from: t, to: t }; } },
   { label: '7 ngày qua', getRange: () => lastDays(7) },
-  { label: '30 ngày qua', getRange: () => lastDays(30) },
   { label: 'Tháng này', getRange: () => thisMonth() },
   {
     label: 'Tháng trước',
@@ -37,19 +119,25 @@ const PRESETS = [
 ];
 
 export function ReportsManager({ role }: Props) {
-  const initialRange = lastDays(30);
-  const [activePreset, setActivePreset] = useState<string>('30 ngày qua');
+  const initialRange = thisMonth();
+  const currentYear = new Date().getFullYear();
+  const [selectedYear, setSelectedYear] = useState<number>(currentYear);
+  const [activePreset, setActivePreset] = useState<string>('Tháng này');
   const [draft, setDraft] = useState({ from: initialRange.from, to: initialRange.to, q: '' });
   const [applied, setApplied] = useState({ from: initialRange.from, to: initialRange.to, q: '' });
   const [tab, setTab] = useState<ReportKey>(
-    role === 'WAREHOUSE' ? 'inventory-movement' : role === 'SALES' ? 'top-products' : 'revenue',
+    role === 'WAREHOUSE' ? 'inventory-movement' : role === 'SALES' ? 'top-products' : 'financial-matrix',
   );
   const [exporting, setExporting] = useState(false);
 
-  // Danh sách tab theo vai trò
   const availableTabs: { key: ReportKey; label: string }[] =
     role === 'ADMIN'
       ? [
+        { key: 'financial-matrix', label: 'Báo cáo Thu – Chi – Lợi nhuận' },
+        { key: 'locations', label: 'Thống kê theo địa điểm' },
+        { key: 'employee-matrix', label: 'Doanh số NV theo Quý' },
+        { key: 'customer-matrix', label: 'Doanh số KH theo Năm' },
+        { key: 'product-matrix', label: 'Doanh số SP theo Quý' },
         { key: 'revenue', label: 'Doanh thu thuần' },
         { key: 'top-products', label: 'Sản phẩm bán chạy' },
         { key: 'orders', label: 'Trạng thái đơn hàng' },
@@ -69,16 +157,42 @@ export function ReportsManager({ role }: Props) {
           { key: 'orders', label: 'Tình trạng đơn hàng' },
         ];
 
+  const isMatrixTab = ['financial-matrix', 'employee-matrix', 'customer-matrix', 'product-matrix'].includes(tab);
   const range = useMemo(() => ({ from: applied.from, to: applied.to }), [applied.from, applied.to]);
 
-  // Reports data fetching
+  // Data fetching
+  const { data: finMatrixData, loading: finLoading, error: finError } = useAsync(
+    () => (tab === 'financial-matrix' ? reportService.financialMatrix(selectedYear) : Promise.resolve(null)),
+    [tab, selectedYear],
+  );
+
+  const { data: locationData, loading: locLoading, error: locError } = useAsync(
+    () => (tab === 'locations' ? reportService.locations({ ...range, limit: 100 }) : Promise.resolve(null)),
+    [tab, range],
+  );
+
+  const { data: empMatrixData, loading: empMatLoading, error: empMatError } = useAsync(
+    () => (tab === 'employee-matrix' ? reportService.employeeMatrix(selectedYear) : Promise.resolve(null)),
+    [tab, selectedYear],
+  );
+
+  const { data: cusMatrixData, loading: cusMatLoading, error: cusMatError } = useAsync(
+    () => (tab === 'customer-matrix' ? reportService.customerMatrix(selectedYear) : Promise.resolve(null)),
+    [tab, selectedYear],
+  );
+
+  const { data: prodMatrixData, loading: prodMatLoading, error: prodMatError } = useAsync(
+    () => (tab === 'product-matrix' ? reportService.productMatrix(selectedYear) : Promise.resolve(null)),
+    [tab, selectedYear],
+  );
+
   const { data: revenueData, loading: revLoading, error: revError } = useAsync(
     () => (tab === 'revenue' ? reportService.revenue({ ...range, groupBy: 'day' }) : Promise.resolve(null)),
     [tab, range],
   );
 
   const { data: topProducts, loading: prodLoading, error: prodError } = useAsync(
-    () => (tab === 'top-products' ? reportService.topProducts({ ...range, limit: 15 }) : Promise.resolve(null)),
+    () => (tab === 'top-products' ? reportService.topProducts({ ...range, limit: 100 }) : Promise.resolve(null)),
     [tab, range],
   );
 
@@ -98,7 +212,7 @@ export function ReportsManager({ role }: Props) {
   );
 
   const { data: topCustomers, loading: cusLoading, error: cusError } = useAsync(
-    () => (tab === 'top-customers' ? reportService.topCustomers({ ...range, limit: 15 }) : Promise.resolve(null)),
+    () => (tab === 'top-customers' ? reportService.topCustomers({ ...range, limit: 100 }) : Promise.resolve(null)),
     [tab, range],
   );
 
@@ -132,15 +246,42 @@ export function ReportsManager({ role }: Props) {
   async function handleExportExcel() {
     setExporting(true);
     try {
-      await reportService.exportExcel(tab, { from: range.from, to: range.to });
-    } catch (err: any) {
-      window.alert('Lỗi xuất tệp Excel: ' + (err.message || 'Vui lòng thử lại'));
+      await reportService.exportExcel(tab, { from: range.from, to: range.to, year: selectedYear });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Vui lòng thử lại';
+      window.alert('Lỗi xuất tệp Excel: ' + msg);
     } finally {
       setExporting(false);
     }
   }
 
-  // Filtered views for each tab
+  // Filtered views
+  const filteredLocations = useMemo(() => {
+    if (!locationData) return [];
+    if (!query) return locationData;
+    return locationData.filter((l) => l.province.toLowerCase().includes(query));
+  }, [locationData, query]);
+
+  const filteredEmpMatrix = useMemo(() => {
+    if (!empMatrixData) return [];
+    if (!query) return empMatrixData;
+    return empMatrixData.filter((e) => e.fullName.toLowerCase().includes(query) || String(e.employeeId) === query);
+  }, [empMatrixData, query]);
+
+  const filteredCusMatrix = useMemo(() => {
+    if (!cusMatrixData?.rows) return [];
+    if (!query) return cusMatrixData.rows;
+    return cusMatrixData.rows.filter(
+      (c) => c.fullName.toLowerCase().includes(query) || (c.phone && c.phone.includes(query)),
+    );
+  }, [cusMatrixData, query]);
+
+  const filteredProdMatrix = useMemo(() => {
+    if (!prodMatrixData) return [];
+    if (!query) return prodMatrixData;
+    return prodMatrixData.filter((p) => p.productName.toLowerCase().includes(query) || String(p.productId) === query);
+  }, [prodMatrixData, query]);
+
   const filteredRevenue = useMemo(() => {
     if (!revenueData) return [];
     if (!query) return revenueData;
@@ -150,9 +291,7 @@ export function ReportsManager({ role }: Props) {
   const filteredProducts = useMemo(() => {
     if (!topProducts) return [];
     if (!query) return topProducts;
-    return topProducts.filter(
-      (p) => p.productName.toLowerCase().includes(query) || String(p.productId) === query,
-    );
+    return topProducts.filter((p) => p.productName.toLowerCase().includes(query) || String(p.productId) === query);
   }, [topProducts, query]);
 
   const filteredMovement = useMemo(() => {
@@ -171,11 +310,7 @@ export function ReportsManager({ role }: Props) {
     if (!stockReport?.lowStock) return [];
     if (!query) return stockReport.lowStock;
     return stockReport.lowStock.filter(
-      (s) =>
-        s.sku.toLowerCase().includes(query) ||
-        s.productName.toLowerCase().includes(query) ||
-        s.sizeLabel.toLowerCase().includes(query) ||
-        s.colorName.toLowerCase().includes(query),
+      (s) => s.sku.toLowerCase().includes(query) || s.productName.toLowerCase().includes(query),
     );
   }, [stockReport, query]);
 
@@ -183,11 +318,7 @@ export function ReportsManager({ role }: Props) {
     if (!stockReport?.staleStock) return [];
     if (!query) return stockReport.staleStock;
     return stockReport.staleStock.filter(
-      (s) =>
-        s.sku.toLowerCase().includes(query) ||
-        s.productName.toLowerCase().includes(query) ||
-        s.sizeLabel.toLowerCase().includes(query) ||
-        s.colorName.toLowerCase().includes(query),
+      (s) => s.sku.toLowerCase().includes(query) || s.productName.toLowerCase().includes(query),
     );
   }, [stockReport, query]);
 
@@ -195,10 +326,7 @@ export function ReportsManager({ role }: Props) {
     if (!topCustomers) return [];
     if (!query) return topCustomers;
     return topCustomers.filter(
-      (c) =>
-        c.fullName.toLowerCase().includes(query) ||
-        (c.phone && c.phone.includes(query)) ||
-        String(c.customerId) === query,
+      (c) => c.fullName.toLowerCase().includes(query) || (c.phone && c.phone.includes(query)),
     );
   }, [topCustomers, query]);
 
@@ -213,45 +341,102 @@ export function ReportsManager({ role }: Props) {
   const filteredReturns = useMemo(() => {
     if (!returnRates) return [];
     if (!query) return returnRates;
-    return returnRates.filter(
-      (r) => r.productName.toLowerCase().includes(query) || String(r.productId) === query,
-    );
+    return returnRates.filter((r) => r.productName.toLowerCase().includes(query));
   }, [returnRates, query]);
+
+  // Pagination controls
+  const pgLocations = useClientPagination(filteredLocations);
+  const pgEmpMatrix = useClientPagination(filteredEmpMatrix);
+  const pgCusMatrix = useClientPagination(filteredCusMatrix);
+  const pgProdMatrix = useClientPagination(filteredProdMatrix);
+  const pgRevenue = useClientPagination(filteredRevenue);
+  const pgProducts = useClientPagination(filteredProducts);
+  const pgMovement = useClientPagination(filteredMovement);
+  const pgStockLow = useClientPagination(filteredStockLow);
+  const pgStockStale = useClientPagination(filteredStockStale);
+  const pgCustomers = useClientPagination(filteredCustomers);
+  const pgEmployees = useClientPagination(filteredEmployees);
+  const pgReturns = useClientPagination(filteredReturns);
 
   return (
     <>
+      <div className="print-only" style={{ marginBottom: 20 }}>
+        <h2 style={{ fontSize: 20, margin: 0 }}>SHOESTORE - BÁO CÁO THỐNG KÊ DOANH THU & QUẢN TRỊ</h2>
+        <p style={{ margin: '4px 0', fontSize: 13, color: '#444' }}>
+          Thời gian in: {new Date().toLocaleString('vi-VN')} | Báo cáo: {availableTabs.find((t) => t.key === tab)?.label}
+        </p>
+      </div>
+
       <PageHeader
-        title="Báo cáo & Thống kê kinh doanh"
+        title="Báo cáo thống kê"
         actions={
-          <button className="btn btn--primary" onClick={handleExportExcel} disabled={exporting}>
-            {exporting ? 'Đang xuất tệp…' : '📥 Xuất báo cáo Excel'}
-          </button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              type="button"
+              className="btn btn--outline"
+              onClick={() => window.print()}
+              title="In hoặc xuất PDF báo cáo"
+            >
+              🖨 In / Xuất PDF
+            </button>
+            <button
+              type="button"
+              className="btn btn--primary"
+              onClick={handleExportExcel}
+              disabled={exporting}
+            >
+              {exporting ? 'Đang xuất…' : '📥 Xuất Excel'}
+            </button>
+          </div>
         }
       />
 
       <div className="card">
-        <Tabs<ReportKey> tabs={availableTabs} value={tab} onChange={setTab} />
+        <div style={{ marginBottom: 16 }}>
+          <Tabs tabs={availableTabs} value={tab} onChange={(k) => setTab(k as ReportKey)} />
+        </div>
 
-        {/* BỘ LỌC THỜI GIAN & TÌM KIẾM BÁO CÁO */}
-        <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 12, padding: '14px 16px', marginBottom: 20 }}>
-          {tab !== 'stock' ? (
+        {/* Filter bar */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}>
+          {isMatrixTab ? (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontWeight: 600 }}>Năm báo cáo:</span>
+                <select
+                  className="select"
+                  value={selectedYear}
+                  onChange={(e) => setSelectedYear(Number(e.target.value))}
+                  style={{ width: 'auto', minWidth: 120 }}
+                >
+                  {[currentYear - 2, currentYear - 1, currentYear, currentYear + 1].map((y) => (
+                    <option key={y} value={y}>Năm {y}</option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ minWidth: 280 }}>
+                <SearchBar onSearch={handleSearch}>
+                  <input
+                    className="search"
+                    placeholder="Lọc nhanh kết quả..."
+                    value={draft.q}
+                    onChange={(e) => setDraft((d) => ({ ...d, q: e.target.value }))}
+                  />
+                </SearchBar>
+              </div>
+            </div>
+          ) : tab !== 'stock' ? (
             <>
-              <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                <span style={{ fontSize: 13, fontWeight: 700, color: '#475569' }}>Khoảng thời gian:</span>
-                {PRESETS.map((p) => {
-                  const isCurrent = activePreset === p.label;
-                  return (
-                    <button
-                      key={p.label}
-                      type="button"
-                      className={`btn ${isCurrent ? 'btn--primary' : 'btn--ghost'}`}
-                      style={{ padding: '4px 12px', fontSize: 12.5, borderRadius: 999 }}
-                      onClick={() => handleSelectPreset(p)}
-                    >
-                      {p.label}
-                    </button>
-                  );
-                })}
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {PRESETS.map((p) => (
+                  <button
+                    key={p.label}
+                    type="button"
+                    className={`btn btn--sm ${activePreset === p.label ? 'btn--primary' : 'btn--ghost'}`}
+                    onClick={() => handleSelectPreset(p)}
+                  >
+                    {p.label}
+                  </button>
+                ))}
               </div>
 
               <SearchBar onSearch={handleSearch}>
@@ -277,7 +462,7 @@ export function ReportsManager({ role }: Props) {
                 </label>
                 <input
                   className="search"
-                  placeholder="Lọc nhanh kết quả (sản phẩm, SKU, khách hàng, nhân viên, ngày)..."
+                  placeholder="Lọc nhanh kết quả (sản phẩm, khách hàng, nhân viên, tỉnh/thành)..."
                   value={draft.q}
                   onChange={(e) => setDraft((d) => ({ ...d, q: e.target.value }))}
                 />
@@ -303,7 +488,271 @@ export function ReportsManager({ role }: Props) {
           )}
         </div>
 
-        {/* 1. DOANH THU */}
+        {/* 1. MA TRẬN THU - CHI - LỢI NHUẬN */}
+        {tab === 'financial-matrix' && (
+          <div>
+            <LoadState loading={finLoading} error={finError} empty={!finLoading && (!finMatrixData || finMatrixData.rows.length === 0)} />
+            {finMatrixData && (
+              <>
+                <div className="stats-grid" style={{ marginBottom: 20 }}>
+                  <StatCard
+                    label={`Lợi nhuận năm ${selectedYear}`}
+                    value={formatVnd(finMatrixData.rows.find((r) => r.label === 'Lợi nhuận')?.total ?? 0)}
+                    icon="trend"
+                    tone="green"
+                    hint="Tổng thu trừ tổng chi trong cả năm"
+                  />
+                  <StatCard
+                    label={`Tổng thu năm ${selectedYear}`}
+                    value={formatVnd(finMatrixData.rows.find((r) => r.label === 'Tổng thu')?.total ?? 0)}
+                    icon="wallet"
+                    tone="blue"
+                    hint="Doanh thu hóa đơn giao thành công"
+                  />
+                  <StatCard
+                    label={`Tổng chi năm ${selectedYear}`}
+                    value={formatVnd(finMatrixData.rows.find((r) => r.label === 'Tổng chi')?.total ?? 0)}
+                    icon="cart"
+                    tone="orange"
+                    hint="Tổng tiền nhập hàng phiếu nhập kho"
+                  />
+                </div>
+
+                <div className="table-wrap">
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th style={{ minWidth: 160 }}>Năm {selectedYear}</th>
+                        <th className="num">Quý 1 (Q1)</th>
+                        <th className="num">Quý 2 (Q2)</th>
+                        <th className="num">Quý 3 (Q3)</th>
+                        <th className="num">Quý 4 (Q4)</th>
+                        <th className="num font-bold">Tổng cộng cả năm</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {finMatrixData.rows.map((row) => (
+                        <tr key={row.label} style={row.label === 'Lợi nhuận' ? { backgroundColor: '#f0fdf4', fontWeight: 'bold' } : undefined}>
+                          <td><strong>{row.label}</strong></td>
+                          <td className="num">{formatVnd(row.q1)}</td>
+                          <td className="num">{formatVnd(row.q2)}</td>
+                          <td className="num">{formatVnd(row.q3)}</td>
+                          <td className="num">{formatVnd(row.q4)}</td>
+                          <td className="num font-bold" style={{ color: row.label === 'Tổng chi' ? '#d97706' : row.label === 'Lợi nhuận' ? '#059669' : '#2563eb' }}>
+                            {formatVnd(row.total)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* 2. THỐNG KÊ THEO ĐỊA ĐIỂM */}
+        {tab === 'locations' && (
+          <div>
+            <LoadState loading={locLoading} error={locError} empty={!locLoading && (!locationData || locationData.length === 0)} />
+            {locationData && locationData.length > 0 && (
+              <>
+                <div className="stats-grid" style={{ marginBottom: 20 }}>
+                  <StatCard
+                    label="Địa điểm mua nhiều nhất"
+                    value={locationData[0]?.province ?? '—'}
+                    icon="wallet"
+                    tone="blue"
+                    hint={`Đóng góp ${locationData[0]?.percentage}% tổng doanh thu`}
+                  />
+                  <StatCard
+                    label="Tổng số đơn giao"
+                    value={`${formatNumber(locationData.reduce((s, x) => s + x.orders, 0))} đơn`}
+                    icon="cart"
+                    tone="green"
+                  />
+                  <StatCard
+                    label="Tổng doanh thu các tỉnh"
+                    value={formatVnd(locationData.reduce((s, x) => s + x.revenue, 0))}
+                    icon="trend"
+                    tone="violet"
+                  />
+                </div>
+
+                <div className="table-wrap">
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th>Tỉnh / Thành phố</th>
+                        <th className="num">Số đơn hàng</th>
+                        <th>Tỷ trọng doanh thu</th>
+                        <th className="num font-bold">Doanh thu</th>
+                        <th className="num">Tỷ lệ</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pgLocations.paginatedItems.map((l: LocationReport) => (
+                        <tr key={l.province}>
+                          <td><strong>{l.province}</strong></td>
+                          <td className="num">{formatNumber(l.orders)} đơn</td>
+                          <td><Meter value={l.revenue} max={locationData[0]?.revenue || 1} /></td>
+                          <td className="num font-bold" style={{ color: '#059669' }}>{formatVnd(l.revenue)}</td>
+                          <td className="num">
+                            <span className="badge badge--ok">{l.percentage}%</span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {pgLocations.paginationControl}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* 3. DOANH SỐ NHÂN VIÊN THEO QUÝ */}
+        {tab === 'employee-matrix' && (
+          <div>
+            <LoadState loading={empMatLoading} error={empMatError} empty={!empMatLoading && (!empMatrixData || empMatrixData.length === 0)} />
+            {empMatrixData && empMatrixData.length > 0 && (
+              <>
+                <div className="stats-grid" style={{ marginBottom: 20 }}>
+                  <StatCard
+                    label="Tổng nhân viên ghi nhận"
+                    value={`${empMatrixData.length} người`}
+                    icon="wallet"
+                    tone="blue"
+                  />
+                  <StatCard
+                    label="Nhân viên xuất sắc nhất"
+                    value={empMatrixData[0]?.fullName ?? '—'}
+                    icon="trend"
+                    tone="green"
+                    hint={formatVnd(empMatrixData[0]?.total ?? 0)}
+                  />
+                </div>
+
+                <div className="table-wrap">
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th>Mã NV</th>
+                        <th>Họ và tên</th>
+                        <th className="num">Quý 1 (Q1)</th>
+                        <th className="num">Quý 2 (Q2)</th>
+                        <th className="num">Quý 3 (Q3)</th>
+                        <th className="num">Quý 4 (Q4)</th>
+                        <th className="num font-bold">Tổng doanh số cả năm</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pgEmpMatrix.paginatedItems.map((e: EmployeeMatrixRow) => (
+                        <tr key={e.employeeId}>
+                          <td><code>#{e.employeeId}</code></td>
+                          <td><strong>{e.fullName}</strong></td>
+                          <td className="num">{formatVnd(e.q1)}</td>
+                          <td className="num">{formatVnd(e.q2)}</td>
+                          <td className="num">{formatVnd(e.q3)}</td>
+                          <td className="num">{formatVnd(e.q4)}</td>
+                          <td className="num font-bold" style={{ color: '#059669' }}>{formatVnd(e.total)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {pgEmpMatrix.paginationControl}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* 4. DOANH SỐ KHÁCH HÀNG THEO NĂM */}
+        {tab === 'customer-matrix' && (
+          <div>
+            <LoadState loading={cusMatLoading} error={cusMatError} empty={!cusMatLoading && (!cusMatrixData || cusMatrixData.rows.length === 0)} />
+            {cusMatrixData && cusMatrixData.rows.length > 0 && (
+              <>
+                <div className="table-wrap">
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th>Mã KH</th>
+                        <th>Khách hàng</th>
+                        <th>Số điện thoại</th>
+                        {cusMatrixData.years.map((y) => (
+                          <th key={y} className="num">Năm {y}</th>
+                        ))}
+                        <th className="num font-bold">Tổng cộng</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pgCusMatrix.paginatedItems.map((c: CustomerMatrixRow) => (
+                        <tr key={c.customerId}>
+                          <td><code>#{c.customerId}</code></td>
+                          <td><strong>{c.fullName}</strong></td>
+                          <td>{c.phone || '—'}</td>
+                          {cusMatrixData.years.map((y) => (
+                            <td key={y} className="num">{formatVnd(c.years[String(y)] ?? 0)}</td>
+                          ))}
+                          <td className="num font-bold" style={{ color: '#059669' }}>{formatVnd(c.total)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {pgCusMatrix.paginationControl}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* 5. DOANH SỐ SẢN PHẨM THEO QUÝ */}
+        {tab === 'product-matrix' && (
+          <div>
+            <LoadState loading={prodMatLoading} error={prodMatError} empty={!prodMatLoading && (!prodMatrixData || prodMatrixData.length === 0)} />
+            {prodMatrixData && prodMatrixData.length > 0 && (
+              <>
+                <div className="table-wrap">
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th>Mã SP</th>
+                        <th>Sản phẩm</th>
+                        <th className="num">Quý 1 (Q1)</th>
+                        <th className="num">Quý 2 (Q2)</th>
+                        <th className="num">Quý 3 (Q3)</th>
+                        <th className="num">Quý 4 (Q4)</th>
+                        <th className="num font-bold">Tổng tiền</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pgProdMatrix.paginatedItems.map((p: ProductMatrixRow) => (
+                        <tr key={p.productId}>
+                          <td><code>#{p.productId}</code></td>
+                          <td>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                              <Thumb src={p.imageUrl} alt={p.productName} />
+                              <strong>{p.productName}</strong>
+                            </div>
+                          </td>
+                          <td className="num">{formatVnd(p.q1)}</td>
+                          <td className="num">{formatVnd(p.q2)}</td>
+                          <td className="num">{formatVnd(p.q3)}</td>
+                          <td className="num">{formatVnd(p.q4)}</td>
+                          <td className="num font-bold" style={{ color: '#059669' }}>{formatVnd(p.total)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {pgProdMatrix.paginationControl}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* 6. DOANH THU THUẦN */}
         {tab === 'revenue' && (
           <div>
             <LoadState loading={revLoading} error={revError} empty={!revLoading && (!revenueData || revenueData.length === 0)} />
@@ -328,31 +777,19 @@ export function ReportsManager({ role }: Props) {
                     label="Tổng tiền hoàn trả"
                     value={formatVnd(revenueData.reduce((s: number, r: RevenuePoint) => s + r.refunded, 0))}
                     icon="return"
-                    hint="Hoàn trả qua yêu cầu đổi trả"
+                    hint="Các khoản hoàn tiền đổi/trả"
                     tone="red"
-                  />
-                  <StatCard
-                    label="Tổng số đơn giao"
-                    value={`${formatNumber(revenueData.reduce((s: number, r: RevenuePoint) => s + r.orders, 0))} đơn`}
-                    icon="cart"
-                    hint="Đơn hàng hoàn tất trong kỳ"
-                    tone="violet"
                   />
                 </div>
 
-                <div className="card" style={{ background: '#f8fafc', marginBottom: 20 }}>
-                  <div className="page-header" style={{ marginBottom: 16 }}>
-                    <div>
-                      <h4 style={{ margin: 0 }}>Biểu đồ doanh thu thuần theo ngày</h4>
-                      <p className="muted small" style={{ margin: '4px 0 0' }}>Biến động doanh thu thực nhận trong khoảng thời gian đã chọn</p>
-                    </div>
-                  </div>
+                <div style={{ marginBottom: 24 }}>
+                  <h4 style={{ margin: '0 0 12px' }}>Biểu đồ doanh thu thuần theo thời gian</h4>
                   <BarChart
                     data={revenueData.map((r: RevenuePoint) => ({
-                      label: r.period.slice(5),
+                      label: r.period.length === 10 ? r.period.slice(5) : r.period,
                       value: r.netRevenue,
                     }))}
-                    format={formatVndShort}
+                    format={(v: number) => formatVndShort(v)}
                   />
                 </div>
 
@@ -361,46 +798,36 @@ export function ReportsManager({ role }: Props) {
                     <thead>
                       <tr>
                         <th>Thời gian</th>
-                        <th className="num">Số đơn giao</th>
-                        <th className="num">Doanh thu gộp</th>
-                        <th className="num">Tiền hoàn</th>
+                        <th className="num">Số đơn đã giao</th>
+                        <th className="num font-bold">Doanh thu gộp</th>
+                        <th className="num">Hoàn tiền</th>
                         <th className="num font-bold">Doanh thu thuần</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredRevenue.map((r: RevenuePoint) => (
+                      {pgRevenue.paginatedItems.map((r: RevenuePoint) => (
                         <tr key={r.period}>
                           <td><strong>{r.period}</strong></td>
-                          <td className="num">{formatNumber(r.orders)}</td>
-                          <td className="num">{formatVnd(r.grossRevenue)}</td>
+                          <td className="num">{formatNumber(r.orders)} đơn</td>
+                          <td className="num font-bold">{formatVnd(r.grossRevenue)}</td>
                           <td className="num" style={{ color: r.refunded > 0 ? '#dc2626' : undefined }}>
-                            {formatVnd(r.refunded)}
+                            {r.refunded > 0 ? `-${formatVnd(r.refunded)}` : '0 đ'}
                           </td>
-                          <td className="num font-bold" style={{ color: '#059669' }}>{formatVnd(r.netRevenue)}</td>
+                          <td className="num font-bold" style={{ color: '#059669' }}>
+                            {formatVnd(r.netRevenue)}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
-                    <tfoot>
-                      <tr style={{ background: '#f8fafc', fontWeight: 700 }}>
-                        <td>TỔNG CỘNG</td>
-                        <td className="num">{formatNumber(filteredRevenue.reduce((s, r) => s + r.orders, 0))} đơn</td>
-                        <td className="num">{formatVnd(filteredRevenue.reduce((s, r) => s + r.grossRevenue, 0))}</td>
-                        <td className="num" style={{ color: '#dc2626' }}>
-                          {formatVnd(filteredRevenue.reduce((s, r) => s + r.refunded, 0))}
-                        </td>
-                        <td className="num font-bold" style={{ color: '#059669' }}>
-                          {formatVnd(filteredRevenue.reduce((s, r) => s + r.netRevenue, 0))}
-                        </td>
-                      </tr>
-                    </tfoot>
                   </table>
                 </div>
+                {pgRevenue.paginationControl}
               </>
             )}
           </div>
         )}
 
-        {/* 2. TOP PRODUCTS */}
+        {/* 7. SẢN PHẨM BÁN CHẠY */}
         {tab === 'top-products' && (
           <div>
             <LoadState loading={prodLoading} error={prodError} empty={!prodLoading && (!topProducts || topProducts.length === 0)} />
@@ -408,167 +835,22 @@ export function ReportsManager({ role }: Props) {
               <>
                 <div className="stats-grid" style={{ marginBottom: 20 }}>
                   <StatCard
-                    label="Tổng số lượng bán (Top)"
-                    value={`${formatNumber(topProducts.reduce((s, p) => s + p.quantity, 0))} đôi`}
+                    label="Sản phẩm bán chạy nhất (#1)"
+                    value={topProducts[0]?.productName ?? '—'}
                     icon="box"
-                    hint="Tổng số đôi giày tiêu thụ"
+                    hint={`${formatNumber(topProducts[0]?.quantity ?? 0)} đôi đã bán`}
                     tone="blue"
                   />
                   <StatCard
-                    label="Doanh thu mang về (Top)"
+                    label="Tổng số lượng đã bán"
+                    value={`${formatNumber(topProducts.reduce((s, p) => s + p.quantity, 0))} đôi`}
+                    icon="cart"
+                    tone="green"
+                  />
+                  <StatCard
+                    label="Tổng doanh thu sản phẩm"
                     value={formatVnd(topProducts.reduce((s, p) => s + p.revenue, 0))}
                     icon="wallet"
-                    hint="Đóng góp doanh thu từ sản phẩm bán chạy"
-                    tone="green"
-                  />
-                  <StatCard
-                    label="Sản phẩm bán chạy nhất (#1)"
-                    value={topProducts[0]?.productName || '—'}
-                    icon="trend"
-                    hint={`Đã bán ${formatNumber(topProducts[0]?.quantity || 0)} đôi`}
-                    tone="orange"
-                  />
-                </div>
-
-                <div className="table-wrap">
-                  <table className="table">
-                    <thead>
-                      <tr>
-                        <th style={{ width: 64 }}>Thứ hạng</th>
-                        <th style={{ width: 64 }}>Ảnh</th>
-                        <th>Sản phẩm</th>
-                        <th className="num">Số lượng bán</th>
-                        <th style={{ width: 180 }}>Tỷ trọng</th>
-                        <th className="num font-bold">Doanh thu</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredProducts.map((p: TopProduct, idx: number) => {
-                        const maxSold = topProducts[0]?.quantity || 1;
-                        const rankClass =
-                          idx === 0
-                            ? 'badge badge--ok'
-                            : idx === 1
-                              ? 'badge badge--warning'
-                              : idx === 2
-                                ? 'badge badge--muted'
-                                : 'badge badge--muted';
-
-                        return (
-                          <tr key={p.productId}>
-                            <td><span className={rankClass} style={{ fontWeight: 800 }}>#{idx + 1}</span></td>
-                            <td><Thumb src={p.imageUrl} alt={p.productName} /></td>
-                            <td>
-                              <strong>{p.productName}</strong>
-                              <div className="muted small">Mã SP: #{p.productId}</div>
-                            </td>
-                            <td className="num font-bold">{formatNumber(p.quantity)} đôi</td>
-                            <td><Meter value={p.quantity} max={maxSold} /></td>
-                            <td className="num font-bold" style={{ color: '#059669' }}>{formatVnd(p.revenue)}</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </>
-            )}
-          </div>
-        )}
-
-        {/* 3. ORDERS SUMMARY */}
-        {tab === 'orders' && (
-          <div>
-            <LoadState loading={ordLoading} error={ordError} empty={!ordLoading && !ordersReport} />
-            {ordersReport && (
-              <>
-                <div className="stats-grid" style={{ marginBottom: 20 }}>
-                  <StatCard
-                    label="Tổng số đơn trong kỳ"
-                    value={`${formatNumber(ordersReport.byStatus.reduce((s: number, o: { count: number }) => s + o.count, 0))} đơn`}
-                    icon="cart"
-                    tone="blue"
-                  />
-                  <StatCard
-                    label="Đơn đã giao thành công"
-                    value={`${formatNumber(ordersReport.byStatus.find((s) => s.status === 'DELIVERED')?.count || 0)} đơn`}
-                    icon="trend"
-                    hint="Tỷ lệ giao hoàn tất"
-                    tone="green"
-                  />
-                  <StatCard
-                    label="Đơn chờ xử lý quá hạn"
-                    value={`${formatNumber(ordersReport.overduePending)} đơn`}
-                    icon="alert"
-                    hint="Chờ xác nhận > 24 giờ"
-                    tone="orange"
-                  />
-                  <StatCard
-                    label="Đơn bị hủy"
-                    value={`${formatNumber(ordersReport.byStatus.find((s) => s.status === 'CANCELLED')?.count || 0)} đơn`}
-                    icon="return"
-                    hint="Khách hủy hoặc hết hàng"
-                    tone="red"
-                  />
-                </div>
-
-                <div className="table-wrap">
-                  <table className="table">
-                    <thead>
-                      <tr>
-                        <th>Trạng thái đơn hàng</th>
-                        <th className="num">Số lượng đơn</th>
-                        <th style={{ width: 220 }}>Tỷ trọng trạng thái</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {ordersReport.byStatus.map((s: { status: string; count: number }) => {
-                        const total = ordersReport.byStatus.reduce((acc: number, curr: { count: number }) => acc + curr.count, 0);
-                        return (
-                          <tr key={s.status}>
-                            <td><span className={`badge status status--${s.status.toLowerCase()}`}>{s.status}</span></td>
-                            <td className="num font-bold">{formatNumber(s.count)} đơn</td>
-                            <td><Meter value={s.count} max={total} /></td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </>
-            )}
-          </div>
-        )}
-
-        {/* 4. NHẬP - XUẤT - TỒN */}
-        {tab === 'inventory-movement' && (
-          <div>
-            <LoadState loading={movLoading} error={movError} empty={!movLoading && (!movementData || movementData.length === 0)} />
-            {movementData && movementData.length > 0 && (
-              <>
-                <div className="stats-grid" style={{ marginBottom: 20 }}>
-                  <StatCard
-                    label="Tổng tồn đầu kỳ"
-                    value={`${formatNumber(movementData.reduce((s, m) => s + m.openingStock, 0))} đôi`}
-                    icon="box"
-                    tone="blue"
-                  />
-                  <StatCard
-                    label="Tổng nhập trong kỳ"
-                    value={`+${formatNumber(movementData.reduce((s, m) => s + m.imported, 0))} đôi`}
-                    icon="cart"
-                    tone="green"
-                  />
-                  <StatCard
-                    label="Tổng xuất bán"
-                    value={`-${formatNumber(movementData.reduce((s, m) => s + m.exported, 0))} đôi`}
-                    icon="wallet"
-                    tone="orange"
-                  />
-                  <StatCard
-                    label="Tổng tồn cuối kỳ"
-                    value={`${formatNumber(movementData.reduce((s, m) => s + m.closingStock, 0))} đôi`}
-                    icon="box"
                     tone="violet"
                   />
                 </div>
@@ -577,27 +859,92 @@ export function ReportsManager({ role }: Props) {
                   <table className="table">
                     <thead>
                       <tr>
-                        <th>Mã SKU</th>
-                        <th>Tên sản phẩm</th>
-                        <th>Kích cỡ / Màu</th>
-                        <th className="num">Tồn đầu kỳ</th>
-                        <th className="num">Nhập trong kỳ</th>
-                        <th className="num">Xuất bán</th>
-                        <th className="num font-bold">Tồn cuối kỳ</th>
+                        <th style={{ width: 60 }}>Hạng</th>
+                        <th>Sản phẩm</th>
+                        <th className="num">Số lượng bán</th>
+                        <th>Tỷ trọng doanh số</th>
+                        <th className="num font-bold">Doanh thu</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredMovement.map((m: InventoryMovementRow) => (
-                        <tr key={m.variantId}>
-                          <td><code>{m.sku}</code></td>
-                          <td><strong>{m.productName}</strong></td>
-                          <td>Size {m.sizeLabel} · {m.colorName}</td>
-                          <td className="num">{formatNumber(m.openingStock)}</td>
-                          <td className="num" style={{ color: '#168a4f', fontWeight: 600 }}>+{formatNumber(m.imported)}</td>
-                          <td className="num" style={{ color: '#dc2626', fontWeight: 600 }}>-{formatNumber(m.exported)}</td>
-                          <td className="num font-bold">{formatNumber(m.closingStock)}</td>
-                        </tr>
-                      ))}
+                      {pgProducts.paginatedItems.map((p: TopProduct, idx: number) => {
+                        const rank = (pgProducts.page - 1) * pgProducts.pageSize + idx + 1;
+                        const maxQty = topProducts[0]?.quantity || 1;
+                        return (
+                          <tr key={p.productId}>
+                            <td>
+                              <span className={`badge ${rank === 1 ? 'badge--ok' : rank <= 3 ? 'badge--info' : ''}`}>
+                                #{rank}
+                              </span>
+                            </td>
+                            <td>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                <Thumb src={p.imageUrl} alt={p.productName} />
+                                <strong>{p.productName}</strong>
+                              </div>
+                            </td>
+                            <td className="num font-bold">{formatNumber(p.quantity)} đôi</td>
+                            <td><Meter value={p.quantity} max={maxQty} /></td>
+                            <td className="num font-bold" style={{ color: '#059669' }}>{formatVnd(p.revenue)}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                {pgProducts.paginationControl}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* 8. TRẠNG THÁI ĐƠN HÀNG */}
+        {tab === 'orders' && (
+          <div>
+            <LoadState loading={ordLoading} error={ordError} empty={!ordLoading && !ordersReport} />
+            {ordersReport && (
+              <>
+                <div className="stats-grid" style={{ marginBottom: 20 }}>
+                  <StatCard
+                    label="Tổng số đơn ghi nhận"
+                    value={`${formatNumber(ordersReport.byStatus.reduce((s, r) => s + r.count, 0))} đơn`}
+                    icon="cart"
+                    tone="blue"
+                  />
+                  <StatCard
+                    label="Đơn chờ xử lý quá 24h"
+                    value={`${formatNumber(ordersReport.overduePending)} đơn`}
+                    icon="alert"
+                    tone={ordersReport.overduePending > 0 ? 'red' : 'green'}
+                    hint={ordersReport.overduePending > 0 ? 'Cần xử lý gấp!' : 'Không có đơn tồn'}
+                  />
+                </div>
+
+                <div className="table-wrap">
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th>Trạng thái đơn hàng</th>
+                        <th className="num">Số lượng</th>
+                        <th>Tỷ lệ</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(() => {
+                        const total = ordersReport.byStatus.reduce((s, r) => s + r.count, 0) || 1;
+                        return ordersReport.byStatus.map((s) => (
+                          <tr key={s.status}>
+                            <td><strong>{s.status}</strong></td>
+                            <td className="num font-bold">{formatNumber(s.count)} đơn</td>
+                            <td>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <Meter value={s.count} max={total} />
+                                <span className="small muted">{Math.round((s.count / total) * 100)}%</span>
+                              </div>
+                            </td>
+                          </tr>
+                        ));
+                      })()}
                     </tbody>
                   </table>
                 </div>
@@ -606,115 +953,29 @@ export function ReportsManager({ role }: Props) {
           </div>
         )}
 
-        {/* 5. CẢNH BÁO TỒN KHO */}
-        {tab === 'stock' && (
+        {/* 9. NHẬP XUẤT TỒN */}
+        {tab === 'inventory-movement' && (
           <div>
-            <LoadState loading={stkLoading} error={stkError} empty={!stkLoading && !stockReport} />
-            {stockReport && (
+            <LoadState loading={movLoading} error={movError} empty={!movLoading && (!movementData || movementData.length === 0)} />
+            {movementData && movementData.length > 0 && (
               <>
                 <div className="stats-grid" style={{ marginBottom: 20 }}>
                   <StatCard
-                    label="Mẫu sắp hết hàng"
-                    value={`${stockReport.lowStock.length} mẫu`}
-                    icon="alert"
-                    hint="Biến thể tồn ≤ 5 đôi"
-                    tone={stockReport.lowStock.length > 0 ? 'orange' : 'green'}
-                  />
-                  <StatCard
-                    label="Mẫu tồn đọng lâu"
-                    value={`${stockReport.staleStock.length} mẫu`}
+                    label="Tổng biến thể theo dõi"
+                    value={`${formatNumber(movementData.length)} biến thể`}
                     icon="box"
-                    hint="Chưa có giao dịch > 30 ngày"
-                    tone={stockReport.staleStock.length > 0 ? 'red' : 'green'}
-                  />
-                </div>
-
-                <div className="grid-2">
-                  <div className="card" style={{ background: '#fffbeb', border: '1px solid #fde68a' }}>
-                    <h4 style={{ margin: '0 0 12px', color: '#b45309' }}>⚠️ Sản phẩm sắp hết hàng (Tồn ≤ 5 đôi)</h4>
-                    {filteredStockLow.length === 0 ? (
-                      <p className="muted">Không có sản phẩm nào sắp hết hàng</p>
-                    ) : (
-                      <div className="table-wrap">
-                        <table className="table" style={{ background: '#fff' }}>
-                          <thead>
-                            <tr>
-                              <th>SKU</th>
-                              <th>Sản phẩm</th>
-                              <th className="num">Tồn</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {filteredStockLow.map((s) => (
-                              <tr key={s.variantId}>
-                                <td><code>{s.sku}</code></td>
-                                <td>{s.productName} ({s.sizeLabel} - {s.colorName})</td>
-                                <td className="num font-bold"><span className="badge badge--danger">{s.stockQuantity}</span></td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="card" style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}>
-                    <h4 style={{ margin: '0 0 12px', color: '#475569' }}>⏳ Sản phẩm tồn đọng lâu ngày (&gt; 30 ngày)</h4>
-                    {filteredStockStale.length === 0 ? (
-                      <p className="muted">Không có sản phẩm tồn lâu</p>
-                    ) : (
-                      <div className="table-wrap">
-                        <table className="table" style={{ background: '#fff' }}>
-                          <thead>
-                            <tr>
-                              <th>SKU</th>
-                              <th>Sản phẩm</th>
-                              <th className="num">Tồn</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {filteredStockStale.map((s) => (
-                              <tr key={s.variantId}>
-                                <td><code>{s.sku}</code></td>
-                                <td>{s.productName} ({s.sizeLabel} - {s.colorName})</td>
-                                <td className="num font-bold"><span className="badge badge--warning">{s.stockQuantity}</span></td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-        )}
-
-        {/* 6. TOP CUSTOMERS */}
-        {tab === 'top-customers' && (
-          <div>
-            <LoadState loading={cusLoading} error={cusError} empty={!cusLoading && (!topCustomers || topCustomers.length === 0)} />
-            {topCustomers && topCustomers.length > 0 && (
-              <>
-                <div className="stats-grid" style={{ marginBottom: 20 }}>
-                  <StatCard
-                    label="Khách hàng thân thiết (Top)"
-                    value={`${topCustomers.length} khách`}
-                    icon="dashboard"
                     tone="blue"
                   />
                   <StatCard
-                    label="Tổng doanh thu từ nhóm Top"
-                    value={formatVnd(topCustomers.reduce((s, c) => s + c.totalPurchased, 0))}
-                    icon="wallet"
+                    label="Tổng số lượng nhập trong kỳ"
+                    value={`+${formatNumber(movementData.reduce((s, m) => s + m.imported, 0))} đôi`}
+                    icon="trend"
                     tone="green"
                   />
                   <StatCard
-                    label="Khách hàng chi tiêu cao nhất (#1)"
-                    value={topCustomers[0]?.fullName || '—'}
-                    icon="trend"
-                    hint={formatVnd(topCustomers[0]?.totalPurchased || 0)}
+                    label="Tổng số lượng xuất trong kỳ"
+                    value={`-${formatNumber(movementData.reduce((s, m) => s + m.exported, 0))} đôi`}
+                    icon="cart"
                     tone="orange"
                   />
                 </div>
@@ -723,32 +984,186 @@ export function ReportsManager({ role }: Props) {
                   <table className="table">
                     <thead>
                       <tr>
-                        <th style={{ width: 64 }}>Thứ hạng</th>
-                        <th>Khách hàng</th>
-                        <th>Số điện thoại</th>
-                        <th className="num">Đơn đã giao</th>
-                        <th className="num font-bold">Tổng tiền đã mua</th>
+                        <th>SKU</th>
+                        <th>Sản phẩm</th>
+                        <th>Phân loại</th>
+                        <th className="num">Tồn đầu kỳ</th>
+                        <th className="num" style={{ color: '#059669' }}>Nhập trong kỳ</th>
+                        <th className="num" style={{ color: '#dc2626' }}>Xuất trong kỳ</th>
+                        <th className="num font-bold">Tồn cuối kỳ</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredCustomers.map((c: TopCustomer, idx: number) => (
-                        <tr key={c.customerId}>
-                          <td><span className={`badge ${idx < 3 ? 'badge--ok' : 'badge--muted'}`} style={{ fontWeight: 800 }}>#{idx + 1}</span></td>
-                          <td><strong>{c.fullName}</strong></td>
-                          <td>{c.phone || '—'}</td>
-                          <td className="num font-bold">{formatNumber(c.orders)} đơn</td>
-                          <td className="num font-bold" style={{ color: '#059669' }}>{formatVnd(c.totalPurchased)}</td>
+                      {pgMovement.paginatedItems.map((m: InventoryMovementRow) => (
+                        <tr key={m.variantId}>
+                          <td><code>{m.sku}</code></td>
+                          <td><strong>{m.productName}</strong></td>
+                          <td>{m.sizeLabel} / {m.colorName}</td>
+                          <td className="num">{formatNumber(m.openingStock)}</td>
+                          <td className="num" style={{ color: '#059669', fontWeight: 600 }}>+{formatNumber(m.imported)}</td>
+                          <td className="num" style={{ color: '#dc2626', fontWeight: 600 }}>-{formatNumber(m.exported)}</td>
+                          <td className="num font-bold">{formatNumber(m.closingStock)}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
+                {pgMovement.paginationControl}
               </>
             )}
           </div>
         )}
 
-        {/* 7. DOANH SỐ NHÂN VIÊN */}
+        {/* 10. CẢNH BÁO TỒN KHO */}
+        {tab === 'stock' && (
+          <div>
+            <LoadState loading={stkLoading} error={stkError} empty={!stkLoading && !stockReport} />
+            {stockReport && (
+              <>
+                <div className="stats-grid" style={{ marginBottom: 20 }}>
+                  <StatCard
+                    label="Biến thể sắp hết hàng (≤ 5)"
+                    value={`${stockReport.lowStock.length} mẫu`}
+                    icon="alert"
+                    tone={stockReport.lowStock.length > 0 ? 'red' : 'green'}
+                    hint="Cần lập phiếu nhập kho bổ sung"
+                  />
+                  <StatCard
+                    label="Biến thể tồn đọng (> 30 ngày)"
+                    value={`${stockReport.staleStock.length} mẫu`}
+                    icon="box"
+                    tone={stockReport.staleStock.length > 0 ? 'orange' : 'green'}
+                    hint="Cần áp dụng khuyến mãi / kích cầu"
+                  />
+                </div>
+
+                <h4 style={{ margin: '16px 0 8px' }}>Danh sách sản phẩm sắp hết hàng</h4>
+                <div className="table-wrap">
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th>SKU</th>
+                        <th>Sản phẩm</th>
+                        <th>Phân loại</th>
+                        <th className="num font-bold">Tồn kho hiện tại</th>
+                        <th>Trạng thái</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pgStockLow.paginatedItems.map((s) => (
+                        <tr key={s.variantId}>
+                          <td><code>{s.sku}</code></td>
+                          <td><strong>{s.productName}</strong></td>
+                          <td>{s.sizeLabel} / {s.colorName}</td>
+                          <td className="num font-bold" style={{ color: s.stockQuantity === 0 ? '#dc2626' : '#d97706' }}>
+                            {formatNumber(s.stockQuantity)} đôi
+                          </td>
+                          <td>
+                            <span className={`badge ${s.stockQuantity === 0 ? 'badge--danger' : 'badge--warning'}`}>
+                              {s.stockQuantity === 0 ? 'Hết hàng' : 'Sắp hết'}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {pgStockLow.paginationControl}
+
+                <h4 style={{ margin: '24px 0 8px' }}>Danh sách sản phẩm tồn đọng (&gt; 30 ngày)</h4>
+                <div className="table-wrap">
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th>SKU</th>
+                        <th>Sản phẩm</th>
+                        <th>Phân loại</th>
+                        <th className="num font-bold">Tồn kho hiện tại</th>
+                        <th>Lần xuất nhập cuối</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pgStockStale.paginatedItems.map((s) => (
+                        <tr key={s.variantId}>
+                          <td><code>{s.sku}</code></td>
+                          <td><strong>{s.productName}</strong></td>
+                          <td>{s.sizeLabel} / {s.colorName}</td>
+                          <td className="num font-bold">{formatNumber(s.stockQuantity)} đôi</td>
+                          <td>{s.lastMovementAt ? new Date(s.lastMovementAt).toLocaleDateString('vi-VN') : 'Chưa có'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {pgStockStale.paginationControl}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* 11. KHÁCH HÀNG THÂN THIẾT */}
+        {tab === 'top-customers' && (
+          <div>
+            <LoadState loading={cusLoading} error={cusError} empty={!cusLoading && (!topCustomers || topCustomers.length === 0)} />
+            {topCustomers && topCustomers.length > 0 && (
+              <>
+                <div className="stats-grid" style={{ marginBottom: 20 }}>
+                  <StatCard
+                    label="Khách hàng hàng đầu (#1)"
+                    value={topCustomers[0]?.fullName ?? '—'}
+                    icon="wallet"
+                    hint={`Đã mua ${formatVnd(topCustomers[0]?.totalPurchased ?? 0)}`}
+                    tone="blue"
+                  />
+                  <StatCard
+                    label="Tổng tiền mua của Top"
+                    value={formatVnd(topCustomers.reduce((s, c) => s + c.totalPurchased, 0))}
+                    icon="trend"
+                    tone="green"
+                  />
+                </div>
+
+                <div className="table-wrap">
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th style={{ width: 60 }}>Hạng</th>
+                        <th>Khách hàng</th>
+                        <th>Số điện thoại</th>
+                        <th className="num">Số đơn hoàn tất</th>
+                        <th>Tỷ trọng chi tiêu</th>
+                        <th className="num font-bold">Tổng tiền mua</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pgCustomers.paginatedItems.map((c: TopCustomer, idx: number) => {
+                        const rank = (pgCustomers.page - 1) * pgCustomers.pageSize + idx + 1;
+                        const maxSpend = topCustomers[0]?.totalPurchased || 1;
+                        return (
+                          <tr key={c.customerId}>
+                            <td>
+                              <span className={`badge ${rank === 1 ? 'badge--ok' : rank <= 3 ? 'badge--info' : ''}`}>
+                                #{rank}
+                              </span>
+                            </td>
+                            <td><strong>{c.fullName}</strong></td>
+                            <td>{c.phone || '—'}</td>
+                            <td className="num">{formatNumber(c.orders)} đơn</td>
+                            <td><Meter value={c.totalPurchased} max={maxSpend} /></td>
+                            <td className="num font-bold" style={{ color: '#059669' }}>{formatVnd(c.totalPurchased)}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                {pgCustomers.paginationControl}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* 12. DOANH SỐ NHÂN VIÊN */}
         {tab === 'employees' && (
           <div>
             <LoadState loading={empLoading} error={empError} empty={!empLoading && (!employeeSales || employeeSales.length === 0)} />
@@ -757,22 +1172,16 @@ export function ReportsManager({ role }: Props) {
                 <div className="stats-grid" style={{ marginBottom: 20 }}>
                   <StatCard
                     label="Tổng nhân viên ghi nhận"
-                    value={`${employeeSales.length} nhân sự`}
-                    icon="dashboard"
+                    value={`${employeeSales.length} người`}
+                    icon="wallet"
                     tone="blue"
                   />
                   <StatCard
-                    label="Tổng doanh số đem về"
-                    value={formatVnd(employeeSales.reduce((s, e) => s + e.revenue, 0))}
-                    icon="wallet"
-                    tone="green"
-                  />
-                  <StatCard
                     label="Nhân viên xuất sắc nhất (#1)"
-                    value={employeeSales[0]?.fullName || '—'}
+                    value={employeeSales[0]?.fullName ?? '—'}
                     icon="trend"
-                    hint={formatVnd(employeeSales[0]?.revenue || 0)}
-                    tone="orange"
+                    hint={formatVnd(employeeSales[0]?.revenue ?? 0)}
+                    tone="green"
                   />
                 </div>
 
@@ -780,19 +1189,24 @@ export function ReportsManager({ role }: Props) {
                   <table className="table">
                     <thead>
                       <tr>
-                        <th style={{ width: 80 }}>Mã NV</th>
-                        <th>Họ và tên</th>
-                        <th className="num">Số đơn lập</th>
-                        <th style={{ width: 180 }}>Tỷ trọng doanh số</th>
-                        <th className="num font-bold">Doanh số đem về</th>
+                        <th style={{ width: 60 }}>Hạng</th>
+                        <th>Nhân viên</th>
+                        <th className="num">Số đơn đã lập</th>
+                        <th>Tỷ trọng doanh số</th>
+                        <th className="num font-bold">Doanh số đạt được</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredEmployees.map((e: EmployeeSales) => {
+                      {pgEmployees.paginatedItems.map((e: EmployeeSales, idx: number) => {
+                        const rank = (pgEmployees.page - 1) * pgEmployees.pageSize + idx + 1;
                         const maxRev = employeeSales[0]?.revenue || 1;
                         return (
                           <tr key={e.employeeId}>
-                            <td>#{e.employeeId}</td>
+                            <td>
+                              <span className={`badge ${rank === 1 ? 'badge--ok' : rank <= 3 ? 'badge--info' : ''}`}>
+                                #{rank}
+                              </span>
+                            </td>
                             <td><strong>{e.fullName}</strong></td>
                             <td className="num font-bold">{formatNumber(e.orders)} đơn</td>
                             <td><Meter value={e.revenue} max={maxRev} /></td>
@@ -803,12 +1217,13 @@ export function ReportsManager({ role }: Props) {
                     </tbody>
                   </table>
                 </div>
+                {pgEmployees.paginationControl}
               </>
             )}
           </div>
         )}
 
-        {/* 8. TỶ LỆ TRẢ HÀNG */}
+        {/* 13. TỶ LỆ TRẢ HÀNG */}
         {tab === 'returns' && (
           <div>
             <LoadState loading={retLoading} error={retError} empty={!retLoading && (!returnRates || returnRates.length === 0)} />
@@ -847,7 +1262,7 @@ export function ReportsManager({ role }: Props) {
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredReturns.map((r: ReturnRate) => (
+                      {pgReturns.paginatedItems.map((r: ReturnRate) => (
                         <tr key={r.productId}>
                           <td><strong>{r.productName}</strong></td>
                           <td className="num">{formatNumber(r.soldQuantity)} đôi</td>
@@ -863,6 +1278,7 @@ export function ReportsManager({ role }: Props) {
                     </tbody>
                   </table>
                 </div>
+                {pgReturns.paginationControl}
               </>
             )}
           </div>

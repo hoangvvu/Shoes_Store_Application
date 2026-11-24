@@ -43,8 +43,21 @@ export default function LoginScreen() {
         </Text>
       </View>
 
-      <AppTextInput icon="person-outline" placeholder="Tên đăng nhập" value={username} onChangeText={setUsername} textContentType="username" />
-      <AppTextInput icon="lock-closed-outline" placeholder="Mật khẩu" value={password} onChangeText={setPassword} secure textContentType="password" />
+      <AppTextInput
+        icon="person-outline"
+        placeholder="Tên đăng nhập"
+        value={username}
+        onChangeText={setUsername}
+        textContentType="username"
+      />
+      <AppTextInput
+        icon="lock-closed-outline"
+        placeholder="Mật khẩu"
+        value={password}
+        onChangeText={setPassword}
+        secure
+        textContentType="password"
+      />
 
       <View style={styles.row}>
         <Pressable style={styles.remember} onPress={() => setRemember((r) => !r)}>

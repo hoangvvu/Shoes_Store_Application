@@ -84,6 +84,21 @@ export default function OrderListScreen() {
         refreshControl={<RefreshControl refreshing={false} onRefresh={() => load(status, 1, false)} />}
         ListEmptyComponent={loading ? <ActivityIndicator color={colors.primary} style={{ marginTop: 40 }} /> : <Text style={styles.empty}>Chưa có đơn hàng nào</Text>}
         ListFooterComponent={loadingMore ? <ActivityIndicator color={colors.primary} /> : undefined}
+<<<<<<< HEAD
+        renderItem={({ item: o }) => (
+          <Pressable style={styles.card} onPress={() => router.push({ pathname: '/orders/[id]', params: { id: String(o.invoiceId) } })}>
+            <View style={styles.row}>
+              <Text style={styles.id}>Đơn #{o.invoiceId}</Text>
+              <StatusBadge status={o.orderStatus} />
+            </View>
+            <Text style={styles.muted}>{formatDateTime(o.invoiceDate)}</Text>
+            <View style={styles.row}>
+              <Text style={styles.muted}>{PAYMENT_STATUS_LABEL[o.paymentStatus] ?? o.paymentStatus}</Text>
+              <Text style={styles.amount}>{formatVnd(o.amountPayable)}</Text>
+            </View>
+          </Pressable>
+        )}
+=======
         renderItem={({ item: o }) => {
           const lines = o.items ?? [];
           const shown = lines.slice(0, MAX_LINES);
@@ -123,6 +138,7 @@ export default function OrderListScreen() {
             </Pressable>
           );
         }}
+>>>>>>> origin/develop
       />
     </View>
   );

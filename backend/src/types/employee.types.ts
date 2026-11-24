@@ -12,14 +12,13 @@ export interface EmployeeRow {
   gender: Gender | null;
   email: string | null;
   hireDate: Date | null;
-  baseSalary: number;
+  baseSalary?: number;
 }
 
 export interface EmployeeListItemRow {
   employeeId: number;
   fullName: string;
   phone: string | null;
-  baseSalary: number;
   userId: number | null;
   username: string | null;
   role: string | null;

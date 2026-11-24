@@ -39,7 +39,6 @@ export function ReceiptDetailModal({ receiptId, onClose }: Props) {
                 gap: 8,
               }}
             >
-              <span>⚠️</span>
               <span>PHIẾU NHẬP NÀY ĐÃ BỊ HỦY — Tồn kho tương ứng đã được ghi bút toán hoàn tác (IMPORT_REVERSAL).</span>
             </div>
           )}
@@ -141,7 +140,7 @@ export function ReceiptDetailModal({ receiptId, onClose }: Props) {
           </div>
 
           <div className="form__actions no-print" style={{ marginTop: 20 }}>
-            <button type="button" className="btn btn--ghost" onClick={printReceipt}>🖨️ In phiếu nhập</button>
+            <button type="button" className="btn btn--ghost" onClick={printReceipt}>In phiếu nhập</button>
             <button type="button" className="btn btn--primary" onClick={onClose}>Đóng</button>
           </div>
         </div>

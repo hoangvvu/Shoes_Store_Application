@@ -94,7 +94,6 @@ export function ReceiptManager({ canDelete = true }: Props) {
     <>
       <PageHeader
         title="Phiếu nhập kho"
-        subtitle="Quản lý lịch sử nhập hàng từ nhà cung cấp và tăng tồn kho tự động"
         actions={<button className="btn btn--primary" onClick={() => setCreateModal(true)}>+ Lập phiếu nhập kho</button>}
       />
 

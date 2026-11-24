@@ -22,6 +22,7 @@ import AdminProductsPage from '../pages/admin/AdminProductsPage';
 import AdminReceiptsPage from '../pages/admin/AdminReceiptsPage';
 import AdminReportsPage from '../pages/admin/AdminReportsPage';
 import AdminSuppliersPage from '../pages/admin/AdminSuppliersPage';
+import AdminBannersPage from '../pages/admin/AdminBannersPage';
 import AdminNotificationsPage from '../pages/admin/AdminNotificationsPage';
 import AdminPromotionsPage from '../pages/admin/AdminPromotionsPage';
 
@@ -81,6 +82,7 @@ export function AppRoutes() {
           <Route path="promotions" element={<AdminPromotionsPage />} />
           <Route path="notifications" element={<AdminNotificationsPage />} />
           <Route path="reports" element={<AdminReportsPage />} />
+          <Route path="banners" element={<AdminBannersPage />} />
           <Route path="profile" element={<ProfilePage />} />
           <Route path="*" element={<PlaceholderPage role="ADMIN" />} />
         </Route>
@@ -95,6 +97,7 @@ export function AppRoutes() {
           <Route path="pos" element={<SalesPosPage />} />
           <Route path="orders" element={<SalesOrdersPage />} />
           <Route path="invoices" element={<SalesInvoicesPage />} />
+          {/* <Route path="invoices/:id" element={<SalesInvoiceDetailPage />} /> */}
           <Route path="products" element={<SalesProductsPage />} />
           <Route path="products/:id" element={<SalesProductDetailPage />} />
           <Route path="reviews" element={<SalesReviewsPage />} />

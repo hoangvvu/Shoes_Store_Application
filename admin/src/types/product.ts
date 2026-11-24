@@ -2,6 +2,7 @@
 export interface Category {
   categoryId: number;
   categoryName: string;
+  imageUrl?: string | null;
 }
 
 export interface Brand {
@@ -46,6 +47,8 @@ export interface ProductListItem {
   isActive: boolean;
   totalStock: number;
   variantCount: number;
+  supplierId?: number | null;
+  supplierName?: string | null;
 }
 
 export interface ProductDetail extends ProductListItem {
@@ -61,6 +64,7 @@ export interface ProductFormValues {
   productName: string;
   categoryId: number | null;
   brandId: number | null;
+  supplierId: number | null;
   currentPrice: number;
   unit: string;
   description: string;
@@ -71,6 +75,7 @@ export interface ProductListParams {
   q?: string;
   categoryId?: number;
   brandId?: number;
+  supplierId?: number;
   isActive?: boolean;
   page: number;
   size: number;

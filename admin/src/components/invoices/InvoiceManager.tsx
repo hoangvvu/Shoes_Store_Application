@@ -74,7 +74,7 @@ export function InvoiceManager(_props: { basePath?: string }) {
   const s = data?.summary;
   return (
     <>
-      <PageHeader title="Hóa đơn" subtitle="Hóa đơn đã hoàn thành thanh toán và hóa đơn đã hoàn tiền" />
+      <PageHeader title="Hóa đơn" />
 
       {s && (
         <div className="stat-cards">

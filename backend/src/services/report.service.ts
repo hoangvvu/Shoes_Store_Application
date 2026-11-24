@@ -2,6 +2,7 @@ import ExcelJS from 'exceljs';
 import { reportRepository } from '../repositories/report.repository';
 import type {
   DateRangeQuery,
+  LocationReportQuery,
   RevenueQuery,
   StockReportQuery,
   TopCustomersQuery,
@@ -51,6 +52,26 @@ export const reportService = {
     return reportRepository.getReturns(q.from, q.to);
   },
 
+  async getLocationReport(q: LocationReportQuery) {
+    return reportRepository.getLocationReport(q.from, q.to, q.limit);
+  },
+
+  async getFinancialMatrix(year: number) {
+    return reportRepository.getFinancialMatrix(year);
+  },
+
+  async getEmployeeSalesMatrix(year: number) {
+    return reportRepository.getEmployeeSalesMatrix(year);
+  },
+
+  async getCustomerSalesMatrix(year: number) {
+    return reportRepository.getCustomerSalesMatrix(year);
+  },
+
+  async getProductSalesMatrix(year: number) {
+    return reportRepository.getProductSalesMatrix(year);
+  },
+
   async exportExcel(key: string, queryParams: Record<string, unknown>): Promise<Buffer> {
     const workbook = new ExcelJS.Workbook();
     workbook.creator = 'ShoeStore System';
@@ -58,6 +79,7 @@ export const reportService = {
 
     const from = (queryParams.from as string) || '';
     const to = (queryParams.to as string) || '';
+    const year = Number(queryParams.year) || new Date().getFullYear();
 
     switch (key) {
       case 'revenue': {
@@ -70,9 +92,9 @@ export const reportService = {
         sheet.columns = [
           { header: 'Kỳ / Thời gian', key: 'period', width: 16 },
           { header: 'Số đơn đã giao', key: 'orders', width: 16 },
-          { header: 'Doanh thu gộp (VNĐ)', key: 'grossRevenue', width: 22 },
-          { header: 'Hoàn tiền (VNĐ)', key: 'refunded', width: 18 },
-          { header: 'Doanh thu thuần (VNĐ)', key: 'netRevenue', width: 22 },
+          { header: 'Doanh thu gộp (VND)', key: 'grossRevenue', width: 22 },
+          { header: 'Hoàn tiền (VND)', key: 'refunded', width: 18 },
+          { header: 'Doanh thu thuần (VND)', key: 'netRevenue', width: 22 },
         ];
         data.forEach((r) => sheet.addRow(r));
         break;
@@ -90,7 +112,7 @@ export const reportService = {
           { header: 'Mã SP', key: 'productId', width: 10 },
           { header: 'Tên sản phẩm', key: 'productName', width: 35 },
           { header: 'Số lượng bán', key: 'quantity', width: 16 },
-          { header: 'Doanh thu (VNĐ)', key: 'revenue', width: 22 },
+          { header: 'Doanh thu (VND)', key: 'revenue', width: 22 },
         ];
         data.forEach((r) => sheet.addRow(r));
         break;
@@ -104,8 +126,6 @@ export const reportService = {
           { header: 'Số lượng đơn', key: 'count', width: 16 },
         ];
         data.byStatus.forEach((r) => sheet.addRow(r));
-        sheet.addRow({});
-        sheet.addRow({ status: 'Đơn chờ xử lý quá 24h', count: data.overduePending });
         break;
       }
 
@@ -122,13 +142,8 @@ export const reportService = {
           { header: 'Size', key: 'sizeLabel', width: 10 },
           { header: 'Màu', key: 'colorName', width: 15 },
           { header: 'Tồn kho', key: 'stockQuantity', width: 12 },
-          { header: 'Lần biến động cuối', key: 'lastMovementAt', width: 22 },
         ];
         data.lowStock.forEach((r) => sheetLow.addRow(r));
-
-        const sheetStale = workbook.addWorksheet('Tồn lâu');
-        sheetStale.columns = sheetLow.columns;
-        data.staleStock.forEach((r) => sheetStale.addRow(r));
         break;
       }
 
@@ -191,6 +206,93 @@ export const reportService = {
           { header: 'Số lượng trả', key: 'returnedQuantity', width: 14 },
           { header: 'Giá trị trả (VNĐ)', key: 'returnedValue', width: 20 },
           { header: 'Tỷ lệ trả (%)', key: 'ratePercent', width: 14 },
+        ];
+        data.forEach((r) => sheet.addRow(r));
+        break;
+      }
+
+      case 'locations': {
+        const data = await this.getLocationReport({ from, to, limit: 100 });
+        const sheet = workbook.addWorksheet('Địa điểm mua hàng');
+        sheet.columns = [
+          { header: 'Tỉnh / Thành phố', key: 'province', width: 28 },
+          { header: 'Số đơn hàng', key: 'orders', width: 16 },
+          { header: 'Doanh thu (VNĐ)', key: 'revenue', width: 22 },
+          { header: 'Tỷ lệ (%)', key: 'percentage', width: 14 },
+        ];
+        data.forEach((r) => sheet.addRow(r));
+        break;
+      }
+
+      case 'financial-matrix': {
+        const data = await this.getFinancialMatrix(year);
+        const sheet = workbook.addWorksheet(`Tài chính ${year}`);
+        sheet.columns = [
+          { header: `Năm ${year}`, key: 'label', width: 20 },
+          { header: 'Quý 1 (VNĐ)', key: 'q1', width: 20 },
+          { header: 'Quý 2 (VNĐ)', key: 'q2', width: 20 },
+          { header: 'Quý 3 (VNĐ)', key: 'q3', width: 20 },
+          { header: 'Quý 4 (VNĐ)', key: 'q4', width: 20 },
+          { header: 'Tổng cộng (VNĐ)', key: 'total', width: 22 },
+        ];
+        data.rows.forEach((r) => sheet.addRow(r));
+        break;
+      }
+
+      case 'employee-matrix': {
+        const data = await this.getEmployeeSalesMatrix(year);
+        const sheet = workbook.addWorksheet(`Nhân viên ${year}`);
+        sheet.columns = [
+          { header: 'Mã NV', key: 'employeeId', width: 10 },
+          { header: 'Họ và tên', key: 'fullName', width: 25 },
+          { header: 'Quý 1 (VNĐ)', key: 'q1', width: 18 },
+          { header: 'Quý 2 (VNĐ)', key: 'q2', width: 18 },
+          { header: 'Quý 3 (VNĐ)', key: 'q3', width: 18 },
+          { header: 'Quý 4 (VNĐ)', key: 'q4', width: 18 },
+          { header: 'Tổng cộng (VNĐ)', key: 'total', width: 20 },
+        ];
+        data.forEach((r) => sheet.addRow(r));
+        break;
+      }
+
+      case 'customer-matrix': {
+        const data = await this.getCustomerSalesMatrix(year);
+        const sheet = workbook.addWorksheet(`Khách hàng ${year}`);
+        const [y1, y2, y3] = data.years;
+        sheet.columns = [
+          { header: 'Mã KH', key: 'customerId', width: 10 },
+          { header: 'Họ và tên', key: 'fullName', width: 25 },
+          { header: 'SĐT', key: 'phone', width: 16 },
+          { header: `Năm ${y1} (VNĐ)`, key: 'y1', width: 18 },
+          { header: `Năm ${y2} (VNĐ)`, key: 'y2', width: 18 },
+          { header: `Năm ${y3} (VNĐ)`, key: 'y3', width: 18 },
+          { header: 'Tổng cộng (VNĐ)', key: 'total', width: 20 },
+        ];
+        data.rows.forEach((r) =>
+          sheet.addRow({
+            customerId: r.customerId,
+            fullName: r.fullName,
+            phone: r.phone,
+            y1: r.years[String(y1)] ?? 0,
+            y2: r.years[String(y2)] ?? 0,
+            y3: r.years[String(y3)] ?? 0,
+            total: r.total,
+          }),
+        );
+        break;
+      }
+
+      case 'product-matrix': {
+        const data = await this.getProductSalesMatrix(year);
+        const sheet = workbook.addWorksheet(`Sản phẩm ${year}`);
+        sheet.columns = [
+          { header: 'Mã SP', key: 'productId', width: 10 },
+          { header: 'Tên sản phẩm', key: 'productName', width: 35 },
+          { header: 'Quý 1 (VNĐ)', key: 'q1', width: 18 },
+          { header: 'Quý 2 (VNĐ)', key: 'q2', width: 18 },
+          { header: 'Quý 3 (VNĐ)', key: 'q3', width: 18 },
+          { header: 'Quý 4 (VNĐ)', key: 'q4', width: 18 },
+          { header: 'Tổng tiền (VNĐ)', key: 'total', width: 20 },
         ];
         data.forEach((r) => sheet.addRow(r));
         break;

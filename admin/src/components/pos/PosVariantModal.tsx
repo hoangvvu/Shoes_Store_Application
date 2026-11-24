@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { PosProduct, PosVariant } from '../../types/order';
-import { formatVnd } from '../../utils/format';
+import { formatVnd, resolveImageUrl } from '../../utils/format';
 import { Modal } from '../common/Modal';
 
 interface Props {
@@ -13,6 +13,8 @@ interface Props {
 
 /** Chọn đúng biến thể (màu + size) của một sản phẩm rồi xác nhận để thêm vào giỏ. */
 export function PosVariantModal({ product, inCart, onConfirm, onClose }: Props) {
+  const [imgError, setImgError] = useState(false);
+  const imgUrl = resolveImageUrl(product.imageUrl);
   const colors = useMemo(() => {
     const m = new Map<string, PosVariant[]>();
     for (const v of product.variants) m.set(v.colorName, [...(m.get(v.colorName) ?? []), v]);
@@ -42,7 +44,11 @@ export function PosVariantModal({ product, inCart, onConfirm, onClose }: Props) 
     <Modal title="Chọn màu sắc và size" onClose={onClose}>
       <div className="pos-vm__head">
         <div className="pos-card__img pos-vm__img">
-          {product.imageUrl ? <img src={product.imageUrl} alt={product.productName} /> : <span>{product.productName.slice(0, 1)}</span>}
+          {imgUrl && !imgError ? (
+            <img src={imgUrl} alt={product.productName} onError={() => setImgError(true)} />
+          ) : (
+            <span>{product.productName.slice(0, 1)}</span>
+          )}
         </div>
         <div>
           <strong>{product.productName}</strong>

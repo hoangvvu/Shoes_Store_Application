@@ -1,8 +1,36 @@
 import { query, sql, type Executor } from '../config/database';
-import type { RevenuePointRow, TopProductRow, OrdersReportRow, StockAlertRow, InventoryMovementRow, TopCustomerRow, EmployeeSalesRow, ReturnRateRow } from '../types/report.types';
+import type {
+  RevenuePointRow,
+  TopProductRow,
+  OrdersReportRow,
+  StockAlertRow,
+  InventoryMovementRow,
+  TopCustomerRow,
+  EmployeeSalesRow,
+  ReturnRateRow,
+  LocationReportRow,
+  FinancialMatrixReport,
+  EmployeeMatrixRow,
+  CustomerMatrixReport,
+  ProductMatrixRow,
+} from '../types/report.types';
 
 /** Giữ re-export để các file cũ import kiểu từ repository vẫn chạy; có thể bỏ sau khi đổi import. */
-export type { RevenuePointRow, TopProductRow, OrdersReportRow, StockAlertRow, InventoryMovementRow, TopCustomerRow, EmployeeSalesRow, ReturnRateRow } from '../types/report.types';
+export type {
+  RevenuePointRow,
+  TopProductRow,
+  OrdersReportRow,
+  StockAlertRow,
+  InventoryMovementRow,
+  TopCustomerRow,
+  EmployeeSalesRow,
+  ReturnRateRow,
+  LocationReportRow,
+  FinancialMatrixReport,
+  EmployeeMatrixRow,
+  CustomerMatrixReport,
+  ProductMatrixRow,
+} from '../types/report.types';
 
 const CUSTOMER_NAME = `LTRIM(RTRIM(CONCAT(c.last_name, N' ', c.first_name)))`;
 const EMPLOYEE_NAME = `LTRIM(RTRIM(CONCAT(e.last_name, N' ', e.first_name)))`;
@@ -370,4 +398,246 @@ export const reportRepository = {
       };
     });
   },
+
+  async getLocationReport(
+    from: string,
+    to: string,
+    limit = 50,
+    exec?: Executor,
+  ): Promise<LocationReportRow[]> {
+    const fromDate = new Date(`${from}T00:00:00.000Z`);
+    const toDate = new Date(`${to}T23:59:59.999Z`);
+
+    const r = await query<{ province: string; orders: number; revenue: number }>(
+      `SELECT TOP (@limit)
+         COALESCE(NULLIF(LTRIM(RTRIM(ca.province)), ''), N'Khác / Chưa rõ') AS province,
+         COUNT(DISTINCT i.invoice_id) AS orders,
+         ISNULL(SUM(i.amount_payable), 0) AS revenue
+       FROM invoices i
+       LEFT JOIN customer_addresses ca ON ca.address_id = i.shipping_address_id
+       WHERE i.order_status = 'DELIVERED' AND i.is_deleted = 0
+         AND i.invoice_date >= @from AND i.invoice_date <= @to
+       GROUP BY COALESCE(NULLIF(LTRIM(RTRIM(ca.province)), ''), N'Khác / Chưa rõ')
+       ORDER BY revenue DESC`,
+      {
+        limit: [sql.Int, limit],
+        from: [sql.DateTime2, fromDate],
+        to: [sql.DateTime2, toDate],
+      },
+      exec,
+    );
+
+    const rows = r.recordset.map((row) => ({
+      province: row.province,
+      orders: Number(row.orders),
+      revenue: Number(row.revenue),
+    }));
+
+    const totalRev = rows.reduce((s, x) => s + x.revenue, 0);
+    return rows.map((x) => ({
+      ...x,
+      percentage: totalRev > 0 ? Math.round((x.revenue / totalRev) * 1000) / 10 : 0,
+    }));
+  },
+
+  async getFinancialMatrix(year: number, exec?: Executor): Promise<FinancialMatrixReport> {
+    const revRes = await query<{ q: number; revenue: number }>(
+      `SELECT
+         DATEPART(QUARTER, i.invoice_date) AS q,
+         ISNULL(SUM(i.amount_payable), 0) AS revenue
+       FROM invoices i
+       WHERE i.order_status = 'DELIVERED' AND i.is_deleted = 0
+         AND YEAR(i.invoice_date) = @year
+       GROUP BY DATEPART(QUARTER, i.invoice_date)`,
+      { year: [sql.Int, year] },
+      exec,
+    );
+
+    const expRes = await query<{ q: number; expense: number }>(
+      `SELECT
+         DATEPART(QUARTER, pr.receipt_date) AS q,
+         ISNULL(SUM(pr.total_amount), 0) AS expense
+       FROM purchase_receipts pr
+       WHERE pr.is_deleted = 0
+         AND YEAR(pr.receipt_date) = @year
+       GROUP BY DATEPART(QUARTER, pr.receipt_date)`,
+      { year: [sql.Int, year] },
+      exec,
+    );
+
+    const revMap: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0 };
+    revRes.recordset.forEach((r) => {
+      revMap[r.q] = Number(r.revenue);
+    });
+
+    const expMap: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0 };
+    expRes.recordset.forEach((r) => {
+      expMap[r.q] = Number(r.expense);
+    });
+
+    const revTotal = revMap[1] + revMap[2] + revMap[3] + revMap[4];
+    const expTotal = expMap[1] + expMap[2] + expMap[3] + expMap[4];
+
+    return {
+      year,
+      rows: [
+        {
+          label: 'Tổng thu',
+          q1: revMap[1],
+          q2: revMap[2],
+          q3: revMap[3],
+          q4: revMap[4],
+          total: revTotal,
+        },
+        {
+          label: 'Tổng chi',
+          q1: expMap[1],
+          q2: expMap[2],
+          q3: expMap[3],
+          q4: expMap[4],
+          total: expTotal,
+        },
+        {
+          label: 'Lợi nhuận',
+          q1: revMap[1] - expMap[1],
+          q2: revMap[2] - expMap[2],
+          q3: revMap[3] - expMap[3],
+          q4: revMap[4] - expMap[4],
+          total: revTotal - expTotal,
+        },
+      ],
+    };
+  },
+
+  async getEmployeeSalesMatrix(year: number, exec?: Executor): Promise<EmployeeMatrixRow[]> {
+    const r = await query<{
+      employeeId: number;
+      fullName: string;
+      q1: number;
+      q2: number;
+      q3: number;
+      q4: number;
+      total: number;
+    }>(
+      `SELECT
+         e.employee_id AS employeeId,
+         ${EMPLOYEE_NAME} AS fullName,
+         ISNULL(SUM(CASE WHEN DATEPART(QUARTER, i.invoice_date) = 1 THEN i.amount_payable ELSE 0 END), 0) AS q1,
+         ISNULL(SUM(CASE WHEN DATEPART(QUARTER, i.invoice_date) = 2 THEN i.amount_payable ELSE 0 END), 0) AS q2,
+         ISNULL(SUM(CASE WHEN DATEPART(QUARTER, i.invoice_date) = 3 THEN i.amount_payable ELSE 0 END), 0) AS q3,
+         ISNULL(SUM(CASE WHEN DATEPART(QUARTER, i.invoice_date) = 4 THEN i.amount_payable ELSE 0 END), 0) AS q4,
+         ISNULL(SUM(i.amount_payable), 0) AS total
+       FROM employees e
+       JOIN invoices i ON i.employee_id = e.employee_id
+       WHERE i.order_status = 'DELIVERED' AND i.is_deleted = 0 AND e.is_deleted = 0
+         AND YEAR(i.invoice_date) = @year
+       GROUP BY e.employee_id, e.last_name, e.first_name
+       ORDER BY total DESC`,
+      { year: [sql.Int, year] },
+      exec,
+    );
+
+    return r.recordset.map((row) => ({
+      ...row,
+      q1: Number(row.q1),
+      q2: Number(row.q2),
+      q3: Number(row.q3),
+      q4: Number(row.q4),
+      total: Number(row.total),
+    }));
+  },
+
+  async getCustomerSalesMatrix(year: number, exec?: Executor): Promise<CustomerMatrixReport> {
+    const years = [year - 2, year - 1, year];
+    const [y1, y2, y3] = years;
+
+    const r = await query<{
+      customerId: number;
+      fullName: string;
+      phone: string | null;
+      val1: number;
+      val2: number;
+      val3: number;
+      total: number;
+    }>(
+      `SELECT TOP 50
+         c.customer_id AS customerId,
+         ${CUSTOMER_NAME} AS fullName,
+         c.phone,
+         ISNULL(SUM(CASE WHEN YEAR(i.invoice_date) = @y1 THEN i.amount_payable ELSE 0 END), 0) AS val1,
+         ISNULL(SUM(CASE WHEN YEAR(i.invoice_date) = @y2 THEN i.amount_payable ELSE 0 END), 0) AS val2,
+         ISNULL(SUM(CASE WHEN YEAR(i.invoice_date) = @y3 THEN i.amount_payable ELSE 0 END), 0) AS val3,
+         ISNULL(SUM(i.amount_payable), 0) AS total
+       FROM customers c
+       JOIN invoices i ON i.customer_id = c.customer_id
+       WHERE i.order_status = 'DELIVERED' AND i.is_deleted = 0 AND c.is_deleted = 0
+         AND YEAR(i.invoice_date) IN (@y1, @y2, @y3)
+       GROUP BY c.customer_id, c.last_name, c.first_name, c.phone
+       ORDER BY total DESC`,
+      {
+        y1: [sql.Int, y1],
+        y2: [sql.Int, y2],
+        y3: [sql.Int, y3],
+      },
+      exec,
+    );
+
+    return {
+      years,
+      rows: r.recordset.map((row) => ({
+        customerId: row.customerId,
+        fullName: row.fullName,
+        phone: row.phone,
+        years: {
+          [String(y1)]: Number(row.val1),
+          [String(y2)]: Number(row.val2),
+          [String(y3)]: Number(row.val3),
+        },
+        total: Number(row.total),
+      })),
+    };
+  },
+
+  async getProductSalesMatrix(year: number, exec?: Executor): Promise<ProductMatrixRow[]> {
+    const r = await query<{
+      productId: number;
+      productName: string;
+      imageUrl: string | null;
+      q1: number;
+      q2: number;
+      q3: number;
+      q4: number;
+      total: number;
+    }>(
+      `SELECT TOP 100
+         p.product_id AS productId,
+         p.product_name AS productName,
+         p.image_url AS imageUrl,
+         ISNULL(SUM(CASE WHEN DATEPART(QUARTER, i.invoice_date) = 1 THEN d.line_total ELSE 0 END), 0) AS q1,
+         ISNULL(SUM(CASE WHEN DATEPART(QUARTER, i.invoice_date) = 2 THEN d.line_total ELSE 0 END), 0) AS q2,
+         ISNULL(SUM(CASE WHEN DATEPART(QUARTER, i.invoice_date) = 3 THEN d.line_total ELSE 0 END), 0) AS q3,
+         ISNULL(SUM(CASE WHEN DATEPART(QUARTER, i.invoice_date) = 4 THEN d.line_total ELSE 0 END), 0) AS q4,
+         ISNULL(SUM(d.line_total), 0) AS total
+       FROM products p
+       JOIN product_variants v ON v.product_id = p.product_id
+       JOIN invoice_details d ON d.variant_id = v.variant_id
+       JOIN invoices i ON i.invoice_id = d.invoice_id
+       WHERE i.order_status = 'DELIVERED' AND i.is_deleted = 0 AND p.is_deleted = 0
+         AND YEAR(i.invoice_date) = @year
+       GROUP BY p.product_id, p.product_name, p.image_url
+       ORDER BY total DESC`,
+      { year: [sql.Int, year] },
+      exec,
+    );
+
+    return r.recordset.map((row) => ({
+      ...row,
+      q1: Number(row.q1),
+      q2: Number(row.q2),
+      q3: Number(row.q3),
+      q4: Number(row.q4),
+      total: Number(row.total),
+    }));
+  },
+
 };

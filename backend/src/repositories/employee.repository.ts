@@ -81,7 +81,8 @@ export const employeeRepository = {
       `SELECT e.employee_id AS employeeId,
               LTRIM(RTRIM(CONCAT(e.last_name, N' ', e.first_name))) AS fullName,
               e.date_of_birth AS dateOfBirth,
-              e.address, e.phone, e.base_salary AS baseSalary, u.created_at AS createdAt,
+              e.address, e.phone,
+              u.created_at AS createdAt,
               u.user_id AS userId, u.username, r.role_name AS role, ISNULL(u.is_locked, 0) AS isLocked
        FROM employees e
        LEFT JOIN users u ON u.employee_id = e.employee_id AND u.is_deleted = 0
@@ -119,7 +120,7 @@ export const employeeRepository = {
     const rowsRes = await query<EmployeeListItemRow>(
       `SELECT e.employee_id AS employeeId,
               LTRIM(RTRIM(CONCAT(e.last_name, N' ', e.first_name))) AS fullName,
-              e.phone, e.base_salary AS baseSalary,
+              e.phone,
               u.user_id AS userId, u.username, r.role_name AS role, ISNULL(u.is_locked, 0) AS isLocked
        FROM employees e
        LEFT JOIN users u ON u.employee_id = e.employee_id AND u.is_deleted = 0
@@ -145,7 +146,7 @@ export const employeeRepository = {
   /**
    * Cập nhật thông tin nhân viên hoặc hồ sơ cá nhân.
    * Hỗ trợ cả lastName/firstName hoặc fullName (sẽ tự tách họ/tên),
-   * ngày sinh/địa chỉ/SĐT/lương cơ bản/giới tính/email.
+   * ngày sinh/địa chỉ/SĐT/giới tính/email.
    */
   async update(
     employeeId: number,

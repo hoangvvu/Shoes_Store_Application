@@ -74,12 +74,15 @@ export interface StockItem {
   sizeLabel: string;
   colorName: string;
   hexCode: string | null;
+  supplierId?: number | null;
+  supplierName?: string | null;
 }
 
 export interface StockListParams {
   q?: string;
   lowStockOnly?: boolean;
   threshold?: number;
+  supplierId?: number;
   page: number;
   size: number;
 }

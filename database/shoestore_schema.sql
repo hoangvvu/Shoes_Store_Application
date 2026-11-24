@@ -100,6 +100,7 @@ GO
 CREATE TABLE categories (
     category_id   INT IDENTITY(1,1) PRIMARY KEY,
     category_name NVARCHAR(100) NOT NULL,
+    image_url     VARCHAR(500) NULL,
     is_deleted    BIT NOT NULL DEFAULT 0,
     deleted_at    DATETIME2(3) NULL
 );
