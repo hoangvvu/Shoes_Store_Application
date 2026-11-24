@@ -23,13 +23,17 @@ import supplierRoutes from './supplier.routes';
 import uploadRoutes from './upload.routes';
 import userRoutes from './user.routes';
 import inventoryRoutes from './inventory.routes';
+import { adminNotificationRouter, customerNotificationRouter } from './notification.routes';
+import { promotionsRouter, vouchersRouter } from './promotion.routes';
 
 const router = Router();
 router.use('/auth', authRoutes);
-router.use('/me/addresses', addressRoutes); 
-router.use('/me/orders', myOrdersRouter);   
-router.use('/me/favorites', favoriteRoutes); 
+router.use('/me/notifications', customerNotificationRouter); // phải đứng trước /me
+router.use('/me/addresses', addressRoutes); // phải đứng trước /me
+router.use('/me/orders', myOrdersRouter);   // phải đứng trước /me
+router.use('/me/favorites', favoriteRoutes); // phải đứng trước /me
 router.use('/me', meRoutes);
+router.use('/notifications', adminNotificationRouter);
 router.use('/users', userRoutes);
 router.use('/customers', customerRoutes);
 router.use('/employees', employeeRoutes);
@@ -44,6 +48,7 @@ router.use('/reviews', reviewRoutes);
 router.use('/replies', repliesRouter);
 router.use('/suppliers', supplierRoutes);
 router.use('/purchase-receipts', receiptRoutes);
+
 router.use('/inventory', inventoryRoutes);
 router.use('/reports', reportRoutes);
 router.use('/cart', cartRoutes);

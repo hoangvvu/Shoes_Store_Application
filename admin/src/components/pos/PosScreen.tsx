@@ -17,6 +17,11 @@ import { PosReceiptModal } from './PosReceiptModal';
 
 const SIZE = 12;
 
+function getTodayKey(): string {
+  const vnNow = new Date(Date.now() + 7 * 3600 * 1000);
+  return vnNow.toISOString().slice(0, 10);
+}
+
 interface Filters {
   q: string;
 }
@@ -37,6 +42,7 @@ export function PosScreen({ ordersPath }: { ordersPath: string }) {
   const [customer, setCustomer] = useState<CustomerListItem | null>(null);
   const [voucherInput, setVoucherInput] = useState('');
   const [voucher, setVoucher] = useState('');
+  const voucherDateRef = useRef('');
   const [preview, setPreview] = useState<PosPreview | null>(null);
   const [previewing, setPreviewing] = useState(false);
   const [previewError, setPreviewError] = useState('');
@@ -150,16 +156,47 @@ export function PosScreen({ ordersPath }: { ordersPath: string }) {
     return () => clearTimeout(t);
   }, [cart, voucher, refreshPreview]);
 
+  // Tự động hủy phiên voucher nếu để treo qua ngày hôm sau hoặc khi quay lại tab mà voucher đã hết hạn
+  useEffect(() => {
+    function checkVoucherSession() {
+      if (!voucher) return;
+      if (voucherDateRef.current && getTodayKey() !== voucherDateRef.current) {
+        voucherDateRef.current = '';
+        setVoucher('');
+        setVoucherInput('');
+        setCheckingOut(false);
+        setNotice('Mã voucher từ phiên ngày hôm trước đã hết hiệu lực và được tự động gỡ bỏ.');
+      } else if (cart.length > 0) {
+        void refreshPreview(cart, voucher);
+      }
+    }
+
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') checkVoucherSession();
+    };
+    window.addEventListener('focus', checkVoucherSession);
+    document.addEventListener('visibilitychange', onVisibility);
+    const timer = setInterval(checkVoucherSession, 30000);
+    return () => {
+      window.removeEventListener('focus', checkVoucherSession);
+      document.removeEventListener('visibilitychange', onVisibility);
+      clearInterval(timer);
+    };
+  }, [cart, voucher, refreshPreview]);
+
   /* ---------- thao tác ---------- */
   function search() {
     apply();
   }
 
   function applyVoucher() {
-    setVoucher(voucherInput.trim().toUpperCase());
+    const clean = voucherInput.trim().toUpperCase();
+    voucherDateRef.current = clean ? getTodayKey() : '';
+    setVoucher(clean);
   }
 
   function clearVoucher() {
+    voucherDateRef.current = '';
     setVoucher('');
     setVoucherInput('');
   }
@@ -169,6 +206,7 @@ export function PosScreen({ ordersPath }: { ordersPath: string }) {
     setCheckingOut(false);
     setCart([]);
     setCustomer(null);
+    voucherDateRef.current = '';
     setVoucher('');
     setVoucherInput('');
     setPreview(null);
@@ -258,11 +296,23 @@ export function PosScreen({ ordersPath }: { ordersPath: string }) {
             </div>
           )}
 
-          <button type="button" className="btn btn--primary pos-pay-btn" disabled={!canPay} onClick={() => setCheckingOut(true)}>
-            Thanh toán
-          </button>
-          {previewing && <p className="muted pos-updating">Đang cập nhật giá…</p>}
-          {preview && preview.issues.length > 0 && <p className="form-error">Vui lòng xử lý các sản phẩm báo lỗi trong giỏ trước khi thanh toán.</p>}
+            <button
+              type="button"
+              className="btn btn--primary pos-pay-btn"
+              disabled={!canPay}
+              onClick={() => {
+                if (voucher && voucherDateRef.current && getTodayKey() !== voucherDateRef.current) {
+                  clearVoucher();
+                  setNotice('Mã voucher từ phiên ngày hôm trước đã hết hiệu lực và được tự động gỡ bỏ.');
+                  return;
+                }
+                setCheckingOut(true);
+              }}
+            >
+              Thanh toán
+            </button>
+            {previewing && <p className="muted pos-updating">Đang cập nhật giá…</p>}
+            {preview && preview.issues.length > 0 && <p className="form-error">Vui lòng xử lý các sản phẩm báo lỗi trong giỏ trước khi thanh toán.</p>}
         </aside>
       </div>
 

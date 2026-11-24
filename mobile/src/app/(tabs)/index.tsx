@@ -12,9 +12,12 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { Logo } from '@/components/Logo';
 import { ProductDetailModal, resolveProductImage } from '@/components/ProductDetailModal';
 import { useAuthUser } from '@/hooks/useAuth';
+import { notificationService } from '@/services/notification.service';
 import { productService } from '@/services/product.service';
 import { colors } from '@/theme';
 import type { ProductListItem } from '@/types/product';
@@ -26,6 +29,7 @@ interface CategoryItem {
 }
 
 export default function HomeScreen() {
+  const router = useRouter();
   const user = useAuthUser();
   const insets = useSafeAreaInsets();
 
@@ -36,6 +40,15 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
   const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
+  const [unreadCount, setUnreadCount] = useState<number>(0);
+
+  const fetchUnread = useCallback(() => {
+    notificationService.getUnreadCount().then(setUnreadCount).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    fetchUnread();
+  }, [fetchUnread]);
 
   // Load categories once
   useEffect(() => {
@@ -68,8 +81,9 @@ export default function HomeScreen() {
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
+    fetchUnread();
     loadProducts(search, selectedCatId);
-  }, [loadProducts, search, selectedCatId]);
+  }, [fetchUnread, loadProducts, search, selectedCatId]);
 
   const renderProduct = ({ item }: { item: ProductListItem }) => {
     const imgUri = resolveProductImage(item.imageUrl);
@@ -116,8 +130,27 @@ export default function HomeScreen() {
     <View style={[styles.container, { paddingTop: insets.top + 16 }]}>
       {/* Header */}
       <View style={styles.header}>
-        <Logo />
-        <Text style={styles.hello}>Xin chào, {user?.fullName || 'bạn'} 👋</Text>
+        <View style={styles.headerLeft}>
+          <Logo />
+          <Text style={styles.hello}>Xin chào, {user?.fullName || 'bạn'} 👋</Text>
+        </View>
+
+        {/* Nút Chuông Thông Báo */}
+        <TouchableOpacity
+          style={styles.bellButton}
+          onPress={() => router.push('/notifications')}
+          accessibilityLabel="Thông báo"
+          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+        >
+          <Ionicons name="notifications-outline" size={24} color={colors.text} />
+          {unreadCount > 0 && (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </Text>
+            </View>
+          )}
+        </TouchableOpacity>
       </View>
 
       {/* Search Input */}
@@ -201,8 +234,45 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  header: { paddingHorizontal: 16, marginBottom: 12 },
-  hello: { fontSize: 20, fontWeight: '700', color: colors.text, marginTop: 8 },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    marginBottom: 12,
+  },
+  headerLeft: {
+    flex: 1,
+  },
+  bellButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  badge: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    backgroundColor: '#EF4444',
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
+  },
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  hello: { fontSize: 20, fontWeight: '700', color: colors.text, marginTop: 4 },
   searchBox: {
     flexDirection: 'row',
     alignItems: 'center',

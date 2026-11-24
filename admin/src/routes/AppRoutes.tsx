@@ -22,6 +22,8 @@ import AdminProductsPage from '../pages/admin/AdminProductsPage';
 import AdminReceiptsPage from '../pages/admin/AdminReceiptsPage';
 import AdminReportsPage from '../pages/admin/AdminReportsPage';
 import AdminSuppliersPage from '../pages/admin/AdminSuppliersPage';
+import AdminNotificationsPage from '../pages/admin/AdminNotificationsPage';
+import AdminPromotionsPage from '../pages/admin/AdminPromotionsPage';
 
 // Sales pages
 import SalesCustomerDetailPage from '../pages/sales/SalesCustomerDetailPage';
@@ -76,6 +78,8 @@ export function AppRoutes() {
           <Route path="suppliers" element={<AdminSuppliersPage />} />
           <Route path="receipts" element={<AdminReceiptsPage />} />
           <Route path="inventory" element={<AdminInventoryPage />} />
+          <Route path="promotions" element={<AdminPromotionsPage />} />
+          <Route path="notifications" element={<AdminNotificationsPage />} />
           <Route path="reports" element={<AdminReportsPage />} />
           <Route path="profile" element={<ProfilePage />} />
           <Route path="*" element={<PlaceholderPage role="ADMIN" />} />
