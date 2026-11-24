@@ -1,7 +1,7 @@
 import * as SecureStore from 'expo-secure-store';
 import { create } from 'zustand';
 import { SESSION_KEY } from '@/constants/app';
-import type { AuthUser } from '@/types/auth';
+import { isCustomerUser, type AuthUser } from '@/types/auth';
 
 type Status = 'loading' | 'signedIn' | 'signedOut';
 interface Session { accessToken: string; refreshToken: string; user: AuthUser }
@@ -17,6 +17,7 @@ interface AuthState {
   setAccessToken: (token: string) => Promise<void>;
   setUserName: (fullName: string) => void;
   clear: () => Promise<void>;
+  logout: () => Promise<void>; // 👈 Bổ sung hàm logout
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -30,7 +31,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const raw = await SecureStore.getItemAsync(SESSION_KEY);
       if (raw) {
         const s = JSON.parse(raw) as Session;
-        return set({ ...s, status: 'signedIn' });
+        if (isCustomerUser(s.user)) return set({ ...s, status: 'signedIn' });
+        // phiên nhân viên cũ còn lưu trong máy: xóa để buộc đăng nhập lại
+        await SecureStore.deleteItemAsync(SESSION_KEY).catch(() => undefined);
       }
     } catch {
       await SecureStore.deleteItemAsync(SESSION_KEY).catch(() => undefined);
@@ -56,11 +59,34 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   setUserName: (fullName) => {
     const user = get().user;
-    if (user) set({ user: { ...user, fullName } });
+    if (!user) return;
+    
+    // Tách chuỗi fullName thành lastName và firstName
+    const parts = fullName.trim().split(' ');
+    const firstName = parts.pop() || '';
+    const lastName = parts.join(' ');
+
+    set({ 
+      user: { 
+        ...user, 
+        firstName, 
+        lastName 
+      } 
+    });
   },
 
   clear: async () => {
     await SecureStore.deleteItemAsync(SESSION_KEY).catch(() => undefined);
+    set({ status: 'signedOut', user: null, accessToken: null, refreshToken: null });
+  },
+
+  // 👇 Định nghĩa tường minh hàm logout để kích hoạt chuyển hướng màn hình khi bấm đăng xuất
+  logout: async () => {
+    try {
+      await SecureStore.deleteItemAsync(SESSION_KEY);
+    } catch {
+      /* bỏ qua lỗi xóa */
+    }
     set({ status: 'signedOut', user: null, accessToken: null, refreshToken: null });
   },
 }));

@@ -14,10 +14,8 @@ import AdminEmployeesPage from '../pages/admin/AdminEmployeesPage';
 import AdminHomePage from '../pages/admin/AdminHomePage';
 import AdminInventoryPage from '../pages/admin/AdminInventoryPage';
 import AdminReviewsPage from '../pages/admin/AdminReviewsPage';
-import AdminInvoiceDetailPage from '../pages/admin/AdminInvoiceDetailPage';
 import AdminInvoicesPage from '../pages/admin/AdminInvoicesPage';
 import AdminPosPage from '../pages/admin/AdminPosPage';
-import AdminOrderDetailPage from '../pages/admin/AdminOrderDetailPage';
 import AdminOrdersPage from '../pages/admin/AdminOrdersPage';
 import AdminProductDetailPage from '../pages/admin/AdminProductDetailPage';
 import AdminProductsPage from '../pages/admin/AdminProductsPage';
@@ -25,16 +23,16 @@ import AdminReceiptsPage from '../pages/admin/AdminReceiptsPage';
 import AdminReportsPage from '../pages/admin/AdminReportsPage';
 import AdminSuppliersPage from '../pages/admin/AdminSuppliersPage';
 import AdminBannersPage from '../pages/admin/AdminBannersPage';
+import AdminNotificationsPage from '../pages/admin/AdminNotificationsPage';
+import AdminPromotionsPage from '../pages/admin/AdminPromotionsPage';
 
 // Sales pages
 import SalesCustomerDetailPage from '../pages/sales/SalesCustomerDetailPage';
 import SalesCustomersPage from '../pages/sales/SalesCustomersPage';
 import SalesHomePage from '../pages/sales/SalesHomePage';
-import SalesInvoiceDetailPage from '../pages/sales/SalesInvoiceDetailPage';
 import SalesInvoicesPage from '../pages/sales/SalesInvoicesPage';
 import SalesPosPage from '../pages/sales/SalesPosPage';
 import SalesReviewsPage from '../pages/sales/SalesReviewsPage';
-import SalesOrderDetailPage from '../pages/sales/SalesOrderDetailPage';
 import SalesOrdersPage from '../pages/sales/SalesOrdersPage';
 import SalesProductDetailPage from '../pages/sales/SalesProductDetailPage';
 import SalesProductsPage from '../pages/sales/SalesProductsPage';
@@ -73,9 +71,7 @@ export function AppRoutes() {
           <Route path="customers/:id" element={<AdminCustomerDetailPage />} />
           <Route path="pos" element={<AdminPosPage />} />
           <Route path="orders" element={<AdminOrdersPage />} />
-          <Route path="orders/:id" element={<AdminOrderDetailPage />} />
           <Route path="invoices" element={<AdminInvoicesPage />} />
-          <Route path="invoices/:id" element={<AdminInvoiceDetailPage />} />
           <Route path="products" element={<AdminProductsPage />} />
           <Route path="products/:id" element={<AdminProductDetailPage />} />
           <Route path="catalog" element={<AdminCatalogPage />} />
@@ -83,6 +79,8 @@ export function AppRoutes() {
           <Route path="suppliers" element={<AdminSuppliersPage />} />
           <Route path="receipts" element={<AdminReceiptsPage />} />
           <Route path="inventory" element={<AdminInventoryPage />} />
+          <Route path="promotions" element={<AdminPromotionsPage />} />
+          <Route path="notifications" element={<AdminNotificationsPage />} />
           <Route path="reports" element={<AdminReportsPage />} />
           <Route path="banners" element={<AdminBannersPage />} />
           <Route path="profile" element={<ProfilePage />} />
@@ -98,9 +96,8 @@ export function AppRoutes() {
           <Route path="customers/:id" element={<SalesCustomerDetailPage />} />
           <Route path="pos" element={<SalesPosPage />} />
           <Route path="orders" element={<SalesOrdersPage />} />
-          <Route path="orders/:id" element={<SalesOrderDetailPage />} />
           <Route path="invoices" element={<SalesInvoicesPage />} />
-          <Route path="invoices/:id" element={<SalesInvoiceDetailPage />} />
+          {/* <Route path="invoices/:id" element={<SalesInvoiceDetailPage />} /> */}
           <Route path="products" element={<SalesProductsPage />} />
           <Route path="products/:id" element={<SalesProductDetailPage />} />
           <Route path="reviews" element={<SalesReviewsPage />} />

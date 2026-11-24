@@ -27,6 +27,7 @@ export default function TabsLayout() {
     >
       <Tabs.Screen
         name="index"
+<<<<<<< HEAD
         options={{
           title: 'Trang chủ',
           tabBarIcon: ({ focused }) => (
@@ -56,12 +57,16 @@ export default function TabsLayout() {
             </View>
           ),
         }}
+=======
+        options={{ title: 'Trang chủ', tabBarIcon: ({ color, size }) => <Ionicons name="home-outline" color={String(color)} size={size} /> }}
+>>>>>>> origin/develop
       />
       <Tabs.Screen
         name="cart"
         options={{
           title: 'Giỏ hàng',
           tabBarBadge: lineCount > 0 ? lineCount : undefined,
+<<<<<<< HEAD
           tabBarBadgeStyle: styles.badgeStyle,
           tabBarIcon: ({ focused }) => (
             <View style={styles.iconContainer}>
@@ -73,10 +78,14 @@ export default function TabsLayout() {
               {focused && <View style={styles.activeDot} />}
             </View>
           ),
+=======
+          tabBarIcon: ({ color, size }) => <Ionicons name="cart-outline" color={String(color)} size={size} />,
+>>>>>>> origin/develop
         }}
       />
       <Tabs.Screen
         name="profile"
+<<<<<<< HEAD
         options={{
           title: 'Tài khoản',
           tabBarIcon: ({ focused }) => (
@@ -90,6 +99,9 @@ export default function TabsLayout() {
             </View>
           ),
         }}
+=======
+        options={{ title: 'Tài khoản', tabBarIcon: ({ color, size }) => <Ionicons name="person-outline" color={String(color)} size={size} /> }}
+>>>>>>> origin/develop
       />
     </Tabs>
   );

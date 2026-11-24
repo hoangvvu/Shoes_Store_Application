@@ -17,6 +17,7 @@ import { isDuplicateKey } from '../utils/sqlError';
 import type { LoginInput, RegisterInput } from '../validators/auth.validator';
 import { toAuthUser, toPublicUser } from './profile.helper';
 
+import { invalidateAfter } from './cache.service';
 const GENERIC_LOGIN_ERROR = 'Sai tên đăng nhập hoặc mật khẩu';
 
 export const authService = {
@@ -89,7 +90,11 @@ export const authService = {
     loginLimiter.reset(key);
 
     const wrongPortal =
+<<<<<<< HEAD
       (input.portal === 'staff' && user.userType !== USER_TYPES.EMPLOYEE);
+=======
+      input.portal === 'staff' && user.userType !== USER_TYPES.EMPLOYEE;
+>>>>>>> origin/develop
     if (wrongPortal) {
       throw AppError.forbidden('Tài khoản khách hàng không có quyền truy cập trang quản trị', 'WRONG_PORTAL');
     }
@@ -198,3 +203,8 @@ export const authService = {
 };
 
 export const OTP_ATTEMPT_LIMIT = OTP_MAX_FAILS;
+
+// Sau khi ghi thành công thì invalidate cache tìm kiếm liên quan
+invalidateAfter(authService, {
+  register: ['customers'],
+});

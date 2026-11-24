@@ -10,6 +10,7 @@ import { setActor } from '../utils/session';
 import { isDuplicateKey } from '../utils/sqlError';
 import type { CreateReviewInput, ModerationListQuery, ProductReviewsQuery, UpdateReviewInput } from '../validators/review.validator';
 
+import { searchCache, SEARCH_TTL, invalidateAfter } from './cache.service';
 const REVIEW_NOT_FOUND = () => AppError.notFound('Không tìm thấy đánh giá', 'REVIEW_NOT_FOUND');
 const REPLY_NOT_FOUND = () => AppError.notFound('Không tìm thấy phản hồi', 'REPLY_NOT_FOUND');
 const PRODUCT_NOT_FOUND = () => AppError.notFound('Không tìm thấy sản phẩm', 'PRODUCT_NOT_FOUND');
@@ -141,8 +142,17 @@ export const reviewService = {
 
   /** Danh sách kiểm duyệt (mọi trạng thái, PENDING lên đầu) kèm phản hồi và quyền sửa/xóa từng phản hồi. */
   async listForModeration(auth: AuthUser, q: ModerationListQuery) {
-    const { rows, total } = await reviewRepository.listForModeration(q);
-    const replies = await reviewRepository.listReplies(rows.map((r) => r.reviewId));
+    // Chỉ cache dữ liệu thô (không phụ thuộc người xem); canEdit tính theo người xem SAU cache
+    const { rows, total, replies } = await searchCache.getOrLoad(
+      'reviews',
+      { fn: 'review.moderation', ...q },
+      SEARCH_TTL.reviews,
+      async () => {
+        const res = await reviewRepository.listForModeration(q);
+        const reps = await reviewRepository.listReplies(res.rows.map((r) => r.reviewId));
+        return { rows: res.rows, total: res.total, replies: reps };
+      },
+    );
     const items = rows.map((r) => ({
       reviewId: r.reviewId,
       productId: r.productId,
@@ -221,3 +231,14 @@ export const reviewService = {
     });
   },
 };
+
+// Sau khi ghi thành công thì invalidate cache tìm kiếm liên quan
+invalidateAfter(reviewService, {
+  create: ['reviews'],
+  update: ['reviews'],
+  remove: ['reviews'],
+  setStatus: ['reviews'],
+  addReply: ['reviews'],
+  updateReply: ['reviews'],
+  removeReply: ['reviews'],
+});

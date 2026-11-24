@@ -87,6 +87,7 @@ export default function FavoritesScreen() {
           )
         }
         ListFooterComponent={loadingMore ? <ActivityIndicator color={colors.primary} /> : undefined}
+<<<<<<< HEAD
         renderItem={({ item }) => {
           const imgUri = resolveProductImage(item.imageUrl);
           return (
@@ -110,6 +111,23 @@ export default function FavoritesScreen() {
             </TouchableOpacity>
           );
         }}
+=======
+        renderItem={({ item }) => (
+          <View style={styles.card}>
+            {item.imageUrl ? (
+              <Image source={{ uri: item.imageUrl }} style={styles.img} />
+            ) : (
+              <View style={[styles.img, styles.imgPlaceholder]}><Ionicons name="footsteps" size={28} color={colors.primaryLight} /></View>
+            )}
+            <View style={{ flex: 1, gap: 4 }}>
+              <Text style={styles.name} numberOfLines={2}>{item.productName}</Text>
+              <Text style={styles.price}>{formatVnd(item.currentPrice)}</Text>
+            </View>
+            {/* bỏ thích: dùng chung store; danh sách này tải lại khi quay lại màn hình */}
+            <FavoriteButton productId={item.productId} />
+          </View>
+        )}
+>>>>>>> origin/develop
       />
     </View>
   );

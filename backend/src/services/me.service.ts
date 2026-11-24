@@ -10,6 +10,7 @@ import { isDuplicateKey } from '../utils/sqlError';
 import type { AuthUser } from '../types/express';
 import type { UpdateMeInput } from '../validators/user.validator';
 
+import { invalidateAfter } from './cache.service';
 export const meService = {
   async getMe(auth: AuthUser) {
     const user = await userRepository.findActiveById(auth.userId);
@@ -96,3 +97,8 @@ export const meService = {
     return this.getMe(auth);
   },
 };
+
+// Sau khi ghi thành công thì invalidate cache tìm kiếm liên quan
+invalidateAfter(meService, {
+  updateMe: ['customers', 'employees', 'orders', 'reviews'],
+});

@@ -218,10 +218,39 @@ export default function ProfileScreen() {
           </View>
         </View>
 
+<<<<<<< HEAD
         <Text style={styles.userName}>{profile?.fullName || 'Đang tải...'}</Text>
         {!!(profile?.phone || profile?.email) && (
           <Text style={styles.userPhone}>{profile?.phone || profile?.email}</Text>
         )}
+=======
+      <Pressable style={styles.linkRow} onPress={() => router.push('/orders')}>
+        <Ionicons name="receipt-outline" size={22} color={colors.primary} />
+        <Text style={styles.linkText}>Đơn hàng của tôi</Text>
+        <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+      </Pressable>
+
+      <Pressable style={styles.linkRow} onPress={() => router.push('/notifications')}>
+        <Ionicons name="notifications-outline" size={22} color={colors.primary} />
+        <Text style={styles.linkText}>Thông báo của tôi</Text>
+        <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+      </Pressable>
+
+      <Pressable style={styles.linkRow} onPress={() => router.push('/addresses')}>
+        <Ionicons name="location-outline" size={22} color={colors.primary} />
+        <Text style={styles.linkText}>Địa chỉ giao hàng</Text>
+        <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+      </Pressable>
+
+      <Text style={[styles.h2, { marginTop: 16 }]}>Đổi mật khẩu</Text>
+      <AppTextInput icon="lock-closed-outline" placeholder="Mật khẩu cũ" value={oldPw} onChangeText={setOldPw} secure />
+      <AppTextInput icon="lock-closed-outline" placeholder="Mật khẩu mới (8+ ký tự, hoa-thường-số)" value={newPw} onChangeText={setNewPw} secure />
+      <AppTextInput icon="lock-closed-outline" placeholder="Nhập lại mật khẩu mới" value={confirmPw} onChangeText={setConfirmPw} secure />
+      <PrimaryButton title="Đổi mật khẩu" onPress={changePassword} loading={savingPw} />
+
+      <View style={{ marginTop: 16 }}>
+        <Text style={styles.logout} onPress={logout}>Đăng xuất</Text>
+>>>>>>> origin/develop
       </View>
 
       {/* Order Status Tracker */}

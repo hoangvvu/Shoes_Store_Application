@@ -23,14 +23,21 @@ import supplierRoutes from './supplier.routes';
 import uploadRoutes from './upload.routes';
 import userRoutes from './user.routes';
 import inventoryRoutes from './inventory.routes';
+<<<<<<< HEAD
 import bannerRoutes from './banner.routes';
+=======
+import { adminNotificationRouter, customerNotificationRouter } from './notification.routes';
+import { promotionsRouter, vouchersRouter } from './promotion.routes';
+>>>>>>> origin/develop
 
 const router = Router();
 router.use('/auth', authRoutes);
+router.use('/me/notifications', customerNotificationRouter); // phải đứng trước /me
 router.use('/me/addresses', addressRoutes); // phải đứng trước /me
 router.use('/me/orders', myOrdersRouter);   // phải đứng trước /me
 router.use('/me/favorites', favoriteRoutes); // phải đứng trước /me
 router.use('/me', meRoutes);
+router.use('/notifications', adminNotificationRouter);
 router.use('/users', userRoutes);
 router.use('/customers', customerRoutes);
 router.use('/employees', employeeRoutes);
@@ -39,21 +46,20 @@ router.use('/categories', categoriesRouter);
 router.use('/brands', brandsRouter);
 router.use('/sizes', sizesRouter);
 router.use('/colors', colorsRouter);
-router.use('/products/:productId/reviews', productReviewsRouter); // M14
+router.use('/products/:productId/reviews', productReviewsRouter);
 router.use('/products', productRouter);
 router.use('/variants', variantRouter);
 router.use('/reviews', reviewRoutes);
 router.use('/replies', repliesRouter);
 router.use('/suppliers', supplierRoutes);
 router.use('/purchase-receipts', receiptRoutes);
+
 router.use('/inventory', inventoryRoutes);
 router.use('/reports', reportRoutes);
 router.use('/cart', cartRoutes);
 router.use('/orders', orderRoutes);
 router.use('/invoices', invoiceRoutes);
 router.use('/pos', posRouter);
-
-// M9 – Thanh toán & Hoàn tiền
 router.use('/payment-methods', paymentMethodRouter);
 router.use('/payments', paymentsRouter);
 router.use('/webhooks', webhookRouter);

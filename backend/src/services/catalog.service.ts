@@ -9,6 +9,7 @@ import type {
   UpdateSizeInput,
 } from '../validators/product.validator';
 
+import { invalidateAfter } from './cache.service';
 export const catalogService = {
   // Categories
   async listCategories() {
@@ -126,3 +127,15 @@ export const catalogService = {
     await catalogRepository.softDeleteColor(id);
   },
 };
+
+// Sau khi ghi thành công thì invalidate cache tìm kiếm liên quan
+invalidateAfter(catalogService, {
+  updateCategory: ['products', 'inventory'],
+  removeCategory: ['products', 'inventory'],
+  updateBrand: ['products', 'inventory'],
+  removeBrand: ['products', 'inventory'],
+  updateSize: ['products', 'inventory'],
+  removeSize: ['products', 'inventory'],
+  updateColor: ['products', 'inventory'],
+  removeColor: ['products', 'inventory'],
+});

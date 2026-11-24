@@ -328,4 +328,24 @@ export const orderRepository = {
     );
     return Number(r.recordset[0]?.paid ?? 0);
   },
+
+  /**
+   * Giả lập thu tiền khi giao hàng: mọi giao dịch đang chờ của đơn chuyển PENDING -> SUCCESS và GIỮ NGUYÊN
+   * phương thức khách đã chọn lúc đặt hàng. Tiền mặt không có mã giao dịch; QR/chuyển khoản/ví nếu chưa có mã
+   * thì sinh mã mô phỏng theo mã giao dịch (duy nhất). Trả số giao dịch được chốt.
+   */
+  async settlePending(invoiceId: number, exec: Executor): Promise<number> {
+    const r = await query(
+      `UPDATE p
+       SET status = 'SUCCESS', paid_at = SYSUTCDATETIME(),
+           transaction_code = CASE WHEN m.method_code = 'CASH' THEN p.transaction_code
+                                   ELSE COALESCE(p.transaction_code, CONCAT('SIM-', p.invoice_id, '-', p.payment_id)) END
+       FROM payments p
+       JOIN payment_methods m ON m.method_id = p.method_id
+       WHERE p.invoice_id = @invoiceId AND p.status = 'PENDING' AND p.is_deleted = 0`,
+      { invoiceId: [sql.Int, invoiceId] },
+      exec,
+    );
+    return r.rowsAffected[0] ?? 0;
+  },
 };

@@ -6,9 +6,11 @@ import {
   paymentRepository,
   refundRepository,
 } from '../repositories/payment.repository';
+import { notificationRepository } from '../repositories/notification.repository';
 
 // ─── Payment Methods ──────────────────────────────────────────────────────────
 
+import { invalidateAfter } from './cache.service';
 export const paymentService = {
   /** M9 #1 – Danh sách hình thức thanh toán đang bật (khách dùng khi đặt hàng). */
   async listMethods(onlyActive = true) {
@@ -171,6 +173,29 @@ export const paymentService = {
 
     const processedBy = user.employeeId!;
     await refundRepository.complete(refundId, transactionCode, processedBy);
+
+    // Tích hợp M13: Thông báo khi hoàn tiền thành công
+    try {
+      const info = await query<{ customerId: number; invoiceId: number }>(
+        `SELECT i.customer_id AS customerId, i.invoice_id AS invoiceId
+         FROM refunds r
+         JOIN payments p ON p.payment_id = r.payment_id
+         JOIN invoices i ON i.invoice_id = p.invoice_id
+         WHERE r.refund_id = @refundId`,
+        { refundId: [sql.Int, refundId] },
+      );
+      if (info.recordset[0]?.customerId) {
+        await notificationRepository.createForCustomer({
+          title: `Hoàn tiền thành công cho đơn hàng #${info.recordset[0].invoiceId}`,
+          content: `Yêu cầu hoàn tiền số tiền ${Number(refund.amount).toLocaleString('vi-VN')} đ cho đơn hàng #${info.recordset[0].invoiceId} đã được xử lý thành công. Mã giao dịch: ${transactionCode}`,
+          notificationType: 'ORDER',
+          linkUrl: `/orders/${info.recordset[0].invoiceId}`,
+          customerId: info.recordset[0].customerId,
+          createdByEmployeeId: processedBy,
+        });
+      }
+    } catch {}
+
     return { refundId, status: 'SUCCESS', transactionCode };
   },
 
@@ -192,3 +217,14 @@ export const paymentService = {
     return { expired: count };
   },
 };
+
+// Sau khi ghi thành công thì invalidate cache tìm kiếm liên quan
+invalidateAfter(paymentService, {
+  confirmCash: ['orders'],
+  reviewProof: ['orders'],
+  handleWebhook: ['orders'],
+  retryPay: ['orders'],
+  completeRefund: ['orders'],
+  rejectRefund: ['orders'],
+  expirePendingPayments: ['orders'],
+});

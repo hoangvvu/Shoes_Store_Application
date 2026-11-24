@@ -1,5 +1,15 @@
 export type OrderStatus = 'PENDING' | 'CONFIRMED' | 'SHIPPING' | 'DELIVERED' | 'CANCELLED';
 
+export interface OrderListLine {
+  variantId: number;
+  productId: number;
+  productName: string;
+  imageUrl: string | null;
+  sizeLabel: string;
+  colorName: string;
+  quantity: number;
+}
+
 export interface OrderListItem {
   invoiceId: number;
   invoiceDate: string;
@@ -9,6 +19,7 @@ export interface OrderListItem {
   discountAmount: number;
   amountPayable: number;
   paymentStatus: string;
+  items?: OrderListLine[];
 }
 
 export interface Paged<T> {

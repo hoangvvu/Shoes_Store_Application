@@ -15,6 +15,7 @@ import type {
   UpdateVariantInput,
 } from '../validators/product.validator';
 
+import { searchCache, SEARCH_TTL, invalidateAfter } from './cache.service';
 const NOT_FOUND = () => AppError.notFound('Không tìm thấy sản phẩm', 'PRODUCT_NOT_FOUND');
 const VARIANT_NOT_FOUND = () => AppError.notFound('Không tìm thấy biến thể sản phẩm', 'VARIANT_NOT_FOUND');
 
@@ -52,7 +53,8 @@ export const productService = {
     const isInternal = user && (user.role === ROLES.ADMIN || user.role === ROLES.SALES || user.role === ROLES.WAREHOUSE);
     const isActive = isInternal ? q.isActive : true;
 
-    const { rows, total } = await productRepository.list({
+    // isActive đã được resolve theo quyền (khách luôn = true) nên key không lẫn giữa khách và nhân viên
+    const filter = {
       q: q.q,
       categoryId: q.categoryId,
       brandId: q.brandId,
@@ -62,9 +64,11 @@ export const productService = {
       maxPrice: q.maxPrice,
       page: q.page,
       size: q.size,
+    };
+    return searchCache.getOrLoad('products', { fn: 'product.list', ...filter }, SEARCH_TTL.products, async () => {
+      const { rows, total } = await productRepository.list(filter);
+      return toPaged(rows, total, q.page, q.size);
     });
-
-    return toPaged(rows, total, q.page, q.size);
   },
 
   async getDetail(productId: number) {
@@ -199,3 +203,14 @@ export const productService = {
     });
   },
 };
+
+// Sau khi ghi thành công thì invalidate cache tìm kiếm liên quan
+invalidateAfter(productService, {
+  create: ['products', 'inventory'],
+  update: ['products', 'inventory', 'reviews'],
+  setActive: ['products', 'inventory'],
+  remove: ['products', 'inventory', 'reviews'],
+  bulkVariants: ['products', 'inventory'],
+  updateVariant: ['products', 'inventory'],
+  removeVariant: ['products', 'inventory'],
+});

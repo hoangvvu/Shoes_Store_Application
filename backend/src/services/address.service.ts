@@ -8,7 +8,6 @@ import type { CreateAddressInput, UpdateAddressInput } from '../validators/addre
 
 const NOT_FOUND = () => AppError.notFound('Địa chỉ không tồn tại', 'ADDRESS_NOT_FOUND');
 
-/** customerId luôn lấy từ token, không nhận từ body/URL (chống IDOR). */
 function customerIdOf(auth: AuthUser): number {
   if (!auth.customerId) throw AppError.forbidden();
   return auth.customerId;
@@ -49,7 +48,6 @@ export const addressService = {
     return (await addressRepository.findOwned(addressId, customerId))!;
   },
 
-  /** Xóa mềm; nếu xóa địa chỉ mặc định thì chọn địa chỉ mới nhất còn lại làm mặc định. */
   async remove(auth: AuthUser, addressId: number) {
     const customerId = customerIdOf(auth);
     await withTransaction(async (tx) => {
