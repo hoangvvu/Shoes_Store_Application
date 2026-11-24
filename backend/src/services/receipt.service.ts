@@ -12,6 +12,7 @@ import type {
   ReceiptListQuery,
 } from '../validators/inventory.validator';
 
+import { invalidateAfter } from './cache.service';
 const NOT_FOUND = () => AppError.notFound('Không tìm thấy phiếu nhập', 'RECEIPT_NOT_FOUND');
 
 export const receiptService = {
@@ -135,3 +136,9 @@ export const receiptService = {
     }
   },
 };
+
+// Sau khi ghi thành công thì invalidate cache tìm kiếm liên quan
+invalidateAfter(receiptService, {
+  create: ['products', 'inventory'],
+  remove: ['products', 'inventory'],
+});

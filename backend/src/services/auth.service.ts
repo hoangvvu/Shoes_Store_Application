@@ -15,6 +15,7 @@ import { isDuplicateKey } from '../utils/sqlError';
 import type { LoginInput, RegisterInput } from '../validators/auth.validator';
 import { toAuthUser, toPublicUser } from './profile.helper';
 
+import { invalidateAfter } from './cache.service';
 const GENERIC_LOGIN_ERROR = 'Sai tên đăng nhập hoặc mật khẩu';
 
 export const authService = {
@@ -166,3 +167,8 @@ export const authService = {
 };
 
 export const OTP_ATTEMPT_LIMIT = OTP_MAX_FAILS;
+
+// Sau khi ghi thành công thì invalidate cache tìm kiếm liên quan
+invalidateAfter(authService, {
+  register: ['customers'],
+});

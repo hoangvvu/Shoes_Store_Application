@@ -15,28 +15,27 @@ import type {
   UpdateEmployeeInput,
 } from '../validators/employee.validator';
 
+import { searchCache, SEARCH_TTL, invalidateAfter } from './cache.service';
 const NOT_FOUND = () => AppError.notFound('Không tìm thấy nhân viên', 'EMPLOYEE_NOT_FOUND');
 const PHONE_TAKEN = () => AppError.conflict('Số điện thoại đã được đăng ký cho nhân viên khác', 'PHONE_TAKEN');
 const USERNAME_TAKEN = () => AppError.conflict('Tên đăng nhập đã tồn tại', 'USERNAME_TAKEN');
 
 export const employeeService = {
   async list(q: EmployeeListQuery) {
-    const { rows, total } = await employeeRepository.list({
-      q: q.q,
-      role: q.role,
-      page: q.page,
-      size: q.size,
+    const filter = { q: q.q, role: q.role, page: q.page, size: q.size };
+    return searchCache.getOrLoad('employees', { fn: 'employee.list', ...filter }, SEARCH_TTL.employees, async () => {
+      const { rows, total } = await employeeRepository.list(filter);
+      return toPaged(
+        rows.map((r) => ({
+          ...r,
+          baseSalary: Number(r.baseSalary),
+          isLocked: Boolean(r.isLocked),
+        })),
+        total,
+        q.page,
+        q.size,
+      );
     });
-    return toPaged(
-      rows.map((r) => ({
-        ...r,
-        baseSalary: Number(r.baseSalary),
-        isLocked: Boolean(r.isLocked),
-      })),
-      total,
-      q.page,
-      q.size,
-    );
   },
 
   async getDetail(employeeId: number) {
@@ -171,3 +170,10 @@ export const employeeService = {
     };
   },
 };
+
+// Sau khi ghi thành công thì invalidate cache tìm kiếm liên quan
+invalidateAfter(employeeService, {
+  create: ['employees'],
+  update: ['employees', 'orders', 'reviews'],
+  remove: ['employees', 'orders', 'reviews'],
+});

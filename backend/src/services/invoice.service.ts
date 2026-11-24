@@ -6,7 +6,9 @@ import type { AuthUser } from '../types/express';
 import { toPaged } from '../utils/pagination';
 import type { InvoiceListQuery } from '../validators/order.validator';
 import { orderService } from './order.service';
+import type { ListFilter } from '../types/order.types';
 
+import { searchCache, SEARCH_TTL } from './cache.service';
 const NOT_FOUND = () => AppError.notFound('Không tìm thấy hóa đơn', 'INVOICE_NOT_FOUND');
 
 /**
@@ -15,15 +17,22 @@ const NOT_FOUND = () => AppError.notFound('Không tìm thấy hóa đơn', 'INVO
  */
 export const invoiceService = {
   async list(auth: AuthUser, q: InvoiceListQuery) {
-    const { rows, total, summary } = await orderRepository.list({
-      invoice: q.type ?? 'ANY',
-      channel: q.channel,
-      from: q.from,
-      to: q.to,
-      q: q.q,
-      page: q.page,
-      size: q.size,
-    });
+    // Cache kết quả thô; summary chỉ Admin thấy nên được lọc theo quyền SAU cache
+  const filter: ListFilter = {
+    invoice: q.type ?? 'ANY',
+    channel: q.channel,
+    from: q.from,
+    to: q.to,
+    q: q.q,
+    page: q.page,
+    size: q.size,
+  };
+    const { rows, total, summary } = await searchCache.getOrLoad(
+      'orders',
+      { fn: 'invoice.list', ...filter },
+      SEARCH_TTL.orders,
+      () => orderRepository.list(filter),
+    );
     // Thống kê doanh thu chỉ dành cho Admin
     return { ...toPaged(rows, total, q.page, q.size), summary: auth.role === ROLES.ADMIN ? summary : undefined };
   },

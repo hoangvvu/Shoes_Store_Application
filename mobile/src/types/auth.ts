@@ -13,6 +13,16 @@ export interface AuthUser {
   customerId?: number | null;
 }
 
+/** App mobile chỉ dành cho khách hàng: tài khoản nhân viên/admin không được vào. */
+export function isCustomerUser(u: AuthUser): boolean {
+  if (u.userType) return u.userType === 'CUSTOMER';
+  if (u.roleName) return u.roleName.toUpperCase() === 'CUSTOMER';
+  return !!u.customerId && !u.employeeId;
+}
+
+export const STAFF_LOGIN_BLOCKED_MESSAGE =
+  'Ứng dụng này chỉ dành cho khách hàng. Nhân viên vui lòng đăng nhập ở trang quản trị.';
+
 export interface LoginPayload { username: string; password: string }
 export type Gender = 'MALE' | 'FEMALE' | 'OTHER';
 

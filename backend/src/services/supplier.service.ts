@@ -10,16 +10,16 @@ import type {
   UpdateSupplierInput,
 } from '../validators/inventory.validator';
 
+import { searchCache, SEARCH_TTL, invalidateAfter } from './cache.service';
 const NOT_FOUND = () => AppError.notFound('Không tìm thấy nhà cung cấp', 'SUPPLIER_NOT_FOUND');
 
 export const supplierService = {
   async list(q: SupplierListQuery) {
-    const { rows, total } = await supplierRepository.list({
-      q: q.q,
-      page: q.page,
-      size: q.size,
+    const filter = { q: q.q, page: q.page, size: q.size };
+    return searchCache.getOrLoad('suppliers', { fn: 'supplier.list', ...filter }, SEARCH_TTL.suppliers, async () => {
+      const { rows, total } = await supplierRepository.list(filter);
+      return toPaged(rows, total, q.page, q.size);
     });
-    return toPaged(rows, total, q.page, q.size);
   },
 
   async getDetail(id: number) {
@@ -55,3 +55,10 @@ export const supplierService = {
     });
   },
 };
+
+// Sau khi ghi thành công thì invalidate cache tìm kiếm liên quan
+invalidateAfter(supplierService, {
+  create: ['suppliers'],
+  update: ['suppliers'],
+  remove: ['suppliers'],
+});

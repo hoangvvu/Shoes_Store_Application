@@ -23,7 +23,6 @@ import supplierRoutes from './supplier.routes';
 import uploadRoutes from './upload.routes';
 import userRoutes from './user.routes';
 import inventoryRoutes from './inventory.routes';
-import deliveryRoutes from './delivery.routes';
 
 const router = Router();
 router.use('/auth', authRoutes);
@@ -49,7 +48,6 @@ router.use('/inventory', inventoryRoutes);
 router.use('/reports', reportRoutes);
 router.use('/cart', cartRoutes);
 router.use('/orders', orderRoutes);
-router.use('/delivery', deliveryRoutes);
 router.use('/invoices', invoiceRoutes);
 router.use('/pos', posRouter);
 router.use('/payment-methods', paymentMethodRouter);

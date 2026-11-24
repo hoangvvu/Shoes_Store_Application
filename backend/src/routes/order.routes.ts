@@ -27,7 +27,6 @@ orders.get('/:id/print', requireRole(ADMIN, SALES), id, validate(printQuery, 'qu
 orders.post('/:id/cancel', requireRole(CUSTOMER, SALES, ADMIN), id, validate(cancelSchema), h(c.cancel));
 orders.post('/:id/reorder', requireRole(CUSTOMER), id, h(c.reorder));
 orders.post('/:id/confirm', requireRole(ADMIN, SALES), id, validate(noteSchema), h(c.confirm));
-orders.post('/:id/ship', requireRole(ADMIN, SALES), id, validate(noteSchema), h(c.ship));
 orders.post('/:id/deliver', requireRole(ADMIN, SALES), id, validate(noteSchema), h(c.deliver));
 orders.put('/:id/items', requireRole(ADMIN, SALES), id, validate(editItemsSchema), h(c.editItems));
 orders.delete('/:id', requireRole(ADMIN), id, h(c.remove));

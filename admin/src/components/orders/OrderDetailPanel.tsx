@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { orderService } from '../../services/order.service';
 import { paymentService } from '../../services/payment.service';
-import type { OrderDetail } from '../../types/order';
+import type { OrderDetail, OrderStatus } from '../../types/order';
 import { getErrorMessage } from '../../utils/error';
 import { ORDER_STATUS_LABEL, formatDateTime, formatVnd } from '../../utils/format';
 import { PAYMENT_STATUS_LABEL, PAYMENT_TX_LABEL } from '../../utils/order';
@@ -10,7 +10,10 @@ import { OrderActionModal } from './OrderActionModal';
 import { OrderStatusBadge } from './OrderStatusBadge';
 import { RecipientCard } from './RecipientCard';
 
-type Action = 'ship' | 'cancel' | null;
+type Action = 'cancel' | null;
+
+/** Lịch sử chỉ hiển thị các mốc này (bỏ bước SHIPPING trung gian). Đơn bị hủy thì có thêm mốc Đã hủy. */
+const HISTORY_STATUSES: OrderStatus[] = ['PENDING', 'CONFIRMED', 'DELIVERED', 'CANCELLED'];
 
 interface Props {
   orderId: number;
@@ -25,6 +28,8 @@ export function OrderDetailPanel({ orderId, onClose, onChanged }: Props) {
   const [error, setError] = useState('');
   const [action, setAction] = useState<Action>(null);
   const [activeTab, setActiveTab] = useState<'info' | 'payment' | 'history'>('info');
+  const [busy, setBusy] = useState(false);
+  const [actionError, setActionError] = useState('');
 
   const load = useCallback(async (isBackground = false) => {
     if (!isBackground) setError('');
@@ -38,6 +43,7 @@ export function OrderDetailPanel({ orderId, onClose, onChanged }: Props) {
   useEffect(() => {
     setOrder(null);
     setAction(null);
+    setActionError('');
     void load(false);
   }, [load]);
 
@@ -71,14 +77,23 @@ export function OrderDetailPanel({ orderId, onClose, onChanged }: Props) {
     }
   }
 
-  async function handleConfirm() {
+  /** Xác nhận / giao hàng: không popup; lỗi hiện ngay dưới nút, nút khóa khi đang xử lý để tránh bấm đúp. */
+  async function runAction(fn: () => Promise<unknown>) {
+    if (busy) return;
+    setBusy(true);
+    setActionError('');
     try {
-      await orderService.confirm(orderId);
+      await fn();
       done();
     } catch (err) {
-      window.alert(getErrorMessage(err));
+      setActionError(getErrorMessage(err));
+    } finally {
+      setBusy(false);
     }
   }
+
+  const handleConfirm = () => runAction(() => orderService.confirm(orderId));
+  const handleDeliver = () => runAction(() => orderService.deliver(orderId));
 
   if (error) return (
     <div style={{ minWidth: 0 }}>
@@ -102,31 +117,15 @@ export function OrderDetailPanel({ orderId, onClose, onChanged }: Props) {
 
   const s = order.orderStatus;
 
-  const getCleanPaymentMethodName = (methodName?: string, payment?: any) => {
-    const raw = (methodName || payment?.method || payment?.type || payment?.gateway || '').toUpperCase();
-    if (raw.includes('QR') || raw.includes('VIETQR') || raw.includes('CHUYỂN KHOẢN') || raw.includes('TRANSFER') || raw.includes('BANK')) {
-      return 'Chuyển khoản quét QR';
-    }
-    if (raw.includes('CASH') || raw.includes('TIỀN MẶT') || raw === 'COD') {
-      return 'Tiền mặt';
-    }
-    return methodName || payment?.method || 'Tiền mặt';
-  };
+  // Giao dịch hiển thị theo đúng phương thức khách chọn lúc đặt hàng (methodName do backend trả về)
+  const payments = order.payments ?? [];
+  const methods = [...new Set(payments.filter((p) => p.status !== 'FAILED').map((p) => p.methodName))].join(', ');
+  const PAYMENT_BADGE: Record<string, string> = { SUCCESS: 'delivered', PENDING: 'pending', FAILED: 'cancelled' };
 
-  const getPaymentStatusDisplay = (p: any) => {
-    const method = getCleanPaymentMethodName(p.methodName, p);
-    if (p.status === 'SUCCESS') {
-      return method.includes('QR') ? 'Chuyển khoản QR thành công' : 'Thu tiền mặt thành công';
-    }
-    if (p.status === 'FAILED') return `${method} - Thất bại`;
-    return `${method} - Chờ thu`;
-  };
-
-  const successfulPayments = order.payments?.filter((p) => p.status === 'SUCCESS') || [];
-  const methods = [...new Set(successfulPayments.map((p) => getCleanPaymentMethodName(p.methodName, p)))].join(', ');
+  // Lịch sử: chỉ các mốc Chờ xác nhận → Đã xác nhận → Đã giao (kèm thời gian), xếp từ cũ đến mới
+  const history = order.history.filter((h) => HISTORY_STATUSES.includes(h.newStatus));
 
   const confirmedBy = order.history?.find((h) => h.newStatus === 'CONFIRMED')?.changedByName;
-  const shippedBy = order.history?.find((h) => h.newStatus === 'SHIPPING')?.changedByName;
   const deliveredBy = order.history?.find((h) => h.newStatus === 'DELIVERED')?.changedByName;
 
   return (
@@ -143,10 +142,11 @@ export function OrderDetailPanel({ orderId, onClose, onChanged }: Props) {
       </div>
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        {s === 'PENDING' && <button className="btn btn--primary btn--small" onClick={handleConfirm}>Xác nhận đơn</button>}
-        {s === 'CONFIRMED' && <button className="btn btn--primary btn--small" onClick={() => setAction('ship')}>Bàn giao vận chuyển</button>}
-        {order.canCancel && <button className="btn btn--danger btn--small" onClick={() => setAction('cancel')}>Hủy đơn</button>}
+        {s === 'PENDING' && <button className="btn btn--primary btn--small" onClick={handleConfirm} disabled={busy}>Xác nhận đơn</button>}
+        {(s === 'CONFIRMED' || s === 'SHIPPING') && <button className="btn btn--primary btn--small" onClick={handleDeliver} disabled={busy}>{busy ? 'Đang xử lý…' : 'Giao hàng thành công'}</button>}
+        {order.canCancel && <button className="btn btn--danger btn--small" onClick={() => setAction('cancel')} disabled={busy}>Hủy đơn</button>}
       </div>
+      {actionError && <p className="form-error" role="alert" style={{ margin: 0 }}>{actionError}</p>}
 
       {/* Tab Navigation */}
       <div style={{ display: 'flex', borderBottom: '1px solid #e5e7eb', gap: 16 }}>
@@ -160,13 +160,13 @@ export function OrderDetailPanel({ orderId, onClose, onChanged }: Props) {
           onClick={() => setActiveTab('payment')}
           style={{ padding: '8px 4px', background: 'none', border: 'none', borderBottom: activeTab === 'payment' ? '2px solid #2563eb' : '2px solid transparent', fontWeight: activeTab === 'payment' ? 600 : 400, color: activeTab === 'payment' ? '#2563eb' : '#4b5563', cursor: 'pointer' }}
         >
-          Thanh toán ({successfulPayments.length})
+          Thanh toán ({payments.length})
         </button>
         <button
           onClick={() => setActiveTab('history')}
           style={{ padding: '8px 4px', background: 'none', border: 'none', borderBottom: activeTab === 'history' ? '2px solid #2563eb' : '2px solid transparent', fontWeight: activeTab === 'history' ? 600 : 400, color: activeTab === 'history' ? '#2563eb' : '#4b5563', cursor: 'pointer' }}
         >
-          Lịch sử ({order.history.length})
+          Lịch sử ({history.length})
         </button>
       </div>
 
@@ -186,7 +186,6 @@ export function OrderDetailPanel({ orderId, onClose, onChanged }: Props) {
               <InfoItem label="Khách hàng">{order.customerName ?? 'Khách lẻ'}</InfoItem>
               <InfoItem label={order.channel === 'POS' ? 'Thu ngân' : 'Người tạo đơn'}>{order.employeeName ?? (order.channel === 'POS' ? '—' : 'Khách tự đặt')}</InfoItem>
               {confirmedBy && <InfoItem label="Nhân viên xác nhận">{confirmedBy}</InfoItem>}
-              {shippedBy && <InfoItem label="Bàn giao vận chuyển">{shippedBy}</InfoItem>}
               {deliveredBy && <InfoItem label="Nhân viên giao hàng">{deliveredBy}</InfoItem>}
               <InfoItem label="Kênh bán">{order.channel === 'POS' ? 'Tại quầy (POS)' : 'Online'}</InfoItem>
               {order.voucherCode && <InfoItem label="Voucher">{order.voucherCode}</InfoItem>}
@@ -228,19 +227,20 @@ export function OrderDetailPanel({ orderId, onClose, onChanged }: Props) {
       {/* Tab 2: Thanh toán */}
       {activeTab === 'payment' && (
         <section className="card" style={{ marginBottom: 0, minWidth: 0 }}>
-          <h3>Giao dịch thanh toán</h3>
-          <p className="muted" style={{ fontSize: '0.85em', marginBottom: 12 }}>* Việc xác nhận thanh toán được ghi nhận theo phương thức thực tế của giao dịch.</p>
-          {successfulPayments.length === 0 ? (
+          <h3 style={{ marginBottom: 12 }}>Giao dịch thanh toán</h3>
+          {payments.length === 0 ? (
             <p className="muted">Chưa phát sinh giao dịch thanh toán.</p>
           ) : (
             <ul className="plain-list">
-              {successfulPayments.map((p) => (
+              {payments.map((p) => (
                 <li key={p.paymentId} style={{ marginBottom: 12, paddingBottom: 8, borderBottom: '1px dashed #e5e7eb', wordBreak: 'break-word' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span><strong>{getPaymentStatusDisplay(p)}</strong> · {formatVnd(p.amount)}</span>
-                    <span className="badge badge--confirmed">{PAYMENT_TX_LABEL[p.status] ?? p.status}</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                    <span><strong>{p.methodName}</strong> · {formatVnd(p.amount)}</span>
+                    <span className={`badge status status--${PAYMENT_BADGE[p.status] ?? 'pending'}`}>{PAYMENT_TX_LABEL[p.status] ?? p.status}</span>
                   </div>
-                  {p.paidAt && <div className="muted" style={{ fontSize: '0.85em', marginTop: 2 }}>Đã thu: {formatDateTime(p.paidAt)}</div>}
+                  <div className="muted" style={{ fontSize: '0.85em', marginTop: 2 }}>
+                    {p.status === 'SUCCESS' && p.paidAt ? `Đã thu: ${formatDateTime(p.paidAt)}` : p.status === 'PENDING' ? 'Chưa thu tiền' : 'Giao dịch không thành công'}
+                  </div>
                 </li>
               ))}
             </ul>
@@ -260,21 +260,16 @@ export function OrderDetailPanel({ orderId, onClose, onChanged }: Props) {
         <section className="card" style={{ marginBottom: 0, minWidth: 0 }}>
           <h3 style={{ marginBottom: 12 }}>Lịch sử trạng thái</h3>
           <ol className="timeline" style={{ margin: 0, paddingLeft: 12 }}>
-            {[...order.history].reverse().map((h) => (
-              <li key={h.historyId} style={{ paddingLeft: 16, marginBottom: 14, position: 'relative', wordBreak: 'break-word' }}>
-                <div><strong>{h.oldStatus ? `${ORDER_STATUS_LABEL[h.oldStatus]} → ` : ''}{ORDER_STATUS_LABEL[h.newStatus]}</strong></div>
-                <div className="muted" style={{ fontSize: '0.82em', marginTop: 2 }}>{formatDateTime(h.changedAt)} · {h.changedByName ?? 'Hệ thống'}</div>
-                {h.note && <div style={{ fontSize: '0.88em', marginTop: 2 }}>{h.note}</div>}
+            {history.map((h) => (
+              <li key={h.historyId} style={{ paddingLeft: 16, marginBottom: 14, position: 'relative' }}>
+                <div><strong>{ORDER_STATUS_LABEL[h.newStatus]}</strong></div>
+                <div className="muted" style={{ fontSize: '0.82em', marginTop: 2 }}>{formatDateTime(h.changedAt)}</div>
               </li>
             ))}
           </ol>
         </section>
       )}
 
-      {action === 'ship' && (
-        <OrderActionModal title="Bàn giao vận chuyển" label="Ghi chú cho nhân viên vận chuyển (không bắt buộc)" submitText="Bàn giao" onClose={() => setAction(null)}
-          onSubmit={async (t) => { await orderService.ship(orderId, t || undefined); done(); }} />
-      )}
       {action === 'cancel' && (
         <OrderActionModal title="Hủy đơn hàng" label="Lý do hủy" submitText="Hủy đơn" required danger onClose={() => setAction(null)}
           onSubmit={async (t) => {

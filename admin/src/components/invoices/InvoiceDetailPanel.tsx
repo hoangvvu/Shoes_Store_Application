@@ -2,12 +2,12 @@ import { useCallback, useEffect, useState } from 'react';
 import { invoiceService } from '../../services/invoice.service';
 import type { OrderDetail } from '../../types/order';
 import { getErrorMessage } from '../../utils/error';
-import { ORDER_STATUS_LABEL, formatDateTime, formatVnd } from '../../utils/format';
-import { PAYMENT_TX_LABEL, REFUND_STATUS_LABEL, openPrintWindow } from '../../utils/order';
+import { formatDateTime, formatVnd } from '../../utils/format';
+import { openPrintWindow } from '../../utils/order';
 import { InfoGrid, InfoItem } from '../common/InfoGrid';
 import { RecipientCard } from '../orders/RecipientCard';
 import { AmountSummary } from '../pos/AmountSummary';
-import { CompletionBadge, PaymentBadge } from './InvoiceBadges';
+import { PaymentBadge } from './InvoiceBadges';
 
 interface Props {
   invoiceId: number;
@@ -18,7 +18,7 @@ interface Props {
 export function InvoiceDetailPanel({ invoiceId, onClose }: Props) {
   const [inv, setInv] = useState<OrderDetail | null>(null);
   const [error, setError] = useState('');
-  const [activeTab, setActiveTab] = useState<'info' | 'products' | 'payment' | 'history'>('info');
+  const [activeTab, setActiveTab] = useState<'info' | 'products'>('info');
 
   const load = useCallback(async (isBackground = false) => {
     if (!isBackground) setError('');
@@ -64,9 +64,8 @@ export function InvoiceDetailPanel({ invoiceId, onClose }: Props) {
   const invoiceNote = inv.discountAmount > 0
     ? `${invoicePct}% trên tổng tiền hàng sau giảm sản phẩm${inv.voucherCode ? ` · Voucher ${inv.voucherCode}` : inv.promotionName ? ` · ${inv.promotionName}` : ''}`
     : 'Không có giảm giá theo hóa đơn';
-  const confirmedBy = inv.history?.find((h) => h.newStatus === 'CONFIRMED')?.changedByName;
-  const shippedBy = inv.history?.find((h) => h.newStatus === 'SHIPPING')?.changedByName;
-  const deliveredBy = inv.history?.find((h) => h.newStatus === 'DELIVERED')?.changedByName;
+  const confirmed = inv.history?.find((h) => h.newStatus === 'CONFIRMED');
+  const delivered = inv.history?.find((h) => h.newStatus === 'DELIVERED');
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
@@ -94,19 +93,7 @@ export function InvoiceDetailPanel({ invoiceId, onClose }: Props) {
           onClick={() => setActiveTab('products')}
           style={{ padding: '8px 4px', background: 'none', border: 'none', borderBottom: activeTab === 'products' ? '2px solid #2563eb' : '2px solid transparent', fontWeight: activeTab === 'products' ? 600 : 400, color: activeTab === 'products' ? '#2563eb' : '#4b5563', cursor: 'pointer', whiteSpace: 'nowrap' }}
         >
-          Sản phẩm ({inv.items.length})
-        </button>
-        <button
-          onClick={() => setActiveTab('payment')}
-          style={{ padding: '8px 4px', background: 'none', border: 'none', borderBottom: activeTab === 'payment' ? '2px solid #2563eb' : '2px solid transparent', fontWeight: activeTab === 'payment' ? 600 : 400, color: activeTab === 'payment' ? '#2563eb' : '#4b5563', cursor: 'pointer', whiteSpace: 'nowrap' }}
-        >
-          Thanh toán ({inv.payments.length + inv.refunds.length})
-        </button>
-        <button
-          onClick={() => setActiveTab('history')}
-          style={{ padding: '8px 4px', background: 'none', border: 'none', borderBottom: activeTab === 'history' ? '2px solid #2563eb' : '2px solid transparent', fontWeight: activeTab === 'history' ? 600 : 400, color: activeTab === 'history' ? '#2563eb' : '#4b5563', cursor: 'pointer', whiteSpace: 'nowrap' }}
-        >
-          Lịch sử ({inv.history.length})
+          Hóa đơn
         </button>
       </div>
 
@@ -125,14 +112,12 @@ export function InvoiceDetailPanel({ invoiceId, onClose }: Props) {
               <InfoItem label="Mã hóa đơn">#{inv.invoiceId}</InfoItem>
               <InfoItem label="Ngày lập">{formatDateTime(inv.invoiceDate)}</InfoItem>
               <InfoItem label="Kênh bán">{inv.channel === 'POS' ? 'Tại quầy (POS)' : 'Online'}</InfoItem>
-              <InfoItem label="Tình trạng đơn"><CompletionBadge status={inv.orderStatus} /></InfoItem>
               <InfoItem label="Thanh toán"><PaymentBadge status={inv.paymentStatus} /></InfoItem>
               <InfoItem label="Phương thức">{methods || '—'}</InfoItem>
               <InfoItem label="Khách hàng">{inv.customerName ?? 'Khách lẻ'}</InfoItem>
               <InfoItem label={inv.channel === 'POS' ? 'Thu ngân' : 'Người tạo đơn'}>{inv.employeeName ?? (inv.channel === 'POS' ? '—' : 'Khách tự đặt')}</InfoItem>
-              {confirmedBy && <InfoItem label="Nhân viên xác nhận">{confirmedBy}</InfoItem>}
-              {shippedBy && <InfoItem label="Bàn giao vận chuyển">{shippedBy}</InfoItem>}
-              {deliveredBy && <InfoItem label="Nhân viên giao hàng">{deliveredBy}</InfoItem>}
+              {confirmed && <InfoItem label="Nhân viên xác nhận">{confirmed.changedByName ?? 'Hệ thống'}</InfoItem>}
+              {delivered && <InfoItem label={inv.channel === 'POS' ? 'Nhân viên bán hàng' : 'Nhân viên giao hàng'}>{delivered.changedByName ?? 'Hệ thống'}</InfoItem>}
               {inv.voucherCode && <InfoItem label="Voucher">{inv.voucherCode}</InfoItem>}
               {inv.promotionName && <InfoItem label="Khuyến mãi" wide>{inv.promotionName}</InfoItem>}
               {inv.note && <InfoItem label="Ghi chú" wide>{inv.note}</InfoItem>}
@@ -145,7 +130,7 @@ export function InvoiceDetailPanel({ invoiceId, onClose }: Props) {
       {/* Tab 2: Sản phẩm */}
       {activeTab === 'products' && (
         <section className="card" style={{ marginBottom: 0, minWidth: 0 }}>
-          <h3>Chi tiết sản phẩm</h3>
+          <h3>Chi tiết hóa đơn</h3>
           <div className="table-wrap" style={{ overflowX: 'auto', minWidth: 0 }}>
             <table className="table">
               <thead>
@@ -184,59 +169,6 @@ export function InvoiceDetailPanel({ invoiceId, onClose }: Props) {
               { label: 'Thực thu', value: formatVnd(net), tone: 'strong' },
             ]}
           />
-        </section>
-      )}
-
-      {/* Tab 3: Thanh toán */}
-      {activeTab === 'payment' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
-          <section className="card" style={{ marginBottom: 0, minWidth: 0 }}>
-            <h3>Giao dịch thanh toán</h3>
-            {inv.payments.length === 0 && <p className="muted">Chưa có giao dịch.</p>}
-            <ul className="plain-list">
-              {inv.payments.map((p) => (
-                <li key={p.paymentId} style={{ marginBottom: 8, paddingBottom: 6, borderBottom: '1px dashed #e5e7eb', wordBreak: 'break-word' }}>
-                  <strong>{p.methodName}</strong> · {formatVnd(p.amount)} · {PAYMENT_TX_LABEL[p.status] ?? p.status}
-                  {p.paidAt && <span className="muted"> ({formatDateTime(p.paidAt)})</span>}
-                  {p.transactionCode && <div className="muted" style={{ fontSize: '0.85em' }}>Mã giao dịch: {p.transactionCode}</div>}
-                </li>
-              ))}
-            </ul>
-          </section>
-
-          <section className="card" style={{ marginBottom: 0, minWidth: 0 }}>
-            <h3>Hoàn tiền</h3>
-            {inv.refunds.length === 0 && <p className="muted">Hóa đơn chưa có giao dịch hoàn tiền.</p>}
-            <ul className="plain-list">
-              {inv.refunds.map((r) => (
-                <li key={r.refundId} style={{ marginBottom: 8, paddingBottom: 6, borderBottom: '1px dashed #e5e7eb', wordBreak: 'break-word' }}>
-                  <strong>{r.methodName}</strong> · <span className="amount-refund">-{formatVnd(r.amount)}</span> · {REFUND_STATUS_LABEL[r.status] ?? r.status}
-                  <div className="muted" style={{ fontSize: '0.85em' }}>
-                    {r.completedAt ? `Hoàn lúc ${formatDateTime(r.completedAt)}` : `Yêu cầu lúc ${formatDateTime(r.requestedAt)}`}
-                    {r.processedByName ? ` · ${r.processedByName}` : ''}
-                  </div>
-                  <div style={{ fontSize: '0.9em' }}>Lý do: {r.reason}</div>
-                  {r.transactionCode && <div className="muted" style={{ fontSize: '0.85em' }}>Mã giao dịch: {r.transactionCode}</div>}
-                </li>
-              ))}
-            </ul>
-          </section>
-        </div>
-      )}
-
-      {/* Tab 4: Lịch sử */}
-      {activeTab === 'history' && (
-        <section className="card" style={{ marginBottom: 0, minWidth: 0 }}>
-          <h3 style={{ marginBottom: 12 }}>Lịch sử trạng thái</h3>
-          <ol className="timeline" style={{ margin: 0, paddingLeft: 12 }}>
-            {[...inv.history].reverse().map((h) => (
-              <li key={h.historyId} style={{ paddingLeft: 16, marginBottom: 14, position: 'relative', wordBreak: 'break-word' }}>
-                <div><strong>{h.oldStatus ? `${ORDER_STATUS_LABEL[h.oldStatus]} → ` : ''}{ORDER_STATUS_LABEL[h.newStatus]}</strong></div>
-                <div className="muted" style={{ fontSize: '0.82em', marginTop: 2 }}>{formatDateTime(h.changedAt)} · {h.changedByName ?? 'Hệ thống'}</div>
-                {h.note && <div style={{ fontSize: '0.88em', marginTop: 2 }}>{h.note}</div>}
-              </li>
-            ))}
-          </ol>
         </section>
       )}
     </div>
