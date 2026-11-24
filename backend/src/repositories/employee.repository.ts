@@ -7,7 +7,6 @@ import type { EmployeeRow, EmployeeListItemRow, EmployeeDetailRow } from '../typ
 export type { EmployeeRow, EmployeeListItemRow, EmployeeDetailRow } from '../types/employee.types';
 
 export const employeeRepository = {
-  /** SĐT không được trùng với nhân viên khác chưa xóa (CSDL không có unique index cho cột này). */
   async phoneExists(phone: string, excludeEmployeeId: number | null, exec?: Executor): Promise<boolean> {
     const r = await query(
       `SELECT 1 AS x FROM employees

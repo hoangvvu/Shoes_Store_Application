@@ -13,13 +13,13 @@ import { setActor } from '../utils/session';
 import { isDuplicateKey } from '../utils/sqlError';
 import type { CreateCustomerInput, CustomerListQuery, UpdateCustomerInput } from '../validators/customer.validator';
 
+import { searchCache, SEARCH_TTL, invalidateAfter } from './cache.service';
 const PHONE_TAKEN = () => AppError.conflict('Số điện thoại đã được đăng ký', 'PHONE_TAKEN');
 const NOT_FOUND = () => AppError.notFound('Không tìm thấy khách hàng', 'CUSTOMER_NOT_FOUND');
 
 export const customerService = {
-  /** Tìm kiếm nâng cao: đổi tuổi → khoảng ngày sinh (khách chưa có ngày sinh bị loại khi lọc tuổi). */
   async list(q: CustomerListQuery) {
-    const { rows, total } = await customerRepository.list({
+    const filter = {
       q: q.q || undefined,
       gender: q.gender,
       hasAccount: q.hasAccount,
@@ -30,8 +30,11 @@ export const customerService = {
       sort: q.sort,
       page: q.page,
       size: q.size,
+    };
+    return searchCache.getOrLoad('customers', { fn: 'customer.list', ...filter }, SEARCH_TTL.customers, async () => {
+      const { rows, total } = await customerRepository.list(filter);
+      return toPaged(rows, total, q.page, q.size);
     });
-    return toPaged(rows, total, q.page, q.size);
   },
 
   async getDetail(customerId: number) {
@@ -105,3 +108,10 @@ export const customerService = {
     });
   },
 };
+
+// Sau khi ghi thành công thì invalidate cache tìm kiếm liên quan
+invalidateAfter(customerService, {
+  create: ['customers'],
+  update: ['customers', 'orders', 'reviews'],
+  remove: ['customers', 'orders', 'reviews'],
+});

@@ -10,6 +10,7 @@ import { setActor } from '../utils/session';
 import { isDuplicateKey } from '../utils/sqlError';
 import type { CreateEmployeeUserInput } from '../validators/user.validator';
 
+import { invalidateAfter } from './cache.service';
 async function mustFindUser(userId: number) {
   const user = await userRepository.findActiveById(userId);
   if (!user) throw AppError.notFound('Không tìm thấy tài khoản', 'USER_NOT_FOUND');
@@ -114,3 +115,11 @@ export const userService = {
 };
 
 export const ADMIN_ROLE = ROLES.ADMIN;
+
+// Sau khi ghi thành công thì invalidate cache tìm kiếm liên quan
+invalidateAfter(userService, {
+  createEmployeeAccount: ['employees'],
+  setLocked: ['employees'],
+  changeRole: ['employees'],
+  softDelete: ['employees', 'customers'],
+});

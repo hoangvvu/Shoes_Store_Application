@@ -41,7 +41,7 @@ router.use('/categories', categoriesRouter);
 router.use('/brands', brandsRouter);
 router.use('/sizes', sizesRouter);
 router.use('/colors', colorsRouter);
-router.use('/products/:productId/reviews', productReviewsRouter); // M14
+router.use('/products/:productId/reviews', productReviewsRouter);
 router.use('/products', productRouter);
 router.use('/variants', variantRouter);
 router.use('/reviews', reviewRoutes);
@@ -55,12 +55,6 @@ router.use('/cart', cartRoutes);
 router.use('/orders', orderRoutes);
 router.use('/invoices', invoiceRoutes);
 router.use('/pos', posRouter);
-
-// M11 – Khuyến mãi & Voucher
-router.use('/promotions', promotionsRouter);
-router.use('/vouchers', vouchersRouter);
-
-// M9 – Thanh toán & Hoàn tiền
 router.use('/payment-methods', paymentMethodRouter);
 router.use('/payments', paymentsRouter);
 router.use('/webhooks', webhookRouter);

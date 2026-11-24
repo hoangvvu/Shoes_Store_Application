@@ -1,3 +1,4 @@
+import { STAFF_LOGIN_BLOCKED_MESSAGE, isCustomerUser } from '@/types/auth';
 import type { LoginPayload, LoginResponse, MeResponse, RegisterPayload } from '@/types/auth';
 import { api } from './api';
 
@@ -5,6 +6,8 @@ export const authService = {
   // portal: 'customer' -> backend từ chối tài khoản nhân viên/admin
   async login(p: LoginPayload): Promise<LoginResponse> {
     const { data } = await api.post<LoginResponse>('/auth/login', { ...p, portal: 'customer' });
+    // Lớp chặn thứ 2 ngoài portal: tài khoản không phải khách hàng thì không tạo phiên
+    if (!isCustomerUser(data.user)) throw new Error(STAFF_LOGIN_BLOCKED_MESSAGE);
     return data;
   },
   async register(p: RegisterPayload): Promise<void> {

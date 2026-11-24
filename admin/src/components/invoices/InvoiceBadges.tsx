@@ -3,8 +3,7 @@ import { ORDER_STATUS_LABEL } from '../../utils/format';
 import { PAYMENT_STATUS_LABEL } from '../../utils/order';
 
 /**
- * Trạng thái HOÀN THÀNH (xử lý đơn) – khác với trạng thái hoàn tiền (thanh toán):
- * một hóa đơn có thể "Hoàn thành" nhưng đã (hoặc một phần) "Hoàn tiền", hoặc "Đã hủy" sau khi thu tiền rồi hoàn lại.
+ * Trạng thái HOÀN THÀNH (xử lý đơn) – khác với trạng thái hoàn tiền (thanh toán).
  */
 export function CompletionBadge({ status }: { status: OrderStatus }) {
   const label = status === 'DELIVERED' ? 'Hoàn thành' : (ORDER_STATUS_LABEL[status] ?? status);

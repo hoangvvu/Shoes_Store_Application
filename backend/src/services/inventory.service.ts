@@ -8,18 +8,22 @@ import type {
   StockListQuery,
 } from '../validators/inventory.validator';
 
+import { searchCache, SEARCH_TTL, invalidateAfter } from './cache.service';
 const VARIANT_NOT_FOUND = () => AppError.notFound('Không tìm thấy biến thể sản phẩm', 'VARIANT_NOT_FOUND');
 
 export const inventoryService = {
   async list(q: StockListQuery) {
-    const { rows, total } = await inventoryRepository.listStock({
+    const filter = {
       q: q.q,
       lowStockOnly: q.lowStockOnly,
       threshold: q.threshold,
       page: q.page,
       size: q.size,
+    };
+    return searchCache.getOrLoad('inventory', { fn: 'inventory.list', ...filter }, SEARCH_TTL.inventory, async () => {
+      const { rows, total } = await inventoryRepository.listStock(filter);
+      return toPaged(rows, total, q.page, q.size);
     });
-    return toPaged(rows, total, q.page, q.size);
   },
 
   async lowStock(threshold = 5) {
@@ -78,3 +82,8 @@ export const inventoryService = {
     }
   },
 };
+
+// Sau khi ghi thành công thì invalidate cache tìm kiếm liên quan
+invalidateAfter(inventoryService, {
+  adjust: ['products', 'inventory'],
+});

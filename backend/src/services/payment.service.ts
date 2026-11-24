@@ -10,6 +10,7 @@ import { notificationRepository } from '../repositories/notification.repository'
 
 // ─── Payment Methods ──────────────────────────────────────────────────────────
 
+import { invalidateAfter } from './cache.service';
 export const paymentService = {
   /** M9 #1 – Danh sách hình thức thanh toán đang bật (khách dùng khi đặt hàng). */
   async listMethods(onlyActive = true) {
@@ -216,3 +217,14 @@ export const paymentService = {
     return { expired: count };
   },
 };
+
+// Sau khi ghi thành công thì invalidate cache tìm kiếm liên quan
+invalidateAfter(paymentService, {
+  confirmCash: ['orders'],
+  reviewProof: ['orders'],
+  handleWebhook: ['orders'],
+  retryPay: ['orders'],
+  completeRefund: ['orders'],
+  rejectRefund: ['orders'],
+  expirePendingPayments: ['orders'],
+});

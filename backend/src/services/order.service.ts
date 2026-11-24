@@ -17,6 +17,7 @@ import { cartService } from './cart.service';
 import { renderOrderHtml } from './orderPrint.service';
 import { VOUCHER_MESSAGE, computeInvoiceDiscount, priceLines, type PricedLine } from './pricing.service';
 
+import { searchCache, SEARCH_TTL, invalidateAfter } from './cache.service';
 const NOT_FOUND = () => AppError.notFound('Không tìm thấy đơn hàng', 'ORDER_NOT_FOUND');
 const isStaff = (a: AuthUser) => a.role === ROLES.ADMIN || a.role === ROLES.SALES;
 
@@ -143,7 +144,20 @@ export const orderService = {
 
   async listMine(auth: AuthUser, q: MyOrdersQuery) {
     const { rows, total } = await orderRepository.list({ customerId: customerIdOf(auth), status: q.status, page: q.page, size: q.size });
-    return toPaged(rows, total, q.page, q.size);
+    const lines = await Promise.all(rows.map((r) => orderRepository.listLines(r.invoiceId)));
+    const items = rows.map((r, i) => ({
+      ...r,
+      items: lines[i].map((l) => ({
+        variantId: l.variantId,
+        productId: l.productId,
+        productName: l.productName,
+        imageUrl: l.imageUrl,
+        sizeLabel: l.sizeLabel,
+        colorName: l.colorName,
+        quantity: l.quantity,
+      })),
+    }));
+    return toPaged(items, total, q.page, q.size);
   },
 
   /** Mua lại: thêm sản phẩm của đơn cũ vào giỏ (chỉ còn bán và còn hàng; số lượng giảm xuống bằng tồn nếu thiếu). */
@@ -276,22 +290,52 @@ export const orderService = {
   /* ===================== NHÂN VIÊN / ADMIN ===================== */
 
   async list(q: OrderListQuery) {
-    const { rows, total } = await orderRepository.list(q);
-    return toPaged(rows, total, q.page, q.size);
+    return searchCache.getOrLoad('orders', { fn: 'order.list', ...q }, SEARCH_TTL.orders, async () => {
+      const { rows, total } = await orderRepository.list(q);
+      return toPaged(rows, total, q.page, q.size);
+    });
   },
 
   confirm(auth: AuthUser, id: number, note?: string) {
-    return this.transition(auth, id, 'PENDING', 'CONFIRMED', 'xác nhận', note); // trừ kho (SALE) do trigger
+    return this.transition(auth, id, 'PENDING', 'CONFIRMED', 'xác nhận', note);
   },
-  ship(auth: AuthUser, id: number, note?: string) {
-    return this.transition(auth, id, 'CONFIRMED', 'SHIPPING', 'bàn giao vận chuyển', note);
-  },
-  deliver(auth: AuthUser, id: number, note?: string) {
-    return this.transition(auth, id, 'SHIPPING', 'DELIVERED', 'xác nhận đã giao', note, true);
+
+  /**
+   * Giả lập giao hàng thành công (không còn module giao hàng riêng): CONFIRMED -> SHIPPING -> DELIVERED trong 1 transaction
+   * (CSDL vẫn bắt buộc đi qua SHIPPING). Thu tiền theo ĐÚNG phương thức khách chọn lúc đặt: giao dịch đang chờ được chốt
+   * SUCCESS; nếu vẫn thiếu so với số phải trả thì bù 1 giao dịch tiền mặt. Đơn SHIPPING cũ (còn sót) cũng hoàn tất được.
+   */
+  async deliver(auth: AuthUser, id: number, note?: string) {
+    await withTransaction(async (tx) => {
+      await setActor(tx, auth.userId);
+      const row = await orderRepository.lock(id, tx);
+      if (!row) throw NOT_FOUND();
+      if (row.orderStatus !== 'CONFIRMED' && row.orderStatus !== 'SHIPPING') {
+        throw stateError(row.orderStatus, 'giao hàng');
+      }
+
+      if (row.orderStatus === 'CONFIRMED') {
+        // Ghi chú này được giao diện admin dùng để ẩn bước trung gian khỏi tab Lịch sử (xem AUTO_SHIP_NOTE)
+        await orderRepository.changeStatus({ invoiceId: id, newStatus: 'SHIPPING', userId: auth.userId, note: 'Bắt đầu giao hàng' }, tx);
+        await setActor(tx, auth.userId); // sp đổi trạng thái có thể làm mất actor của phiên
+      }
+
+      await orderRepository.settlePending(id, tx);
+      const paid = await orderRepository.paidAmount(id, tx);
+      if (paid < row.amountPayable) {
+        const cash = await orderPaymentRepository.findMethod('CASH', tx);
+        if (!cash) throw AppError.badRequest('Chưa cấu hình phương thức thanh toán tiền mặt', 'PAYMENT_METHOD_INVALID');
+        await orderPaymentRepository.createSuccess(id, cash.methodId, row.amountPayable - paid, tx, null);
+      }
+
+      await orderRepository.changeStatus({ invoiceId: id, newStatus: 'DELIVERED', userId: auth.userId, note: note ?? 'Giao hàng thành công' }, tx);
+      if (row.customerId) await orderRepository.addTotalPurchased(row.customerId, row.amountPayable, tx); // cộng total_purchased
+    });
+    return this.getOrder(auth, id);
   },
 
   /** Mỗi lần đổi trạng thái đi qua sp_change_order_status; gửi lặp lần 2 → lỗi 51070, không trừ kho trùng. */
-  async transition(auth: AuthUser, id: number, from: OrderStatus, to: OrderStatus, action: string, note?: string, addPurchased = false) {
+  async transition(auth: AuthUser, id: number, from: OrderStatus, to: OrderStatus, action: string, note?: string) {
     await withTransaction(async (tx) => {
       await setActor(tx, auth.userId);
       const row = await orderRepository.lock(id, tx);
@@ -299,40 +343,6 @@ export const orderService = {
       if (row.orderStatus !== from) throw stateError(row.orderStatus, action);
 
       await orderRepository.changeStatus({ invoiceId: id, newStatus: to, userId: auth.userId, note: note ?? null }, tx);
-      if (addPurchased && row.customerId) {
-        await orderRepository.addTotalPurchased(row.customerId, row.amountPayable, tx); // cộng total_purchased
-      }
-
-      // ============================================================
-      // TÍCH HỢP M13: THÔNG BÁO TỰ ĐỘNG KHI ĐƠN ĐỔI TRẠNG THÁI
-      // ============================================================
-      if (row.customerId && auth.employeeId) {
-        let statusTitle = '';
-        let statusMsg = '';
-        if (to === 'CONFIRMED') {
-          statusTitle = `Đơn hàng #${id} đã được xác nhận`;
-          statusMsg = `Đơn hàng #${id} đã được cửa hàng xác nhận và đang được chuẩn bị đóng gói.`;
-        } else if (to === 'SHIPPING') {
-          statusTitle = `Đơn hàng #${id} đang được giao`;
-          statusMsg = `Đơn hàng #${id} đã được bàn giao cho đơn vị vận chuyển và đang trên đường giao đến bạn.`;
-        } else if (to === 'DELIVERED') {
-          statusTitle = `Đơn hàng #${id} đã giao thành công`;
-          statusMsg = `Đơn hàng #${id} đã được giao thành công. Cảm ơn bạn đã tin tưởng mua sắm tại cửa hàng!`;
-        }
-        if (statusTitle) {
-          await notificationRepository.createForCustomer(
-            {
-              title: statusTitle,
-              content: statusMsg,
-              notificationType: 'ORDER',
-              linkUrl: `/orders/${id}`,
-              customerId: row.customerId,
-              createdByEmployeeId: auth.employeeId,
-            },
-            tx,
-          );
-        }
-      }
     });
     return this.getOrder(auth, id);
   },
@@ -502,3 +512,15 @@ export const orderService = {
     return { ...(await this.getOrder(auth, invoiceId)), change };
   },
 };
+
+// Sau khi ghi thành công thì invalidate cache tìm kiếm liên quan
+invalidateAfter(orderService, {
+  create: ['orders'],
+  cancel: ['orders', 'products', 'inventory', 'customers'],
+  confirm: ['orders', 'products', 'inventory'],
+  deliver: ['orders', 'products', 'inventory', 'customers'],
+  transition: ['orders', 'products', 'inventory'],
+  editItems: ['orders'],
+  remove: ['orders'],
+  createPos: ['orders', 'products', 'inventory', 'customers'],
+});

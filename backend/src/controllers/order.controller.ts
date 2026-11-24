@@ -34,9 +34,6 @@ export const orderController = {
   async confirm(req: Request, res: Response) {
     res.json(await orderService.confirm(req.user!, id(req), req.body.note));
   },
-  async ship(req: Request, res: Response) {
-    res.json(await orderService.ship(req.user!, id(req), req.body.note));
-  },
   async deliver(req: Request, res: Response) {
     res.json(await orderService.deliver(req.user!, id(req), req.body.note));
   },

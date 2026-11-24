@@ -17,10 +17,6 @@ export const orderService = {
     const { data } = await api.post<OrderDetail>(`/orders/${id}/confirm`, { note });
     return data;
   },
-  async ship(id: number, note?: string): Promise<OrderDetail> {
-    const { data } = await api.post<OrderDetail>(`/orders/${id}/ship`, { note });
-    return data;
-  },
   async deliver(id: number, note?: string): Promise<OrderDetail> {
     const { data } = await api.post<OrderDetail>(`/orders/${id}/deliver`, { note });
     return data;
