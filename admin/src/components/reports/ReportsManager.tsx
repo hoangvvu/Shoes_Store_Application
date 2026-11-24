@@ -41,7 +41,9 @@ export function ReportsManager({ role }: Props) {
   const [activePreset, setActivePreset] = useState<string>('30 ngày qua');
   const [draft, setDraft] = useState({ from: initialRange.from, to: initialRange.to, q: '' });
   const [applied, setApplied] = useState({ from: initialRange.from, to: initialRange.to, q: '' });
-  const [tab, setTab] = useState<ReportKey>(role === 'WAREHOUSE' ? 'inventory-movement' : 'revenue');
+  const [tab, setTab] = useState<ReportKey>(
+    role === 'WAREHOUSE' ? 'inventory-movement' : role === 'SALES' ? 'top-products' : 'revenue',
+  );
   const [exporting, setExporting] = useState(false);
 
   // Danh sách tab theo vai trò

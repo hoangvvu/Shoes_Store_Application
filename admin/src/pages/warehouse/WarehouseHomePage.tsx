@@ -95,18 +95,6 @@ export default function WarehouseHomePage() {
           </div>
         )}
       </div>
-
-      <div className="card">
-        <h3>Lối tắt chức năng Kho</h3>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginTop: 14 }}>
-          <Link to="/warehouse/inventory" className="btn btn--ghost">📦 Xem tồn kho toàn bộ</Link>
-          <Link to="/warehouse/receipts" className="btn btn--ghost">📥 Lập & xem phiếu nhập kho</Link>
-          <Link to="/warehouse/suppliers" className="btn btn--ghost">🏭 Danh bạ nhà cung cấp</Link>
-          <Link to="/warehouse/stocktake" className="btn btn--ghost">📝 Kiểm kê & điều chỉnh tồn</Link>
-          <Link to="/warehouse/stock-cards" className="btn btn--ghost">📖 Tra cứu thẻ kho chi tiết</Link>
-          <Link to="/warehouse/reports" className="btn btn--ghost">📊 Báo cáo Nhập – Xuất – Tồn</Link>
-        </div>
-      </div>
     </>
   );
 }
