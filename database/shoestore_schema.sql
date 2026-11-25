@@ -38,7 +38,6 @@ CREATE TABLE employees (
     gender        VARCHAR(10) NULL CONSTRAINT ck_emp_gender CHECK (gender IN ('MALE','FEMALE','OTHER')),   -- GT (không bắt buộc)
     email         VARCHAR(100) NULL CONSTRAINT ck_emp_email CHECK (email LIKE '%_@_%._%'),                  -- Email
     hire_date     DATE NULL,                                -- Ngày vào làm
-    base_salary   DECIMAL(18,2) NOT NULL DEFAULT 0 CONSTRAINT ck_emp_salary CHECK (base_salary >= 0), -- Lương CB
     is_deleted    BIT NOT NULL DEFAULT 0,
     deleted_at    DATETIME2(3) NULL
 );

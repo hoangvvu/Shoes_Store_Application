@@ -90,11 +90,7 @@ export const authService = {
     loginLimiter.reset(key);
 
     const wrongPortal =
-<<<<<<< HEAD
       (input.portal === 'staff' && user.userType !== USER_TYPES.EMPLOYEE);
-=======
-      input.portal === 'staff' && user.userType !== USER_TYPES.EMPLOYEE;
->>>>>>> origin/develop
     if (wrongPortal) {
       throw AppError.forbidden('Tài khoản khách hàng không có quyền truy cập trang quản trị', 'WRONG_PORTAL');
     }

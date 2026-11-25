@@ -4,7 +4,6 @@ export interface EmployeeRow {
   employeeId: number;
   lastName: string;
   firstName: string;
-  /** Họ + Tên ghép sẵn bằng SQL, chỉ để hiển thị. */
   fullName: string;
   dateOfBirth: Date | null;
   address: string | null;
@@ -12,7 +11,6 @@ export interface EmployeeRow {
   gender: Gender | null;
   email: string | null;
   hireDate: Date | null;
-  baseSalary?: number;
 }
 
 export interface EmployeeListItemRow {

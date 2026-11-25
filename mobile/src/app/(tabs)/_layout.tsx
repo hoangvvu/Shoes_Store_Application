@@ -27,81 +27,19 @@ export default function TabsLayout() {
     >
       <Tabs.Screen
         name="index"
-<<<<<<< HEAD
-        options={{
-          title: 'Trang chủ',
-          tabBarIcon: ({ focused }) => (
-            <View style={styles.iconContainer}>
-              <Ionicons
-                name={focused ? 'home' : 'home-outline'}
-                color={focused ? colors.primary : colors.textMuted}
-                size={22}
-              />
-              {focused && <View style={styles.activeDot} />}
-            </View>
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="catalog"
-        options={{
-          title: 'Danh mục',
-          tabBarIcon: ({ focused }) => (
-            <View style={styles.iconContainer}>
-              <Ionicons
-                name={focused ? 'grid' : 'grid-outline'}
-                color={focused ? colors.primary : colors.textMuted}
-                size={22}
-              />
-              {focused && <View style={styles.activeDot} />}
-            </View>
-          ),
-        }}
-=======
         options={{ title: 'Trang chủ', tabBarIcon: ({ color, size }) => <Ionicons name="home-outline" color={String(color)} size={size} /> }}
->>>>>>> origin/develop
       />
       <Tabs.Screen
         name="cart"
         options={{
           title: 'Giỏ hàng',
           tabBarBadge: lineCount > 0 ? lineCount : undefined,
-<<<<<<< HEAD
-          tabBarBadgeStyle: styles.badgeStyle,
-          tabBarIcon: ({ focused }) => (
-            <View style={styles.iconContainer}>
-              <Ionicons
-                name={focused ? 'bag-handle' : 'bag-handle-outline'}
-                color={focused ? colors.primary : colors.textMuted}
-                size={22}
-              />
-              {focused && <View style={styles.activeDot} />}
-            </View>
-          ),
-=======
           tabBarIcon: ({ color, size }) => <Ionicons name="cart-outline" color={String(color)} size={size} />,
->>>>>>> origin/develop
         }}
       />
       <Tabs.Screen
         name="profile"
-<<<<<<< HEAD
-        options={{
-          title: 'Tài khoản',
-          tabBarIcon: ({ focused }) => (
-            <View style={styles.iconContainer}>
-              <Ionicons
-                name={focused ? 'person' : 'person-outline'}
-                color={focused ? colors.primary : colors.textMuted}
-                size={22}
-              />
-              {focused && <View style={styles.activeDot} />}
-            </View>
-          ),
-        }}
-=======
         options={{ title: 'Tài khoản', tabBarIcon: ({ color, size }) => <Ionicons name="person-outline" color={String(color)} size={size} /> }}
->>>>>>> origin/develop
       />
     </Tabs>
   );

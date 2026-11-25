@@ -20,16 +20,93 @@ const resetPasswords = process.argv.includes('--reset-passwords');
  * Mỗi tài khoản gắn với một tình huống test M1.
  * kind: 'EMPLOYEE' | 'CUSTOMER'
  */
+
 const ACCOUNTS = [
-  { username: 'admin', password: 'Admin@12345', role: 'ADMIN', kind: 'EMPLOYEE', lastName: 'Quản Trị', firstName: 'Viên', phone: '0901000001', salary: 20000000, note: 'Đăng nhập web → layout Admin; thấy baseSalary trong GET /me' },
-  { username: 'sales01', password: 'Sales@12345', role: 'SALES', kind: 'EMPLOYEE', lastName: 'Nhân Viên', firstName: 'Bán Hàng', phone: '0901000002', salary: 9000000, note: 'Web → layout Bán hàng; KHÔNG thấy lương' },
-  { username: 'warehouse01', password: 'Kho@12345', role: 'WAREHOUSE', kind: 'EMPLOYEE', lastName: 'Nhân Viên', firstName: 'Kho', phone: '0901000003', salary: 9000000, note: 'Web → layout Kho; KHÔNG thấy lương' },
-  { username: 'sales_locked', password: 'Sales@12345', role: 'SALES', kind: 'EMPLOYEE', lastName: 'NV', firstName: 'Bị Khóa', phone: '0901000004', salary: 0, locked: true, note: 'Đăng nhập phải báo "Sai tên đăng nhập hoặc mật khẩu" (tài khoản bị khóa)' },
-  { username: 'khach01', password: 'Khach@12345', role: 'CUSTOMER', kind: 'CUSTOMER', lastName: 'Khách Hàng', firstName: 'Mẫu', phone: '0900000001', note: 'Đăng nhập mobile; thử đổi hồ sơ/mật khẩu' },
-  { username: 'khach02', password: 'Khach@12345', role: 'CUSTOMER', kind: 'CUSTOMER', lastName: 'Khách Hàng', firstName: 'Thứ Hai', phone: '0900000002', note: 'Thử sửa SĐT thành 0900000001 → 409 PHONE_TAKEN' },
-  { username: 'khach_locked', password: 'Khach@12345', role: 'CUSTOMER', kind: 'CUSTOMER', lastName: 'Khách', firstName: 'Bị Khóa', phone: '0900000003', locked: true, note: 'Đăng nhập mobile phải bị từ chối (tài khoản khóa)' },
-  { username: 'khach_cu', password: 'Khach@12345', role: 'CUSTOMER', kind: 'CUSTOMER', lastName: 'Khách', firstName: 'Đã Xóa Mềm', phone: '0900000004', deleted: true, note: 'Đã xóa mềm: không đăng nhập được; đăng ký lại username "khach_cu" + SĐT 0900000004 phải thành công' },
+  {
+    username: 'admin',
+    password: 'Admin@12345',
+    role: 'ADMIN',
+    kind: 'EMPLOYEE',
+    lastName: 'Quản Trị',
+    firstName: 'Viên',
+    phone: '0901000001',
+    note: 'Đăng nhập web → layout Admin',
+  },
+  {
+    username: 'sales01',
+    password: 'Sales@12345',
+    role: 'SALES',
+    kind: 'EMPLOYEE',
+    lastName: 'Nhân Viên',
+    firstName: 'Bán Hàng',
+    phone: '0901000002',
+    note: 'Web → layout Bán hàng; KHÔNG thấy lương',
+  },
+  {
+    username: 'warehouse01',
+    password: 'Kho@12345',
+    role: 'WAREHOUSE',
+    kind: 'EMPLOYEE',
+    lastName: 'Nhân Viên',
+    firstName: 'Kho',
+    phone: '0901000003',
+    note: 'Web → layout Kho; KHÔNG thấy lương',
+  },
+  {
+    username: 'sales_locked',
+    password: 'Sales@12345',
+    role: 'SALES',
+    kind: 'EMPLOYEE',
+    lastName: 'NV',
+    firstName: 'Bị Khóa',
+    phone: '0901000004',
+    locked: true,
+    note: 'Đăng nhập phải báo "Sai tên đăng nhập hoặc mật khẩu" (tài khoản bị khóa)',
+  },
+  {
+    username: 'khach01',
+    password: 'Khach@12345',
+    role: 'CUSTOMER',
+    kind: 'CUSTOMER',
+    lastName: 'Khách Hàng',
+    firstName: 'Mẫu',
+    phone: '0900000001',
+    note: 'Đăng nhập mobile; thử đổi hồ sơ/mật khẩu',
+  },
+  {
+    username: 'khach02',
+    password: 'Khach@12345',
+    role: 'CUSTOMER',
+    kind: 'CUSTOMER',
+    lastName: 'Khách Hàng',
+    firstName: 'Thứ Hai',
+    phone: '0900000002',
+    note: 'Thử sửa SĐT thành 0900000001 → 409 PHONE_TAKEN',
+  },
+  {
+    username: 'khach_locked',
+    password: 'Khach@12345',
+    role: 'CUSTOMER',
+    kind: 'CUSTOMER',
+    lastName: 'Khách',
+    firstName: 'Bị Khóa',
+    phone: '0900000003',
+    locked: true,
+    note: 'Đăng nhập mobile phải bị từ chối (tài khoản khóa)',
+  },
+  {
+    username: 'khach_cu',
+    password: 'Khach@12345',
+    role: 'CUSTOMER',
+    kind: 'CUSTOMER',
+    lastName: 'Khách',
+    firstName: 'Đã Xóa Mềm',
+    phone: '0900000004',
+    deleted: true,
+    note: 'Đã xóa mềm: không đăng nhập được; đăng ký lại username "khach_cu" + SĐT 0900000004 phải thành công',
+  },
 ];
+
 
 const config = {
   server: process.env.DB_SERVER || 'localhost',
@@ -82,8 +159,8 @@ async function seedAccount(pool, a) {
         .input('ln', sql.NVarChar(50), a.lastName).input('fn', sql.NVarChar(50), a.firstName)
         .input('p', sql.VarChar(20), a.phone)
         .input('s', sql.Decimal(18, 2), a.salary || 0)
-        .query(`INSERT INTO employees (last_name, first_name, phone, base_salary, is_deleted, deleted_at)
-                VALUES (@ln, @fn, @p, @s, ${a.deleted ? 1 : 0}, ${a.deleted ? 'SYSUTCDATETIME()' : 'NULL'});
+        .query(`INSERT INTO employees (last_name, first_name, phone, is_deleted, deleted_at)
+                VALUES (@ln, @fn, @p, ${a.deleted ? 1 : 0}, ${a.deleted ? 'SYSUTCDATETIME()' : 'NULL'});
                 SELECT CAST(SCOPE_IDENTITY() AS INT) AS id;`);
       employeeId = e.recordset[0].id;
     } else {

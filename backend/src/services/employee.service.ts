@@ -28,7 +28,6 @@ export const employeeService = {
       return toPaged(
         rows.map((r) => ({
           ...r,
-          baseSalary: Number(r.baseSalary),
           isLocked: Boolean(r.isLocked),
         })),
         total,
@@ -36,18 +35,6 @@ export const employeeService = {
         q.size,
       );
     });
-<<<<<<< HEAD
-    return toPaged(
-      rows.map((r) => ({
-        ...r,
-        isLocked: Boolean(r.isLocked),
-      })),
-      total,
-      q.page,
-      q.size,
-    );
-=======
->>>>>>> origin/develop
   },
 
   async getDetail(employeeId: number) {
@@ -97,7 +84,6 @@ export const employeeService = {
           dateOfBirth: input.dateOfBirth,
           address: input.address,
           phone,
-          baseSalary: input.baseSalary ?? 0,
         },
         tx,
       );
@@ -137,7 +123,6 @@ export const employeeService = {
           dateOfBirth: input.dateOfBirth,
           address: input.address,
           phone,
-          baseSalary: input.baseSalary,
         },
         tx,
       );

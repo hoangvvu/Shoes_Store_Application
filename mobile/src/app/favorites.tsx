@@ -87,31 +87,6 @@ export default function FavoritesScreen() {
           )
         }
         ListFooterComponent={loadingMore ? <ActivityIndicator color={colors.primary} /> : undefined}
-<<<<<<< HEAD
-        renderItem={({ item }) => {
-          const imgUri = resolveProductImage(item.imageUrl);
-          return (
-            <TouchableOpacity
-              style={styles.card}
-              activeOpacity={0.85}
-              onPress={() => router.push(`/products/${item.productId}`)}
-            >
-              {imgUri ? (
-                <Image source={{ uri: imgUri }} style={styles.img} resizeMode="contain" />
-              ) : (
-                <View style={[styles.img, styles.imgPlaceholder]}>
-                  <Ionicons name="image-outline" size={28} color={colors.textMuted} />
-                </View>
-              )}
-              <View style={{ flex: 1, gap: 4 }}>
-                <Text style={styles.name} numberOfLines={2}>{item.productName}</Text>
-                <Text style={styles.price}>{formatVnd(item.currentPrice)}</Text>
-              </View>
-              <FavoriteButton productId={item.productId} />
-            </TouchableOpacity>
-          );
-        }}
-=======
         renderItem={({ item }) => (
           <View style={styles.card}>
             {item.imageUrl ? (
@@ -127,7 +102,6 @@ export default function FavoritesScreen() {
             <FavoriteButton productId={item.productId} />
           </View>
         )}
->>>>>>> origin/develop
       />
     </View>
   );

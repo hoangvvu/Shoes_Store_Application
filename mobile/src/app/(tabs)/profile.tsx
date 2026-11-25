@@ -29,7 +29,6 @@ export default function ProfileScreen() {
   const router = useRouter();
   const { clear, setUserName } = useAuthStore.getState();
 
-  // Profile data
   const [profile, setProfile] = useState<{
     fullName: string;
     lastName: string;
@@ -40,7 +39,6 @@ export default function ProfileScreen() {
     dateOfBirth: string | null;
   } | null>(null);
 
-  // Form states for Edit Profile Modal
   const [showEditModal, setShowEditModal] = useState(false);
   const [lastName, setLastName] = useState('');
   const [firstName, setFirstName] = useState('');
@@ -50,14 +48,12 @@ export default function ProfileScreen() {
   const [email, setEmail] = useState('');
   const [savingProfile, setSavingProfile] = useState(false);
 
-  // Form states for Change Password Modal
   const [showPwModal, setShowPwModal] = useState(false);
   const [oldPw, setOldPw] = useState('');
   const [newPw, setNewPw] = useState('');
   const [confirmPw, setConfirmPw] = useState('');
   const [savingPw, setSavingPw] = useState(false);
 
-  // Order status counts
   const [orderCounts, setOrderCounts] = useState<{
     pending: number;
     shipping: number;
@@ -190,12 +186,19 @@ export default function ProfileScreen() {
     }
   }
 
+  const displayName =
+    profile?.fullName?.trim() ||
+    [profile?.lastName, profile?.firstName].filter(Boolean).join(' ').trim() ||
+    'Khách hàng';
   const userInitial = profile?.firstName?.charAt(0).toUpperCase() || 'U';
 
   return (
     <ScrollView
       style={styles.screen}
-      contentContainerStyle={[styles.container, { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 32 }]}
+      contentContainerStyle={[
+        styles.container,
+        { paddingTop: insets.top + 8, paddingBottom: insets.bottom + 32 },
+      ]}
       showsVerticalScrollIndicator={false}
     >
       {/* Header with Back Button */}
@@ -217,40 +220,9 @@ export default function ProfileScreen() {
             <Ionicons name="checkmark" size={12} color={colors.white} />
           </View>
         </View>
-
-<<<<<<< HEAD
-        <Text style={styles.userName}>{profile?.fullName || 'Đang tải...'}</Text>
-        {!!(profile?.phone || profile?.email) && (
-          <Text style={styles.userPhone}>{profile?.phone || profile?.email}</Text>
-        )}
-=======
-      <Pressable style={styles.linkRow} onPress={() => router.push('/orders')}>
-        <Ionicons name="receipt-outline" size={22} color={colors.primary} />
-        <Text style={styles.linkText}>Đơn hàng của tôi</Text>
-        <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
-      </Pressable>
-
-      <Pressable style={styles.linkRow} onPress={() => router.push('/notifications')}>
-        <Ionicons name="notifications-outline" size={22} color={colors.primary} />
-        <Text style={styles.linkText}>Thông báo của tôi</Text>
-        <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
-      </Pressable>
-
-      <Pressable style={styles.linkRow} onPress={() => router.push('/addresses')}>
-        <Ionicons name="location-outline" size={22} color={colors.primary} />
-        <Text style={styles.linkText}>Địa chỉ giao hàng</Text>
-        <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
-      </Pressable>
-
-      <Text style={[styles.h2, { marginTop: 16 }]}>Đổi mật khẩu</Text>
-      <AppTextInput icon="lock-closed-outline" placeholder="Mật khẩu cũ" value={oldPw} onChangeText={setOldPw} secure />
-      <AppTextInput icon="lock-closed-outline" placeholder="Mật khẩu mới (8+ ký tự, hoa-thường-số)" value={newPw} onChangeText={setNewPw} secure />
-      <AppTextInput icon="lock-closed-outline" placeholder="Nhập lại mật khẩu mới" value={confirmPw} onChangeText={setConfirmPw} secure />
-      <PrimaryButton title="Đổi mật khẩu" onPress={changePassword} loading={savingPw} />
-
-      <View style={{ marginTop: 16 }}>
-        <Text style={styles.logout} onPress={logout}>Đăng xuất</Text>
->>>>>>> origin/develop
+        <Text style={styles.userName}>{displayName}</Text>
+        {!!profile?.phone && <Text style={styles.userPhone}>{profile.phone}</Text>}
+        {!!profile?.email && <Text style={styles.userPhone}>{profile.email}</Text>}
       </View>
 
       {/* Order Status Tracker */}
@@ -263,10 +235,7 @@ export default function ProfileScreen() {
         </View>
 
         <View style={styles.orderStatusGrid}>
-          <TouchableOpacity
-            style={styles.statusItem}
-            onPress={() => router.push('/orders')}
-          >
+          <TouchableOpacity style={styles.statusItem} onPress={() => router.push('/orders')}>
             <View style={[styles.statusIconBox, { backgroundColor: '#FFF7ED' }]}>
               <Ionicons name="time-outline" size={24} color="#EA580C" />
               {orderCounts.pending > 0 && (
@@ -278,10 +247,7 @@ export default function ProfileScreen() {
             <Text style={styles.statusLabel}>Chờ xử lý</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.statusItem}
-            onPress={() => router.push('/orders')}
-          >
+          <TouchableOpacity style={styles.statusItem} onPress={() => router.push('/orders')}>
             <View style={[styles.statusIconBox, { backgroundColor: '#EFF6FF' }]}>
               <Ionicons name="car-outline" size={24} color="#2563EB" />
               {orderCounts.shipping > 0 && (
@@ -293,12 +259,13 @@ export default function ProfileScreen() {
             <Text style={styles.statusLabel}>Đang giao</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.statusItem}
-            onPress={() => router.push('/orders')}
-          >
+          <TouchableOpacity style={styles.statusItem} onPress={() => router.push('/orders')}>
             <View style={[styles.statusIconBox, { backgroundColor: colors.primaryLight }]}>
-              <Ionicons name="checkmark-done-circle-outline" size={24} color={colors.primaryDark} />
+              <Ionicons
+                name="checkmark-done-circle-outline"
+                size={24}
+                color={colors.primaryDark}
+              />
               {orderCounts.delivered > 0 && (
                 <View style={[styles.counterBadge, { backgroundColor: colors.primary }]}>
                   <Text style={styles.counterBadgeText}>{orderCounts.delivered}</Text>
@@ -308,10 +275,7 @@ export default function ProfileScreen() {
             <Text style={styles.statusLabel}>Đã giao</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.statusItem}
-            onPress={() => router.push('/orders')}
-          >
+          <TouchableOpacity style={styles.statusItem} onPress={() => router.push('/orders')}>
             <View style={[styles.statusIconBox, { backgroundColor: '#FEF2F2' }]}>
               <Ionicons name="close-circle-outline" size={24} color={colors.danger} />
               {orderCounts.cancelled > 0 && (
@@ -325,12 +289,19 @@ export default function ProfileScreen() {
         </View>
       </View>
 
-      {/* Menu Action Items (Removed App Info & Settings as requested) */}
+      {/* Menu Action Items */}
       <View style={styles.menuCard}>
-        <TouchableOpacity
-          style={styles.menuRow}
-          onPress={() => router.push('/favorites')}
-        >
+        <TouchableOpacity style={styles.menuRow} onPress={() => router.push('/notifications')}>
+          <View style={[styles.menuIconBox, { backgroundColor: '#EFF6FF' }]}>
+            <Ionicons name="notifications-outline" size={20} color="#2563EB" />
+          </View>
+          <Text style={styles.menuText}>Thông báo của tôi</Text>
+          <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+        </TouchableOpacity>
+
+        <View style={styles.menuDivider} />
+
+        <TouchableOpacity style={styles.menuRow} onPress={() => router.push('/favorites')}>
           <View style={[styles.menuIconBox, { backgroundColor: '#FEF2F2' }]}>
             <Ionicons name="heart-outline" size={20} color={colors.danger} />
           </View>
@@ -340,10 +311,7 @@ export default function ProfileScreen() {
 
         <View style={styles.menuDivider} />
 
-        <TouchableOpacity
-          style={styles.menuRow}
-          onPress={() => router.push('/addresses')}
-        >
+        <TouchableOpacity style={styles.menuRow} onPress={() => router.push('/addresses')}>
           <View style={[styles.menuIconBox, { backgroundColor: '#F0FDF4' }]}>
             <Ionicons name="location-outline" size={20} color={colors.primary} />
           </View>
@@ -353,10 +321,7 @@ export default function ProfileScreen() {
 
         <View style={styles.menuDivider} />
 
-        <TouchableOpacity
-          style={styles.menuRow}
-          onPress={() => setShowEditModal(true)}
-        >
+        <TouchableOpacity style={styles.menuRow} onPress={() => setShowEditModal(true)}>
           <View style={[styles.menuIconBox, { backgroundColor: '#F8FAFC' }]}>
             <Ionicons name="person-outline" size={20} color={colors.text} />
           </View>
@@ -366,10 +331,7 @@ export default function ProfileScreen() {
 
         <View style={styles.menuDivider} />
 
-        <TouchableOpacity
-          style={styles.menuRow}
-          onPress={() => setShowPwModal(true)}
-        >
+        <TouchableOpacity style={styles.menuRow} onPress={() => setShowPwModal(true)}>
           <View style={[styles.menuIconBox, { backgroundColor: '#F8FAFC' }]}>
             <Ionicons name="lock-closed-outline" size={20} color={colors.text} />
           </View>
@@ -429,22 +391,30 @@ export default function ProfileScreen() {
                 onChangeText={setEmail}
                 keyboardType="email-address"
               />
-              <DatePickerField value={dob} onChange={setDob} placeholder="Ngày sinh (không bắt buộc)" />
+              <DatePickerField
+                value={dob}
+                onChange={setDob}
+                placeholder="Ngày sinh (không bắt buộc)"
+              />
 
               <View style={styles.genderRow}>
-                {([['MALE', 'Nam'], ['FEMALE', 'Nữ'], ['OTHER', 'Khác']] as const).map(
-                  ([value, text]) => (
-                    <Pressable
-                      key={value}
-                      onPress={() => setGender(gender === value ? null : value)}
-                      style={[styles.genderChip, gender === value && styles.genderChipActive]}
-                    >
-                      <Text style={[styles.genderText, gender === value && styles.genderTextActive]}>
-                        {text}
-                      </Text>
-                    </Pressable>
-                  ),
-                )}
+                {(
+                  [
+                    ['MALE', 'Nam'],
+                    ['FEMALE', 'Nữ'],
+                    ['OTHER', 'Khác'],
+                  ] as const
+                ).map(([value, text]) => (
+                  <Pressable
+                    key={value}
+                    onPress={() => setGender(gender === value ? null : value)}
+                    style={[styles.genderChip, gender === value && styles.genderChipActive]}
+                  >
+                    <Text style={[styles.genderText, gender === value && styles.genderTextActive]}>
+                      {text}
+                    </Text>
+                  </Pressable>
+                ))}
               </View>
 
               <PrimaryButton title="Lưu thông tin" onPress={saveProfile} loading={savingProfile} />
@@ -492,7 +462,11 @@ export default function ProfileScreen() {
                 secure
               />
 
-              <PrimaryButton title="Xác nhận đổi mật khẩu" onPress={changePassword} loading={savingPw} />
+              <PrimaryButton
+                title="Xác nhận đổi mật khẩu"
+                onPress={changePassword}
+                loading={savingPw}
+              />
             </ScrollView>
           </View>
         </View>
@@ -691,8 +665,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.danger,
   },
-
-  // Modals
   modalBackdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.45)',

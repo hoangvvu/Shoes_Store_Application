@@ -1,6 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  type ComponentRef,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   ActivityIndicator,
   Dimensions,
@@ -17,18 +24,10 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-<<<<<<< HEAD
 import { resolveProductImage } from '@/components/ProductDetailModal';
 import { useAuthUser } from '@/hooks/useAuth';
 import { bannerService } from '@/services/banner.service';
-=======
-import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import { Logo } from '@/components/Logo';
-import { ProductDetailModal, resolveProductImage } from '@/components/ProductDetailModal';
-import { useAuthUser } from '@/hooks/useAuth';
 import { notificationService } from '@/services/notification.service';
->>>>>>> origin/develop
 import { productService } from '@/services/product.service';
 import { useCartStore } from '@/store/useCartStore';
 import { useFavoriteStore } from '@/store/useFavoriteStore';
@@ -94,30 +93,26 @@ export default function HomeScreen() {
   const user = useAuthUser();
   const insets = useSafeAreaInsets();
   const cartLineCount = useCartStore((s) => s.cart.lineCount);
-  const { ids: favoriteIds, toggle: toggleFavorite, ensureLoaded: ensureFavoritesLoaded } = useFavoriteStore();
+  const { ids: favoriteIds, toggle: toggleFavorite, ensureLoaded: ensureFavoritesLoaded } =
+    useFavoriteStore();
 
   const [products, setProducts] = useState<ProductListItem[]>([]);
   const [activeGroup, setActiveGroup] = useState<HomeGroupKey>('all');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
-<<<<<<< HEAD
   const [activeBannerIdx, setActiveBannerIdx] = useState(0);
   const [banners, setBanners] = useState<Banner[]>([]);
-=======
-  const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
   const [unreadCount, setUnreadCount] = useState<number>(0);
 
+  const bannerScrollRef = useRef<ComponentRef<typeof ScrollView>>(null);
+
   const fetchUnread = useCallback(() => {
-    notificationService.getUnreadCount().then(setUnreadCount).catch(() => {});
+    notificationService
+      .getUnreadCount()
+      .then(setUnreadCount)
+      .catch(() => {});
   }, []);
-
-  useEffect(() => {
-    fetchUnread();
-  }, [fetchUnread]);
->>>>>>> origin/develop
-
-  const bannerScrollRef = useRef<any>(null);
 
   const loadBanners = useCallback(async () => {
     try {
@@ -136,8 +131,6 @@ export default function HomeScreen() {
       });
       let items = res.items;
 
-      // Nếu backend đang chạy bản cũ chưa restart sau khi build (chưa trả về discountPercent ở /products),
-      // tự động lấy finalPrice thực tế từ /products/:id (bảng promotion_products)
       if (items.length > 0 && items[0].discountPercent === undefined) {
         items = await Promise.all(
           items.map(async (it) => {
@@ -173,23 +166,18 @@ export default function HomeScreen() {
 
   useEffect(() => {
     ensureFavoritesLoaded().catch(() => {});
+    fetchUnread();
     loadBanners();
     loadProducts();
-  }, [ensureFavoritesLoaded, loadBanners, loadProducts]);
+  }, [ensureFavoritesLoaded, fetchUnread, loadBanners, loadProducts]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-<<<<<<< HEAD
+    fetchUnread();
     loadProducts();
     loadBanners();
-  }, [loadProducts, loadBanners]);
-=======
-    fetchUnread();
-    loadProducts(search, selectedCatId);
-  }, [fetchUnread, loadProducts, search, selectedCatId]);
->>>>>>> origin/develop
+  }, [fetchUnread, loadProducts, loadBanners]);
 
-  // Auto-scroll banner horizontally to the left every 3.5 seconds
   const currentBannerCount = banners.length > 0 ? banners.length : BANNERS.length;
   useEffect(() => {
     if (currentBannerCount <= 1) return;
@@ -215,7 +203,6 @@ export default function HomeScreen() {
     }
   };
 
-  // Navigate to separate Search page displaying relevant products
   const handleSearchSubmit = () => {
     Keyboard.dismiss();
     const q = search.trim();
@@ -225,14 +212,13 @@ export default function HomeScreen() {
     });
   };
 
-  // Product groups:
-  // 1. Sản phẩm bán chạy: Dựa vào số lượng đã bán thực tế (soldCount > 0) từ các đơn hàng không bị hủy
   const bestSellerProducts = useMemo(() => {
     const withSold = products.filter((p) => (p.soldCount ?? 0) > 0);
     if (withSold.length > 0) {
-      return [...withSold].sort((a, b) => (b.soldCount ?? 0) - (a.soldCount ?? 0) || b.productId - a.productId);
+      return [...withSold].sort(
+        (a, b) => (b.soldCount ?? 0) - (a.soldCount ?? 0) || b.productId - a.productId,
+      );
     }
-    // Fallback nếu backend chưa restart (dựa trên lượt đánh giá / đơn hàng đã mua)
     const withReviews = products.filter((p) => (p.reviewCount ?? 0) > 0);
     if (withReviews.length > 0) {
       return [...withReviews].sort((a, b) => (b.reviewCount ?? 0) - (a.reviewCount ?? 0));
@@ -240,12 +226,10 @@ export default function HomeScreen() {
     return [...products].slice(0, 6);
   }, [products]);
 
-  // 2. Sản phẩm mới: Lấy các sản phẩm mới ra mắt (sắp xếp theo productId mới nhất giảm dần, tối đa 8 mẫu mới nhất)
   const newestProducts = useMemo(() => {
     return [...products].sort((a, b) => b.productId - a.productId).slice(0, 8);
   }, [products]);
 
-  // 3. Sản phẩm giảm giá: Chỉ lấy các sản phẩm đang có chương trình khuyến mãi giảm giá hiệu lực (discountPercent > 0)
   const discountProducts = useMemo(() => {
     return [...products]
       .filter((p) => (p.discountPercent ?? 0) > 0)
@@ -281,7 +265,6 @@ export default function HomeScreen() {
             </View>
           )}
 
-          {/* Top-left Group Badge */}
           {badgeType === 'discount' || discountPct > 0 ? (
             <View style={[styles.typeBadge, { backgroundColor: '#E11D48' }]}>
               <Text style={styles.typeBadgeText}>-{discountPct}%</Text>
@@ -296,7 +279,6 @@ export default function HomeScreen() {
             </View>
           ) : null}
 
-          {/* Favorite heart button */}
           <TouchableOpacity
             style={styles.favBtn}
             hitSlop={8}
@@ -331,9 +313,7 @@ export default function HomeScreen() {
           <View style={styles.ratingRow}>
             <Ionicons name="star" size={13} color={colors.star} />
             <Text style={styles.ratingText}>{ratingLabel}</Text>
-            <Text style={styles.stockLabel}>
-              · Đã bán {soldCount}
-            </Text>
+            <Text style={styles.stockLabel}>· Đã bán {soldCount}</Text>
           </View>
 
           <View style={styles.priceRow}>
@@ -356,7 +336,6 @@ export default function HomeScreen() {
     );
   };
 
-<<<<<<< HEAD
   const renderGridSection = (
     title: string,
     subtitle: string,
@@ -373,47 +352,6 @@ export default function HomeScreen() {
         {onSeeMore && (
           <TouchableOpacity onPress={onSeeMore}>
             <Text style={styles.seeAllText}>Xem tất cả &gt;</Text>
-=======
-  return (
-    <View style={[styles.container, { paddingTop: insets.top + 16 }]}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <Logo />
-          <Text style={styles.hello}>Xin chào, {user?.fullName || 'bạn'} 👋</Text>
-        </View>
-
-        {/* Nút Chuông Thông Báo */}
-        <TouchableOpacity
-          style={styles.bellButton}
-          onPress={() => router.push('/notifications')}
-          accessibilityLabel="Thông báo"
-          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-        >
-          <Ionicons name="notifications-outline" size={24} color={colors.text} />
-          {unreadCount > 0 && (
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>
-                {unreadCount > 99 ? '99+' : unreadCount}
-              </Text>
-            </View>
-          )}
-        </TouchableOpacity>
-      </View>
-
-      {/* Search Input */}
-      <View style={styles.searchBox}>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Tìm kiếm giày theo tên, thương hiệu..."
-          placeholderTextColor={colors.textMuted}
-          value={search}
-          onChangeText={setSearch}
-        />
-        {search.length > 0 && (
-          <TouchableOpacity onPress={() => setSearch('')}>
-            <Text style={styles.clearBtn}>✕</Text>
->>>>>>> origin/develop
           </TouchableOpacity>
         )}
       </View>
@@ -424,7 +362,8 @@ export default function HomeScreen() {
     </View>
   );
 
-  const displayName = user?.fullName || 'bạn';
+  const fullName = [user?.lastName, user?.firstName].filter(Boolean).join(' ').trim(); //[cite: 3]
+  const displayName = fullName || user?.username || 'bạn'; //[cite: 3]
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + 8 }]}>
@@ -440,12 +379,29 @@ export default function HomeScreen() {
         <View style={styles.topActions}>
           <TouchableOpacity
             style={styles.iconCircle}
+            onPress={() => router.push('/notifications')}
+            accessibilityLabel="Thông báo"
+          >
+            <Ionicons name="notifications-outline" size={22} color={colors.text} />
+            {unreadCount > 0 && (
+              <View style={styles.cartBadge}>
+                <Text style={styles.cartBadgeText}>
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.iconCircle}
             onPress={() => router.push('/(tabs)/cart')}
           >
             <Ionicons name="bag-handle-outline" size={22} color={colors.text} />
             {cartLineCount > 0 && (
               <View style={styles.cartBadge}>
-                <Text style={styles.cartBadgeText}>{cartLineCount > 99 ? '99+' : cartLineCount}</Text>
+                <Text style={styles.cartBadgeText}>
+                  {cartLineCount > 99 ? '99+' : cartLineCount}
+                </Text>
               </View>
             )}
           </TouchableOpacity>
@@ -460,7 +416,7 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      {/* Search Bar that opens dedicated Search Results Screen (no suggestion dropdown) */}
+      {/* Search Bar */}
       <View style={styles.searchRow}>
         <View style={styles.searchBox}>
           <Ionicons name="search" size={20} color={colors.textMuted} style={styles.searchIcon} />
@@ -590,7 +546,7 @@ export default function HomeScreen() {
           </View>
         )}
 
-        {/* Group Filter Tabs (replaces Category chips: Bán chạy, Sản phẩm mới, Sản phẩm giảm giá) */}
+        {/* Group Filter Tabs */}
         <View style={styles.groupTabsWrap}>
           <ScrollView
             horizontal
@@ -684,106 +640,7 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-<<<<<<< HEAD
   topBar: {
-=======
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    marginBottom: 12,
-  },
-  headerLeft: {
-    flex: 1,
-  },
-  bellButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#F1F5F9',
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-  },
-  badge: {
-    position: 'absolute',
-    top: 2,
-    right: 2,
-    backgroundColor: '#EF4444',
-    borderRadius: 10,
-    minWidth: 18,
-    height: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 4,
-    borderWidth: 1.5,
-    borderColor: '#FFFFFF',
-  },
-  badgeText: {
-    color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: 'bold',
-  },
-  hello: { fontSize: 20, fontWeight: '700', color: colors.text, marginTop: 4 },
-  searchBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f1f5f9',
-    borderRadius: 10,
-    marginHorizontal: 16,
-    paddingHorizontal: 12,
-    marginBottom: 10,
-  },
-  searchInput: { flex: 1, height: 42, color: colors.text, fontSize: 14 },
-  clearBtn: { color: colors.textMuted, fontSize: 16, padding: 4 },
-  catWrap: { marginBottom: 12 },
-  catScroll: { paddingHorizontal: 16, gap: 8 },
-  catChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 20,
-    backgroundColor: '#f1f5f9',
-  },
-  catChipActive: {
-    backgroundColor: colors.primary,
-  },
-  catText: {
-    fontSize: 13,
-    color: '#475569',
-    fontWeight: '500',
-  },
-  catTextActive: {
-    color: '#fff',
-    fontWeight: '700',
-  },
-  listContent: { paddingHorizontal: 14, paddingBottom: 28 },
-  columnWrapper: { justifyContent: 'space-between', marginBottom: 14 },
-  card: {
-    width: '48.5%',
-    backgroundColor: '#ffffff',
-    borderRadius: 14,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  productImage: { width: '100%', height: 145 },
-  imagePlaceholder: {
-    width: '100%',
-    height: 145,
-    backgroundColor: '#f8fafc',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  placeholderText: { fontSize: 44 },
-  cardInfo: { padding: 10 },
-  tagRow: {
->>>>>>> origin/develop
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',

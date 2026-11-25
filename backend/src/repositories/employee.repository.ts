@@ -28,7 +28,6 @@ export const employeeRepository = {
       gender?: Gender;
       email?: string;
       hireDate?: Date;
-      baseSalary?: number;
     },
     exec?: Executor,
   ): Promise<number> {
@@ -57,7 +56,6 @@ export const employeeRepository = {
         gender: [sql.VarChar(10), d.gender ?? null],
         email: [sql.VarChar(100), d.email ?? null],
         hire: [sql.Date, d.hireDate ?? null],
-        salary: [sql.Decimal(18, 2), d.baseSalary ?? 0],
       },
       exec,
     );
@@ -68,7 +66,7 @@ export const employeeRepository = {
     const r = await query<EmployeeRow>(
       `SELECT employee_id AS employeeId, last_name AS lastName, first_name AS firstName,
               LTRIM(RTRIM(CONCAT(last_name, N' ', first_name))) AS fullName, date_of_birth AS dateOfBirth,
-              address, phone, gender, email, hire_date AS hireDate, base_salary AS baseSalary
+              address, phone, gender, email, hire_date AS hireDate
        FROM employees WHERE employee_id = @id AND is_deleted = 0`,
       { id: [sql.Int, employeeId] },
       exec,
@@ -157,7 +155,6 @@ export const employeeRepository = {
       dateOfBirth?: Date;
       address?: string;
       phone?: string;
-      baseSalary?: number;
       gender?: Gender | null;
       email?: string | null;
     },
@@ -193,7 +190,6 @@ export const employeeRepository = {
         dob: [sql.Date, d.dateOfBirth ?? null],
         address: [sql.NVarChar(255), d.address ?? null],
         phone: [sql.VarChar(20), d.phone ?? null],
-        salary: [sql.Decimal(18, 2), d.baseSalary ?? null],
         genderSet: [sql.Bit, d.gender !== undefined],
         gender: [sql.VarChar(10), d.gender ?? null],
         emailSet: [sql.Bit, d.email !== undefined],

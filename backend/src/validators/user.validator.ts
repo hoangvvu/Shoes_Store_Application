@@ -19,7 +19,6 @@ export const createEmployeeUserSchema = z.object({
   gender: genderField.optional(),
   email: emailField.optional(),
   hireDate: hireDateField.optional(),
-  baseSalary: z.coerce.number().min(0, 'Lương cơ bản không được âm').optional(),
 });
 
 export const lockSchema = z.object({ isLocked: z.boolean({ required_error: 'Thiếu isLocked' }) });

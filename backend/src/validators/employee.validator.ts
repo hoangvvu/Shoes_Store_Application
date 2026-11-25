@@ -11,7 +11,6 @@ export const createEmployeeSchema = z.object({
   dateOfBirth: adultBirthDateField.optional(),
   address: z.string().trim().max(255).optional(),
   phone: employeePhoneField.optional(),
-  baseSalary: z.coerce.number().min(0, 'Lương cơ bản không được âm').optional(),
 });
 
 export const updateEmployeeSchema = z.object({
@@ -19,7 +18,6 @@ export const updateEmployeeSchema = z.object({
   dateOfBirth: adultBirthDateField.optional(),
   address: z.string().trim().max(255).optional(),
   phone: employeePhoneField.optional(),
-  baseSalary: z.coerce.number().min(0, 'Lương cơ bản không được âm').optional(),
 });
 
 export const employeeListQuery = paginationQuery.extend({

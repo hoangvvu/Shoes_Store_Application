@@ -43,7 +43,6 @@ export const userService = {
             gender: input.gender,
             email: input.email,
             hireDate: input.hireDate,
-            baseSalary: input.baseSalary,
           },
           tx,
         );

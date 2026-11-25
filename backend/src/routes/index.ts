@@ -23,12 +23,9 @@ import supplierRoutes from './supplier.routes';
 import uploadRoutes from './upload.routes';
 import userRoutes from './user.routes';
 import inventoryRoutes from './inventory.routes';
-<<<<<<< HEAD
 import bannerRoutes from './banner.routes';
-=======
 import { adminNotificationRouter, customerNotificationRouter } from './notification.routes';
 import { promotionsRouter, vouchersRouter } from './promotion.routes';
->>>>>>> origin/develop
 
 const router = Router();
 router.use('/auth', authRoutes);
@@ -66,5 +63,7 @@ router.use('/webhooks', webhookRouter);
 router.use('/refunds', refundsRouter);
 router.use('/uploads', uploadRoutes);
 router.use('/banners', bannerRoutes);
+router.use('/promotions', promotionsRouter);
+router.use('/vouchers', vouchersRouter);
 
 export default router;

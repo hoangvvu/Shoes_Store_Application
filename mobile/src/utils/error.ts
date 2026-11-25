@@ -6,5 +6,8 @@ export function getErrorMessage(err: unknown, fallback = 'Đã có lỗi xảy r
     if (!err.response) return 'Không kết nối được máy chủ. Hãy kiểm tra mạng và địa chỉ API.';
     return err.response.data?.message ?? fallback;
   }
+  if (err instanceof Error && err.message) {
+    return err.message;
+  }
   return fallback;
 }
